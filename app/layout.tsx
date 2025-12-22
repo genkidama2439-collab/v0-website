@@ -1,10 +1,12 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { GeistSans } from "geist/font/sans"
-import { GeistMono } from "geist/font/mono"
+import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" })
 
 export const metadata: Metadata = {
   title: "海亀兄弟予約ページ | 宮古島マリン体験",
@@ -32,21 +34,18 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ja">
+    <html lang="ja" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <head>
         <link rel="preconnect" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" />
-        {/* </CHANGE> */}
 
         <link rel="preload" as="image" href="/images/hero-aerial-ocean.jpg" type="image/jpeg" fetchPriority="high" />
-        {/* </CHANGE> */}
 
         <link rel="preload" as="image" href="/images/s1-sea-turtle-snorkeling.jpg" type="image/jpeg" />
         <link rel="preload" as="image" href="/images/s2-sea-turtle-closeup.jpg" type="image/jpeg" />
         <link rel="preload" as="image" href="/images/night-hunter-crab.jpg" type="image/jpeg" />
-        {/* </CHANGE> */}
       </head>
-      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
+      <body className="font-sans antialiased">
         <Suspense fallback={null}>
           {children}
           <Analytics />

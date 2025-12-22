@@ -75,8 +75,8 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -121,9 +121,7 @@
   }
 
   html {
-    /* Prevent horizontal page scrolling */
     overflow-x: hidden;
-    /* iOS-specific fixes to prevent screen movement */
     height: 100%;
     position: fixed;
     width: 100%;
@@ -133,10 +131,8 @@
 
   body {
     @apply bg-gradient-to-b from-teal-50 via-cyan-50 to-emerald-50 text-foreground;
-    /* Prevent horizontal page scrolling and overscroll bounce */
     overflow-x: hidden;
     overscroll-behavior: contain;
-    /* Additional iOS fixes */
     height: 100vh;
     overflow-y: auto;
     position: relative;
@@ -144,7 +140,6 @@
     touch-action: manipulation;
   }
 
-  /* iOS Safari specific fixes */
   @supports (-webkit-touch-callout: none) {
     html {
       height: -webkit-fill-available;
@@ -157,7 +152,7 @@
   }
 }
 
-/* Enhanced iOS-specific touch handling */
+/* Consolidated animation and utility classes, removed redundant definitions */
 .ios-scroll-fix {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: none;
@@ -165,39 +160,39 @@
   position: relative;
 }
 
-/* Smart slider CSS classes for angle-based swipe detection */
-.slider-smart {
-  overscroll-behavior-x: contain; /* 端で親へ連鎖しない */
-  -webkit-overflow-scrolling: touch;
-  /* Allow both horizontal and vertical touch actions */
-  touch-action: auto;
-  overscroll-behavior-y: auto;
-  /* Let browser handle all scrolling naturally */
-}
-
-.slide-smart {
-  will-change: transform, opacity;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  /* Additional iOS optimization */
-  -webkit-transform: translateZ(0);
-}
-
-/* Prevent iOS rubber band scrolling on main container */
 .main-container {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
   touch-action: manipulation;
 }
 
-/* Fix for iOS viewport units */
 .min-h-screen-ios {
   min-height: 100vh;
   min-height: -webkit-fill-available;
 }
 
-/* Custom animations for bubble effects and glass reflections */
+/* Mobile scroll optimization */
+.mobile-scroll-container {
+  touch-action: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-smooth {
+  scroll-behavior: smooth;
+}
+
+/* Animations */
 @keyframes rise {
   0% {
     transform: translateY(100vh) scale(0);
@@ -263,33 +258,4 @@
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   animation: glint 3s ease-in-out infinite;
   z-index: 1;
-}
-
-/* Enhanced mobile scroll optimization */
-.mobile-scroll-container {
-  touch-action: auto;
-  overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-}
-
-/* Allow both horizontal and vertical scrolling */
-.horizontal-scroll-only {
-  touch-action: auto;
-  overscroll-behavior: contain;
-}
-
-/* Adding scrollbar-hide utility for mobile horizontal scroll */
-.scrollbar-hide {
-  -ms-overflow-style: none; /* Internet Explorer 10+ */
-  scrollbar-width: none; /* Firefox */
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none; /* Safari and Chrome */
-}
-
-/* Improved horizontal scroll handling - removed conflicting slider-smart class */
-.scroll-smooth {
-  scroll-behavior: smooth;
 }

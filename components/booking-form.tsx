@@ -157,63 +157,57 @@ export function BookingForm() {
   const createParticipants = useCallback(
     (adultCount: number, childCount: number, under3Count: number, existingParticipants: ParticipantDetails[]) => {
       const newParticipants: ParticipantDetails[] = []
-      let participantIndex = 0
+
+      const existingAdults = existingParticipants.filter((p) => p.category === "adult")
+      const existingChildren = existingParticipants.filter((p) => p.category === "child")
+      const existingUnder3 = existingParticipants.filter((p) => p.category === "under3")
 
       // Add adults
       for (let i = 0; i < adultCount; i++) {
-        const existing = existingParticipants.find(
-          (p) => p.category === "adult" && participantIndex < existingParticipants.length,
-        )
+        const existing = existingAdults[i]
         newParticipants.push(
           existing || {
             id: generateParticipantId("adult", i),
             name: "",
-            age: "", // Changed from 0 to empty string to allow input
-            height: "", // Changed from 0 to empty string to allow input
-            weight: "", // Changed from 0 to empty string to allow input
-            footSize: "", // Changed from 0 to empty string to allow input
+            age: "",
+            height: "",
+            weight: "",
+            footSize: "",
             category: "adult",
           },
         )
-        participantIndex++
       }
 
       // Add children
       for (let i = 0; i < childCount; i++) {
-        const existing = existingParticipants.find(
-          (p) => p.category === "child" && participantIndex < existingParticipants.length,
-        )
+        const existing = existingChildren[i]
         newParticipants.push(
           existing || {
             id: generateParticipantId("child", i),
             name: "",
-            age: "", // Changed from 0 to empty string to allow input
-            height: "", // Changed from 0 to empty string to allow input
-            weight: "", // Changed from 0 to empty string to allow input
-            footSize: "", // Changed from 0 to empty string to allow input
+            age: "",
+            height: "",
+            weight: "",
+            footSize: "",
             category: "child",
           },
         )
-        participantIndex++
       }
 
       // Add under-3
       for (let i = 0; i < under3Count; i++) {
-        const existing = existingParticipants.find(
-          (p) => p.category === "under3" && participantIndex < existingParticipants.length,
-        )
+        const existing = existingUnder3[i]
         newParticipants.push(
           existing || {
             id: generateParticipantId("under3", i),
             name: "",
-            age: "", // Changed from 0 to empty string to allow input
-            height: "", // Changed from 0 to empty string to allow input
-            weight: "", // Changed from 0 to empty string to allow input
-            footSize: "", // Changed from 0 to empty string to allow input
+            age: "",
+            height: "",
+            weight: "",
+            footSize: "",
             category: "under3",
           },
         )
-        participantIndex++
       }
 
       return newParticipants

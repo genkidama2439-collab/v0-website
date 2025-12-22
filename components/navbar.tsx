@@ -26,6 +26,7 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-emerald-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
+          {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 min-w-0 flex-shrink-0">
             <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center flex-shrink-0">
               <TurtleLogo size={32} className="sm:w-10 sm:h-10" />
@@ -46,6 +47,7 @@ export default function Navbar() {
             ))}
           </div>
 
+          {/* Desktop CTA Buttons */}
           <div className="hidden md:flex items-center space-x-4">
             <Button
               variant="outline"
@@ -61,14 +63,21 @@ export default function Navbar() {
             </Button>
           </div>
 
+          {/* Mobile Menu Button */}
           <div className="md:hidden flex-shrink-0 ml-2">
-            <Button variant="ghost" size="sm" onClick={() => setIsOpen(!isOpen)} aria-label="メニュー">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsOpen(!isOpen)}
+              aria-label="メニュー"
+              aria-expanded={isOpen}
+            >
               {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </Button>
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation Menu */}
         {isOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 bg-white/95 backdrop-blur-xl rounded-lg mt-2 border border-emerald-100">
@@ -83,6 +92,7 @@ export default function Navbar() {
                 </Link>
               ))}
 
+              {/* Mobile CTA Buttons */}
               <div className="pt-2 space-y-2">
                 <Button
                   variant="outline"

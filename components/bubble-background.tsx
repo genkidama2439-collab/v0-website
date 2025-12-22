@@ -2,6 +2,15 @@
 
 import { useEffect, useState } from "react"
 
+const BUBBLE_CONFIG = {
+  count: 15,
+  minSize: 20,
+  maxSize: 80,
+  minDuration: 15,
+  maxDuration: 25,
+  maxDelay: 10,
+} as const
+
 interface Bubble {
   id: number
   size: number
@@ -15,16 +24,13 @@ export function BubbleBackground() {
 
   useEffect(() => {
     const generateBubbles = () => {
-      const newBubbles: Bubble[] = []
-      for (let i = 0; i < 15; i++) {
-        newBubbles.push({
-          id: i,
-          size: Math.random() * 60 + 20, // 20-80px
-          left: Math.random() * 100, // 0-100%
-          duration: Math.random() * 10 + 15, // 15-25s
-          delay: Math.random() * 10, // 0-10s delay
-        })
-      }
+      const newBubbles: Bubble[] = Array.from({ length: BUBBLE_CONFIG.count }, (_, i) => ({
+        id: i,
+        size: Math.random() * (BUBBLE_CONFIG.maxSize - BUBBLE_CONFIG.minSize) + BUBBLE_CONFIG.minSize,
+        left: Math.random() * 100,
+        duration: Math.random() * (BUBBLE_CONFIG.maxDuration - BUBBLE_CONFIG.minDuration) + BUBBLE_CONFIG.minDuration,
+        delay: Math.random() * BUBBLE_CONFIG.maxDelay,
+      }))
       setBubbles(newBubbles)
     }
 

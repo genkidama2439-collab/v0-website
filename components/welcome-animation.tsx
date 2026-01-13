@@ -8,26 +8,38 @@ export function WelcomeAnimation() {
   const [phase, setPhase] = useState<"initial" | "text" | "reveal" | "complete" | "done">("initial")
 
   const completeAnimation = useCallback(() => {
+    console.log("[v0] Animation complete, setting phase to done")
     setPhase("done")
     sessionStorage.setItem("welcomeAnimationSeen", "true")
   }, [])
 
   useEffect(() => {
     const hasSeenAnimation = sessionStorage.getItem("welcomeAnimationSeen")
+    console.log("[v0] Welcome animation mount. Has seen animation:", hasSeenAnimation)
 
     if (hasSeenAnimation) {
+      console.log("[v0] Animation already seen, skipping")
       setPhase("done")
       return
     }
 
     // Phase 1: Text appears (after 800ms of silence)
-    const textTimer = setTimeout(() => setPhase("text"), 800)
+    const textTimer = setTimeout(() => {
+      console.log("[v0] Phase: text")
+      setPhase("text")
+    }, 800)
 
     // Phase 2: Background reveal (1.5s after text)
-    const revealTimer = setTimeout(() => setPhase("reveal"), 3500)
+    const revealTimer = setTimeout(() => {
+      console.log("[v0] Phase: reveal")
+      setPhase("reveal")
+    }, 3500)
 
     // Phase 3: Complete (transition to site)
-    const completeTimer = setTimeout(() => setPhase("complete"), 5500)
+    const completeTimer = setTimeout(() => {
+      console.log("[v0] Phase: complete")
+      setPhase("complete")
+    }, 5500)
 
     // Phase 4: Done (remove overlay)
     const doneTimer = setTimeout(completeAnimation, 6500)
@@ -39,6 +51,8 @@ export function WelcomeAnimation() {
       clearTimeout(doneTimer)
     }
   }, [completeAnimation])
+
+  console.log("[v0] Current phase:", phase)
 
   if (phase === "done") return null
 

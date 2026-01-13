@@ -45,6 +45,14 @@ export default function RootLayout({
         <link rel="preconnect" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" />
 
+        <link
+          rel="preload"
+          as="image"
+          href="/images/gemini-generated-image-rq969urq969urq96.jpeg"
+          type="image/jpeg"
+          fetchPriority="high"
+        />
+
         <link rel="preload" as="image" href="/images/hero-aerial-ocean.jpg" type="image/jpeg" fetchPriority="high" />
 
         <link rel="preload" as="image" href="/images/s1-sea-turtle-snorkeling.jpg" type="image/jpeg" />

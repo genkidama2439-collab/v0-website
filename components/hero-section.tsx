@@ -1,7 +1,5 @@
-import Link from "next/link"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Star, MessageCircle, Calendar } from "lucide-react"
+import { Star } from "lucide-react"
 import { BLUR_DATA_URLS } from "@/lib/data"
 
 export function HeroSection() {
@@ -49,36 +47,6 @@ export function HeroSection() {
           <p className="text-lg sm:text-xl text-white/90 mb-8 max-w-2xl mx-auto drop-shadow-md">
             初心者・お子様大歓迎。感動の海亀体験をお届けします。
           </p>
-
-          {/* CTA buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
-            <Button
-              asChild
-              size="lg"
-              className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-8 py-7 text-lg font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 min-w-[200px]"
-            >
-              <Link href="/book" className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                予約する
-              </Link>
-            </Button>
-            {/* </CHANGE> */}
-            <Button
-              asChild
-              size="lg"
-              className="bg-[#06C755] hover:bg-[#05B74C] text-white rounded-full px-8 py-7 text-lg font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 min-w-[200px]"
-            >
-              <a
-                href="https://lin.ee/Um9DIqO"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2"
-              >
-                <MessageCircle className="w-5 h-5" />
-                LINEで相談
-              </a>
-            </Button>
-          </div>
 
           {/* Trust badges */}
           <div className="flex flex-wrap justify-center gap-3 text-white/90 text-sm font-medium">

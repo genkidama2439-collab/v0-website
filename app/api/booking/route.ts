@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
 function generateBookingNumber(date: string): string {
-  const dateStr = date.replace(/-/g, "")
+  const dateStr = date.replace(/-/g, "") // Remove hyphens: 2026-01-13 -> 20260113
   const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase()
   return `#KAI-${dateStr}-${randomStr}`
 }
@@ -34,7 +34,9 @@ export async function POST(request: Request) {
     }
 
     const gasUrl =
-      "https://script.google.com/macros/s/AKfycbzbqUzjz4utNEQoZQLeqWuf2r64AXPsOQKF9_-QDdeYGT8fL89n7Gf36c8Z2dJj802vtg/exec"
+      "https://script.google.com/macros/s/AKfycbz0ltHt_0WcQVw-KUD4iG5yvH32RGYgXkO6ajVjafiPtdRAK1rloQj7rmiXmk3o_Pte/exec"
+
+    console.log("[v0] Sending booking to GAS:", { bookingNumber, gasUrl })
 
     const response = await fetch(gasUrl, {
       method: "POST",
@@ -46,19 +48,21 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error("[v0] GAS error:", errorText)
-      return NextResponse.json(
-        { error: `メール送信に失敗しました: ${response.status} ${response.statusText}` },
-        { status: 500 },
-      )
+      console.error("[v0] GAS response error:", {
+        status: response.status,
+        statusText: response.statusText,
+        errorText,
+      })
+      return NextResponse.json({ error: "送信失敗" }, { status: 500 })
     }
 
     const result = await response.json()
+    console.log("[v0] GAS response success:", result)
 
     return NextResponse.json({ success: true, bookingNumber })
   } catch (error) {
     console.error("[v0] Booking API error:", error)
     const errorMessage = error instanceof Error ? error.message : "不明なエラー"
-    return NextResponse.json({ error: `予約処理中にエラーが発生しました: ${errorMessage}` }, { status: 500 })
+    return NextResponse.json({ error: "送信失敗" }, { status: 500 })
   }
 }

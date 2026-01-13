@@ -1,79 +1,165 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { TurtleLogo } from "./TurtleLogo"
+import Image from "next/image"
 
 export function WelcomeAnimation() {
-  const [isVisible, setIsVisible] = useState(false)
-  const [shouldRender, setShouldRender] = useState(false)
+  const [phase, setPhase] = useState<"initial" | "reveal" | "fadeout" | "done">("initial")
 
   useEffect(() => {
-    // Check if user has already seen the animation in this session
     const hasSeenAnimation = sessionStorage.getItem("welcomeAnimationSeen")
 
     if (!hasSeenAnimation) {
-      setShouldRender(true)
-      // Show animation after a brief delay
-      setTimeout(() => setIsVisible(true), 100)
+      // Start reveal phase
+      setTimeout(() => setPhase("reveal"), 100)
 
-      // Hide animation after 2.5 seconds
-      setTimeout(() => setIsVisible(false), 2500)
+      // Start fadeout
+      setTimeout(() => setPhase("fadeout"), 3000)
 
-      // Remove from DOM after fade out completes
+      // Complete
       setTimeout(() => {
-        setShouldRender(false)
+        setPhase("done")
         sessionStorage.setItem("welcomeAnimationSeen", "true")
-      }, 3000)
+      }, 3800)
+    } else {
+      setPhase("done")
     }
   }, [])
 
-  if (!shouldRender) return null
+  if (phase === "done") return null
 
   return (
     <div
-      className={`fixed inset-0 z-[100] bg-gradient-to-b from-emerald-50 to-sky-50 flex items-center justify-center transition-opacity duration-500 ${
-        isVisible ? "opacity-100" : "opacity-0"
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden transition-opacity duration-700 ease-out ${
+        phase === "fadeout" ? "opacity-0" : "opacity-100"
       }`}
     >
-      <div className="flex flex-col items-center space-y-6 animate-in fade-in zoom-in-95 duration-700">
-        {/* Turtle Logo with animation */}
-        <div className="animate-bounce">
-          <TurtleLogo size={80} className="text-emerald-600" />
-        </div>
-
-        {/* Text */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl sm:text-4xl font-bold text-emerald-800 animate-in slide-in-from-bottom-4 duration-700 delay-200">
-            海亀兄弟
-          </h1>
-          <p className="text-emerald-600 text-sm sm:text-base animate-in slide-in-from-bottom-4 duration-700 delay-300">
-            宮古島の海へようこそ
-          </p>
-        </div>
-
-        {/* Wave animation effect */}
-        <div className="flex space-x-1 animate-in fade-in duration-700 delay-500">
-          {[...Array(3)].map((_, i) => (
+      {/* Background with gradient and subtle pattern */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0a2540] via-[#0d3a5c] to-[#0a4d68]">
+        {/* Animated light rays */}
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(5)].map((_, i) => (
             <div
               key={i}
-              className="w-2 h-2 rounded-full bg-emerald-400"
+              className="absolute top-0 h-full opacity-10"
               style={{
-                animation: `wave 1.4s ease-in-out ${i * 0.2}s infinite`,
+                left: `${15 + i * 18}%`,
+                width: "2px",
+                background: "linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)",
+                animation: `lightRay ${3 + i * 0.5}s ease-in-out infinite`,
+                animationDelay: `${i * 0.3}s`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Floating particles */}
+        <div className="absolute inset-0">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full bg-white/20"
+              style={{
+                width: `${2 + Math.random() * 4}px`,
+                height: `${2 + Math.random() * 4}px`,
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animation: `float ${4 + Math.random() * 4}s ease-in-out infinite`,
+                animationDelay: `${Math.random() * 2}s`,
               }}
             />
           ))}
         </div>
       </div>
 
+      {/* Main content */}
+      <div className="relative z-10 flex flex-col items-center">
+        {/* Logo mark with glow effect */}
+        <div
+          className={`relative mb-8 transition-all duration-1000 ease-out ${
+            phase === "reveal" ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-8 scale-90"
+          }`}
+        >
+          {/* Glow effect */}
+          <div className="absolute inset-0 blur-3xl bg-emerald-400/30 rounded-full scale-150" />
+
+          {/* Sea turtle image */}
+          <div className="relative w-32 h-32 sm:w-40 sm:h-40">
+            <Image
+              src="/images/gemini-generated-image-rq969urq969urq96.jpeg"
+              alt="Sea Turtles"
+              fill
+              className="object-cover rounded-full border-4 border-white/20 shadow-2xl"
+              priority
+            />
+          </div>
+        </div>
+
+        {/* Brand name with elegant typography */}
+        <div
+          className={`text-center transition-all duration-1000 delay-300 ease-out ${
+            phase === "reveal" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+          }`}
+        >
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-light tracking-[0.2em] text-white mb-3">海亀兄弟</h1>
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <span className="h-px w-12 bg-gradient-to-r from-transparent to-white/50" />
+            <span className="text-white/60 text-xs sm:text-sm tracking-[0.3em] uppercase">Life in the Blue</span>
+            <span className="h-px w-12 bg-gradient-to-l from-transparent to-white/50" />
+          </div>
+        </div>
+
+        {/* Tagline */}
+        <p
+          className={`text-white/70 text-sm sm:text-base tracking-wider mt-2 transition-all duration-1000 delay-500 ease-out ${
+            phase === "reveal" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          }`}
+        >
+          宮古島で、特別な海の体験を
+        </p>
+
+        {/* Loading indicator */}
+        <div
+          className={`mt-12 transition-all duration-700 delay-700 ${phase === "reveal" ? "opacity-100" : "opacity-0"}`}
+        >
+          <div className="relative w-48 h-0.5 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full"
+              style={{
+                animation: "loadingBar 2.5s ease-in-out forwards",
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
       <style jsx>{`
-        @keyframes wave {
-          0%,
-          60%,
-          100% {
-            transform: translateY(0);
+        @keyframes lightRay {
+          0%, 100% {
+            opacity: 0.05;
+            transform: translateY(-100%);
           }
-          30% {
-            transform: translateY(-10px);
+          50% {
+            opacity: 0.15;
+            transform: translateY(100%);
+          }
+        }
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0) translateX(0);
+            opacity: 0.2;
+          }
+          50% {
+            transform: translateY(-20px) translateX(10px);
+            opacity: 0.5;
+          }
+        }
+        @keyframes loadingBar {
+          0% {
+            width: 0%;
+          }
+          100% {
+            width: 100%;
           }
         }
       `}</style>

@@ -8,30 +8,22 @@ export function WelcomeAnimation() {
   const [phase, setPhase] = useState<"initial" | "text" | "reveal" | "complete" | "done">("initial")
 
   const completeAnimation = useCallback(() => {
-    console.log("[v0] Animation complete, setting phase to done")
     setPhase("done")
   }, [])
 
   useEffect(() => {
-    // Phase 1: Text appears (after 800ms of silence)
     const textTimer = setTimeout(() => {
-      console.log("[v0] Phase: text")
       setPhase("text")
     }, 800)
 
-    // Phase 2: Background reveal (1.5s after text)
     const revealTimer = setTimeout(() => {
-      console.log("[v0] Phase: reveal")
       setPhase("reveal")
     }, 3500)
 
-    // Phase 3: Complete (transition to site)
     const completeTimer = setTimeout(() => {
-      console.log("[v0] Phase: complete")
       setPhase("complete")
     }, 5500)
 
-    // Phase 4: Done (remove overlay)
     const doneTimer = setTimeout(completeAnimation, 6500)
 
     return () => {
@@ -42,13 +34,11 @@ export function WelcomeAnimation() {
     }
   }, [completeAnimation])
 
-  console.log("[v0] Current phase:", phase)
-
   if (phase === "done") return null
 
-  // キャッチコピーの文字を分割
-  const catchphrase = "宮古島の海を、独り占めする。"
-  const characters = catchphrase.split("")
+  const phrase1 = "海を敬い、"
+  const phrase2 = "海と遊ぶ。"
+  const allCharacters = (phrase1 + phrase2).split("")
 
   return (
     <AnimatePresence>
@@ -110,46 +100,55 @@ export function WelcomeAnimation() {
             priority
             quality={90}
           />
-          {/* Subtle overlay for text readability */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/40" />
         </motion.div>
 
-        {/* Layer 4: Centered text content */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ zIndex: 40 }}>
-          {/* Main catchphrase with character-by-character animation */}
-          <div className="overflow-hidden px-4">
+        {/* Layer 4: Centered text content with premium typography */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-[10%]" style={{ zIndex: 40 }}>
+          <div className="overflow-hidden text-center">
             <motion.h1
-              className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-serif font-light tracking-[0.15em] text-white text-center leading-relaxed"
-              style={{ fontFamily: "'Noto Serif JP', serif" }}
+              className="font-serif font-light text-[#f5f5f5] leading-relaxed"
+              style={{
+                fontFamily: "'Noto Serif JP', serif",
+                fontSize: "clamp(32px, 8vw, 64px)",
+                letterSpacing: "0.15em",
+                textWrap: "balance",
+              }}
             >
-              {characters.map((char, index) => (
-                <motion.span
-                  key={index}
-                  initial={{ opacity: 0, filter: "blur(12px)", y: 20 }}
-                  animate={{
-                    opacity: phase !== "initial" ? 1 : 0,
-                    filter: phase !== "initial" ? "blur(0px)" : "blur(12px)",
-                    y: phase !== "initial" ? 0 : 20,
-                  }}
-                  transition={{
-                    duration: 0.8,
-                    delay: index * 0.08,
-                    ease: [0.25, 0.46, 0.45, 0.94],
-                  }}
-                  className="inline-block"
-                  style={{
-                    textShadow: phase === "reveal" || phase === "complete" ? "0 2px 20px rgba(0,0,0,0.5)" : "none",
-                  }}
-                >
-                  {char === "、" || char === "。" ? char : char}
-                </motion.span>
-              ))}
+              {allCharacters.map((char, index) => {
+                // Determine which phrase this character belongs to
+                const isPhrase1 = index < phrase1.length
+                const charDelay = index * 0.08
+
+                return (
+                  <motion.span
+                    key={index}
+                    initial={{ opacity: 0, filter: "blur(12px)", y: 20 }}
+                    animate={{
+                      opacity: phase !== "initial" ? 1 : 0,
+                      filter: phase !== "initial" ? "blur(0px)" : "blur(12px)",
+                      y: phase !== "initial" ? 0 : 20,
+                    }}
+                    transition={{
+                      duration: 0.8,
+                      delay: charDelay,
+                      ease: [0.25, 0.46, 0.45, 0.94],
+                    }}
+                    className="inline-block"
+                    style={{
+                      whiteSpace: char === "、" || char === "。" ? "normal" : "nowrap",
+                      textShadow: phase === "reveal" || phase === "complete" ? "0 2px 20px rgba(0,0,0,0.5)" : "none",
+                    }}
+                  >
+                    {char}
+                  </motion.span>
+                )
+              })}
             </motion.h1>
           </div>
 
-          {/* Subtle decorative line */}
           <motion.div
-            className="mt-8 sm:mt-12 flex items-center gap-4"
+            className="mt-[clamp(24px,6vw,48px)] flex items-center gap-4 sm:gap-6"
             initial={{ opacity: 0, scaleX: 0 }}
             animate={{
               opacity: phase !== "initial" ? 0.6 : 0,
@@ -157,16 +156,21 @@ export function WelcomeAnimation() {
             }}
             transition={{ duration: 1.2, delay: 1.5, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
-            <span className="h-px w-16 sm:w-24 bg-white/60" />
-            <span className="text-white/60 text-[10px] sm:text-xs tracking-[0.4em] uppercase font-light">
+            <span className="h-px w-[clamp(48px,12vw,96px)] bg-white/60" />
+            <span
+              className="text-white/60 tracking-[0.4em] uppercase font-light"
+              style={{
+                fontSize: "clamp(8px, 2vw, 14px)",
+              }}
+            >
               Miyakojima
             </span>
-            <span className="h-px w-16 sm:w-24 bg-white/60" />
+            <span className="h-px w-[clamp(48px,12vw,96px)] bg-white/60" />
           </motion.div>
 
           {/* Brand name - appears after reveal */}
           <motion.div
-            className="mt-6 sm:mt-8"
+            className="mt-[clamp(16px,4vw,32px)]"
             initial={{ opacity: 0, y: 30 }}
             animate={{
               opacity: phase === "reveal" || phase === "complete" ? 1 : 0,
@@ -174,13 +178,21 @@ export function WelcomeAnimation() {
             }}
             transition={{ duration: 1, delay: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
-            <p className="text-white/80 text-lg sm:text-xl md:text-2xl tracking-[0.3em] font-light">海亀兄弟</p>
+            <p
+              className="text-white/80 tracking-[0.3em] font-light"
+              style={{
+                fontFamily: "'Noto Serif JP', serif",
+                fontSize: "clamp(16px, 4vw, 28px)",
+              }}
+            >
+              海亀兄弟
+            </p>
           </motion.div>
         </div>
 
         {/* Layer 5: Scroll indicator - appears last */}
         <motion.div
-          className="absolute bottom-8 sm:bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center"
+          className="absolute bottom-[clamp(24px,6vw,48px)] left-1/2 -translate-x-1/2 flex flex-col items-center"
           style={{ zIndex: 50 }}
           initial={{ opacity: 0 }}
           animate={{
@@ -188,9 +200,19 @@ export function WelcomeAnimation() {
           }}
           transition={{ duration: 1, ease: "easeOut" }}
         >
-          <span className="text-white/50 text-[10px] tracking-[0.3em] uppercase mb-3">Scroll</span>
+          <span
+            className="text-white/40 tracking-[0.3em] uppercase mb-2"
+            style={{
+              fontSize: "clamp(10px, 1.5vw, 11px)",
+            }}
+          >
+            Scroll
+          </span>
           <motion.div
-            className="w-px h-8 bg-gradient-to-b from-white/50 to-transparent"
+            className="w-px bg-gradient-to-b from-white/40 to-transparent"
+            style={{
+              height: "clamp(20px, 5vw, 40px)",
+            }}
             animate={{ scaleY: [1, 0.5, 1] }}
             transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
           />

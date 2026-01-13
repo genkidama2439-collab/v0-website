@@ -10,19 +10,9 @@ export function WelcomeAnimation() {
   const completeAnimation = useCallback(() => {
     console.log("[v0] Animation complete, setting phase to done")
     setPhase("done")
-    sessionStorage.setItem("welcomeAnimationSeen", "true")
   }, [])
 
   useEffect(() => {
-    const hasSeenAnimation = sessionStorage.getItem("welcomeAnimationSeen")
-    console.log("[v0] Welcome animation mount. Has seen animation:", hasSeenAnimation)
-
-    if (hasSeenAnimation) {
-      console.log("[v0] Animation already seen, skipping")
-      setPhase("done")
-      return
-    }
-
     // Phase 1: Text appears (after 800ms of silence)
     const textTimer = setTimeout(() => {
       console.log("[v0] Phase: text")

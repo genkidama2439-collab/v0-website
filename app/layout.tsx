@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter, JetBrains_Mono } from "next/font/google"
+import { Inter, JetBrains_Mono, Noto_Serif_JP } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { WelcomeAnimation } from "@/components/welcome-animation"
@@ -8,6 +8,11 @@ import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" })
+const notoSerifJP = Noto_Serif_JP({
+  subsets: ["latin"],
+  weight: ["300", "400", "500"],
+  variable: "--font-noto-serif-jp",
+})
 
 export const metadata: Metadata = {
   title: "海亀兄弟予約ページ | 宮古島マリン体験",
@@ -35,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ja" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="ja" className={`${inter.variable} ${jetbrainsMono.variable} ${notoSerifJP.variable}`}>
       <head>
         <link rel="preconnect" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" />

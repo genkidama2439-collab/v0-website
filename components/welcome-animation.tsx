@@ -1,168 +1,197 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 
 export function WelcomeAnimation() {
-  const [phase, setPhase] = useState<"initial" | "reveal" | "fadeout" | "done">("initial")
+  const [phase, setPhase] = useState<"initial" | "text" | "reveal" | "complete" | "done">("initial")
+
+  const completeAnimation = useCallback(() => {
+    setPhase("done")
+    sessionStorage.setItem("welcomeAnimationSeen", "true")
+  }, [])
 
   useEffect(() => {
     const hasSeenAnimation = sessionStorage.getItem("welcomeAnimationSeen")
 
-    if (!hasSeenAnimation) {
-      // Start reveal phase
-      setTimeout(() => setPhase("reveal"), 100)
-
-      // Start fadeout
-      setTimeout(() => setPhase("fadeout"), 3000)
-
-      // Complete
-      setTimeout(() => {
-        setPhase("done")
-        sessionStorage.setItem("welcomeAnimationSeen", "true")
-      }, 3800)
-    } else {
+    if (hasSeenAnimation) {
       setPhase("done")
+      return
     }
-  }, [])
+
+    // Phase 1: Text appears (after 800ms of silence)
+    const textTimer = setTimeout(() => setPhase("text"), 800)
+
+    // Phase 2: Background reveal (1.5s after text)
+    const revealTimer = setTimeout(() => setPhase("reveal"), 3500)
+
+    // Phase 3: Complete (transition to site)
+    const completeTimer = setTimeout(() => setPhase("complete"), 5500)
+
+    // Phase 4: Done (remove overlay)
+    const doneTimer = setTimeout(completeAnimation, 6500)
+
+    return () => {
+      clearTimeout(textTimer)
+      clearTimeout(revealTimer)
+      clearTimeout(completeTimer)
+      clearTimeout(doneTimer)
+    }
+  }, [completeAnimation])
 
   if (phase === "done") return null
 
+  // キャッチコピーの文字を分割
+  const catchphrase = "宮古島の海を、独り占めする。"
+  const characters = catchphrase.split("")
+
   return (
-    <div
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden transition-opacity duration-700 ease-out ${
-        phase === "fadeout" ? "opacity-0" : "opacity-100"
-      }`}
-    >
-      {/* Background with gradient and subtle pattern */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0a2540] via-[#0d3a5c] to-[#0a4d68]">
-        {/* Animated light rays */}
-        <div className="absolute inset-0 overflow-hidden">
-          {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute top-0 h-full opacity-10"
-              style={{
-                left: `${15 + i * 18}%`,
-                width: "2px",
-                background: "linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)",
-                animation: `lightRay ${3 + i * 0.5}s ease-in-out infinite`,
-                animationDelay: `${i * 0.3}s`,
-              }}
-            />
-          ))}
-        </div>
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-[100] overflow-hidden"
+        initial={{ opacity: 1 }}
+        animate={{ opacity: phase === "complete" ? 0 : 1 }}
+        transition={{ duration: 1, ease: "easeInOut" }}
+      >
+        {/* Layer 1: Deep navy background (initial state) */}
+        <motion.div
+          className="absolute inset-0 bg-[#001a1a]"
+          initial={{ opacity: 1 }}
+          animate={{
+            opacity: phase === "reveal" || phase === "complete" ? 0 : 1,
+          }}
+          transition={{ duration: 1.8, ease: [0.25, 0.46, 0.45, 0.94] }}
+          style={{ zIndex: 30 }}
+        />
 
-        {/* Floating particles */}
-        <div className="absolute inset-0">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full bg-white/20"
-              style={{
-                width: `${2 + Math.random() * 4}px`,
-                height: `${2 + Math.random() * 4}px`,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animation: `float ${4 + Math.random() * 4}s ease-in-out infinite`,
-                animationDelay: `${Math.random() * 2}s`,
-              }}
-            />
-          ))}
-        </div>
-      </div>
+        {/* Layer 2: Curtain effect - Top */}
+        <motion.div
+          className="absolute inset-x-0 top-0 h-1/2 bg-[#001a1a] origin-top"
+          initial={{ scaleY: 1 }}
+          animate={{
+            scaleY: phase === "reveal" || phase === "complete" ? 0 : 1,
+          }}
+          transition={{ duration: 1.5, ease: [0.76, 0, 0.24, 1], delay: 0.2 }}
+          style={{ zIndex: 25 }}
+        />
 
-      {/* Main content */}
-      <div className="relative z-10 flex flex-col items-center">
-        {/* Logo mark with glow effect */}
-        <div
-          className={`relative mb-8 transition-all duration-1000 ease-out ${
-            phase === "reveal" ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-8 scale-90"
-          }`}
+        {/* Layer 2: Curtain effect - Bottom */}
+        <motion.div
+          className="absolute inset-x-0 bottom-0 h-1/2 bg-[#001a1a] origin-bottom"
+          initial={{ scaleY: 1 }}
+          animate={{
+            scaleY: phase === "reveal" || phase === "complete" ? 0 : 1,
+          }}
+          transition={{ duration: 1.5, ease: [0.76, 0, 0.24, 1], delay: 0.2 }}
+          style={{ zIndex: 25 }}
+        />
+
+        {/* Layer 3: Background image with zoom effect */}
+        <motion.div
+          className="absolute inset-0"
+          initial={{ scale: 1.3, opacity: 0 }}
+          animate={{
+            scale: phase === "reveal" || phase === "complete" ? 1 : 1.3,
+            opacity: phase === "reveal" || phase === "complete" ? 1 : 0,
+          }}
+          transition={{ duration: 2.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+          style={{ zIndex: 10 }}
         >
-          {/* Glow effect */}
-          <div className="absolute inset-0 blur-3xl bg-emerald-400/30 rounded-full scale-150" />
+          <Image
+            src="/images/gemini-generated-image-rq969urq969urq96.jpeg"
+            alt="宮古島の海"
+            fill
+            className="object-cover"
+            priority
+            quality={90}
+          />
+          {/* Subtle overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/40" />
+        </motion.div>
 
-          {/* Sea turtle image */}
-          <div className="relative w-32 h-32 sm:w-40 sm:h-40">
-            <Image
-              src="/images/gemini-generated-image-rq969urq969urq96.jpeg"
-              alt="Sea Turtles"
-              fill
-              className="object-cover rounded-full border-4 border-white/20 shadow-2xl"
-              priority
-            />
+        {/* Layer 4: Centered text content */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ zIndex: 40 }}>
+          {/* Main catchphrase with character-by-character animation */}
+          <div className="overflow-hidden px-4">
+            <motion.h1
+              className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-serif font-light tracking-[0.15em] text-white text-center leading-relaxed"
+              style={{ fontFamily: "'Noto Serif JP', serif" }}
+            >
+              {characters.map((char, index) => (
+                <motion.span
+                  key={index}
+                  initial={{ opacity: 0, filter: "blur(12px)", y: 20 }}
+                  animate={{
+                    opacity: phase !== "initial" ? 1 : 0,
+                    filter: phase !== "initial" ? "blur(0px)" : "blur(12px)",
+                    y: phase !== "initial" ? 0 : 20,
+                  }}
+                  transition={{
+                    duration: 0.8,
+                    delay: index * 0.08,
+                    ease: [0.25, 0.46, 0.45, 0.94],
+                  }}
+                  className="inline-block"
+                  style={{
+                    textShadow: phase === "reveal" || phase === "complete" ? "0 2px 20px rgba(0,0,0,0.5)" : "none",
+                  }}
+                >
+                  {char === "、" || char === "。" ? char : char}
+                </motion.span>
+              ))}
+            </motion.h1>
           </div>
+
+          {/* Subtle decorative line */}
+          <motion.div
+            className="mt-8 sm:mt-12 flex items-center gap-4"
+            initial={{ opacity: 0, scaleX: 0 }}
+            animate={{
+              opacity: phase !== "initial" ? 0.6 : 0,
+              scaleX: phase !== "initial" ? 1 : 0,
+            }}
+            transition={{ duration: 1.2, delay: 1.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+          >
+            <span className="h-px w-16 sm:w-24 bg-white/60" />
+            <span className="text-white/60 text-[10px] sm:text-xs tracking-[0.4em] uppercase font-light">
+              Miyakojima
+            </span>
+            <span className="h-px w-16 sm:w-24 bg-white/60" />
+          </motion.div>
+
+          {/* Brand name - appears after reveal */}
+          <motion.div
+            className="mt-6 sm:mt-8"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{
+              opacity: phase === "reveal" || phase === "complete" ? 1 : 0,
+              y: phase === "reveal" || phase === "complete" ? 0 : 30,
+            }}
+            transition={{ duration: 1, delay: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+          >
+            <p className="text-white/80 text-lg sm:text-xl md:text-2xl tracking-[0.3em] font-light">海亀兄弟</p>
+          </motion.div>
         </div>
 
-        {/* Brand name with elegant typography */}
-        <div
-          className={`text-center transition-all duration-1000 delay-300 ease-out ${
-            phase === "reveal" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
-          }`}
+        {/* Layer 5: Scroll indicator - appears last */}
+        <motion.div
+          className="absolute bottom-8 sm:bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center"
+          style={{ zIndex: 50 }}
+          initial={{ opacity: 0 }}
+          animate={{
+            opacity: phase === "complete" ? 1 : 0,
+          }}
+          transition={{ duration: 1, ease: "easeOut" }}
         >
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-light tracking-[0.2em] text-white mb-3">海亀兄弟</h1>
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <span className="h-px w-12 bg-gradient-to-r from-transparent to-white/50" />
-            <span className="text-white/60 text-xs sm:text-sm tracking-[0.3em] uppercase">Life in the Blue</span>
-            <span className="h-px w-12 bg-gradient-to-l from-transparent to-white/50" />
-          </div>
-        </div>
-
-        {/* Tagline */}
-        <p
-          className={`text-white/70 text-sm sm:text-base tracking-wider mt-2 transition-all duration-1000 delay-500 ease-out ${
-            phase === "reveal" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-        >
-          宮古島で、特別な海の体験を
-        </p>
-
-        {/* Loading indicator */}
-        <div
-          className={`mt-12 transition-all duration-700 delay-700 ${phase === "reveal" ? "opacity-100" : "opacity-0"}`}
-        >
-          <div className="relative w-48 h-0.5 bg-white/10 rounded-full overflow-hidden">
-            <div
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full"
-              style={{
-                animation: "loadingBar 2.5s ease-in-out forwards",
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      <style jsx>{`
-        @keyframes lightRay {
-          0%, 100% {
-            opacity: 0.05;
-            transform: translateY(-100%);
-          }
-          50% {
-            opacity: 0.15;
-            transform: translateY(100%);
-          }
-        }
-        @keyframes float {
-          0%, 100% {
-            transform: translateY(0) translateX(0);
-            opacity: 0.2;
-          }
-          50% {
-            transform: translateY(-20px) translateX(10px);
-            opacity: 0.5;
-          }
-        }
-        @keyframes loadingBar {
-          0% {
-            width: 0%;
-          }
-          100% {
-            width: 100%;
-          }
-        }
-      `}</style>
-    </div>
+          <span className="text-white/50 text-[10px] tracking-[0.3em] uppercase mb-3">Scroll</span>
+          <motion.div
+            className="w-px h-8 bg-gradient-to-b from-white/50 to-transparent"
+            animate={{ scaleY: [1, 0.5, 1] }}
+            transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+          />
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   )
 }

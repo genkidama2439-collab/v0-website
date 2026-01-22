@@ -13,7 +13,7 @@ export default function Page() {
     name: "海亀兄弟",
     image: "https://miyakojima.vercel.app/images/hero-aerial-ocean.jpg",
     telephone: "08053442439",
-    email: "Umigamekyoudai@gmail.com",
+    email: "umigamekyoudai@gmail.com",
     address: {
       "@type": "PostalAddress",
       streetAddress: "平良西里861-5",

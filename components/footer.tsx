@@ -4,7 +4,7 @@ import { TurtleLogo } from "./TurtleLogo"
 
 const CONTACT_INFO = {
   phone: "08053442439",
-  email: "Umigamekyoudai@gmail.com",
+  email: "umigamekyoudai@gmail.com",
   address: "沖縄県宮古島市平良西里861-5",
 } as const
 

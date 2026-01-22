@@ -609,7 +609,7 @@ export function BookingForm() {
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
               <p className="text-sm text-amber-800">
                 <strong>年齢制限:</strong> このプランは5歳以上のお客様が対象です。
-                3歳未満のお子様が参加できるのはナイトハンター試験のみとなります。
+                3歳未満のお子様が参加できるのは【アマゾン帰りの男と行く】本格ナイトツアーのみとなります。
               </p>
             </div>
           )}

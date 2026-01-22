@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   description:
     "宮古島で家族向け少人数制マリン体験なら海亀兄弟。ウミガメシュノーケル、ナイトツアーなど、安心・誠実・やわらかな高揚感をお届けします。",
   generator: "v0.app",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
   openGraph: {
     title: "海亀兄弟 | 宮古島マリン体験",
     description: "家族向け少人数制マリン体験。安心・誠実・やわらかな高揚感をお届けします。",

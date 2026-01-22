@@ -1,11 +1,16 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 
 export function WelcomeAnimation() {
+  const pathname = usePathname()
   const [phase, setPhase] = useState<"initial" | "text" | "reveal" | "complete" | "done">("initial")
+  
+  // Only show animation on home page
+  const isHomePage = pathname === "/"
 
   const completeAnimation = useCallback(() => {
     setPhase("done")
@@ -34,7 +39,8 @@ export function WelcomeAnimation() {
     }
   }, [completeAnimation])
 
-  if (phase === "done") return null
+  // Don't show animation on non-home pages or when done
+  if (!isHomePage || phase === "done") return null
 
   const phrase1 = "海を敬い、"
   const phrase2 = "海と遊ぶ。"

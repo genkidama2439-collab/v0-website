@@ -136,8 +136,7 @@ export const PLANS: Plan[] = [
       default: "新城海岸",
     },
     meetingTime: {
-      regular: "開始60分前集合推奨",
-      early: "7:00便のみ：開始15分前集合OK",
+      regular: "開始時刻の15分前に集合",
     },
     options: [
       {

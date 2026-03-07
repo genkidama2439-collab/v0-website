@@ -289,8 +289,8 @@ SNS映え間違いなし！
     },
     options: [],
     whatToBring: ["歩きやすい靴（ビーチサンダルも一応可能）", "虫よけスプレー", "飲み物", "懐中電灯（貸出あり）"],
-    precautions: ["事前相談で決定", "お体に不自由がある場合は必ず事前にご相談ください。"], // Changed precautions to "事前相談で決定" for pre-consultation plan
-    paymentMethod: "現地現金決済（お釣りの内容についてはお願いします）",
+    precautions: ["お体に不自由がある場合は必ず事前にご相談ください。"],
+    paymentMethod: "現地現金決済（できるだけお釣りが出ないようご協力ください）",
   },
   {
     id: "S4",

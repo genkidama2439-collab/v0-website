@@ -57,9 +57,7 @@ export default function PlanCard({ plan, priority = false }: { plan: any; priori
                       ? "/images/night-hunter-crab.jpg"
                       : plan.id === "S4"
                         ? "/images/sunset-sup-silhouettes.jpg"
-                        : plan.id === "S5"
-                          ? "/images/dsc06632.jpeg"
-                          : plan.image || "/placeholder.svg"
+                        : plan.image || "/placeholder.svg"
               }
               alt={plan.name}
               width={90}
@@ -240,7 +238,7 @@ export default function PlanCard({ plan, priority = false }: { plan: any; priori
             {/* Description */}
             <div>
               <h4 className="text-xs font-semibold text-gray-900 mb-1">プラン詳細</h4>
-              <p className="text-[11px] text-gray-700 leading-relaxed">{plan.description}</p>
+              <p className="text-[11px] text-gray-700 leading-relaxed whitespace-pre-wrap">{plan.description}</p>
             </div>
 
             {/* Features */}

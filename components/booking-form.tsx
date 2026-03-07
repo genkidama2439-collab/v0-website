@@ -70,12 +70,6 @@ const STAFF_LIST = [
   { id: "staff4", name: "凪" },
 ]
 
-const S5_DURATION_OPTIONS = [
-  { id: "5h", label: "スタンダード", hours: "5時間", price: 58000, note: "厳選4スポット" },
-  { id: "7h", label: "ロングデイ", hours: "7時間", price: 75000, note: "5-6スポット＋寄り道多め" },
-  { id: "9h", label: "プレミア", hours: "9時間", price: 85000, note: "サンセットまで" },
-] as const
-
 export function BookingForm() {
   const searchParams = useSearchParams()
   const hasInitialized = useRef(false)
@@ -122,15 +116,6 @@ export function BookingForm() {
   const getCurrentPrices = () => {
     if (!selectedPlanData) {
       return { adultPrice: ADULT_PRICE, childPrice: CHILD_PRICE }
-    }
-
-    if (selectedPlanData.id === "S5") {
-      const durationOption = S5_DURATION_OPTIONS.find((opt) => opt.id === bookingData.selectedDuration)
-      const basePrice = durationOption?.price || 58000
-      return {
-        adultPrice: basePrice,
-        childPrice: basePrice,
-      }
     }
 
     return {
@@ -235,32 +220,23 @@ export function BookingForm() {
   }, [bookingData.adultCount, bookingData.childCount, bookingData.under3Count, createParticipants])
 
   useEffect(() => {
-    if (bookingData.selectedPlan === "S5") {
-      // For S5, use the selected duration price as a flat group rate
-      const durationOption = S5_DURATION_OPTIONS.find((opt) => opt.id === bookingData.selectedDuration)
-      const groupPrice = durationOption?.price || 58000
-      const staffFee = bookingData.selectedStaff ? STAFF_FEE : 0
-      setTotalPrice(groupPrice + staffFee)
-    } else {
-      // For other plans, calculate per-person pricing
-      const baseTotal = bookingData.adultCount * adultPrice + bookingData.childCount * childPrice
+    // Calculate per-person pricing for all plans
+    const baseTotal = bookingData.adultCount * adultPrice + bookingData.childCount * childPrice
 
-      const under3Price = bookingData.selectedPlan === "S3" ? 0 : childPrice
-      const under3Total = bookingData.under3Count * under3Price
+    const under3Price = bookingData.selectedPlan === "S3" ? 0 : childPrice
+    const under3Total = bookingData.under3Count * under3Price
 
-      const vipSurcharge = selectedPlanData?.vipSurcharge || 0
+    const vipSurcharge = selectedPlanData?.vipSurcharge || 0
 
-      const staffFee = bookingData.selectedStaff ? STAFF_FEE : 0
+    const staffFee = bookingData.selectedStaff ? STAFF_FEE : 0
 
-      setTotalPrice(baseTotal + under3Total + vipSurcharge + staffFee)
-    }
+    setTotalPrice(baseTotal + under3Total + vipSurcharge + staffFee)
   }, [
     bookingData.adultCount,
     bookingData.childCount,
     bookingData.under3Count,
     bookingData.selectedPlan,
     bookingData.selectedStaff,
-    bookingData.selectedDuration,
     selectedPlanData,
     adultPrice,
     childPrice,
@@ -467,34 +443,6 @@ export function BookingForm() {
             ))}
           </div>
 
-          {selectedPlanData?.id === "S5" && (
-            <div className="mt-4 p-4 bg-blue-50 rounded-2xl border border-blue-200">
-              <h4 className="font-semibold text-blue-800 mb-3 text-sm">時間プランを選択してください</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {S5_DURATION_OPTIONS.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleInputChange("selectedDuration", option.id)}
-                    className={`p-4 rounded-xl border-2 transition-all text-left ${
-                      bookingData.selectedDuration === option.id
-                        ? "border-blue-500 bg-blue-100 shadow-md"
-                        : "border-gray-200 bg-white hover:border-blue-300"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="font-bold text-gray-900">{option.label}</div>
-                      {bookingData.selectedDuration === option.id && <Check className="w-5 h-5 text-blue-600" />}
-                    </div>
-                    <div className="text-sm text-gray-600 mb-1">{option.hours}</div>
-                    <div className="text-lg font-bold text-blue-600">¥{option.price.toLocaleString()}</div>
-                    <div className="text-xs text-gray-500 mt-1">{option.note}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {selectedPlanData && (
             <div className="mt-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-200">
               <h4 className="font-semibold text-emerald-800 mb-2 text-sm">プラン詳細</h4>
@@ -512,10 +460,6 @@ export function BookingForm() {
                       <>
                         ¥{selectedPlanData.price.toLocaleString()}{" "}
                         <span className="text-emerald-600">(3歳以下無料)</span>
-                      </>
-                    ) : selectedPlanData.id === "S5" ? (
-                      <>
-                        ¥{adultPrice.toLocaleString()} ({bookingData.selectedDuration}プラン)
                       </>
                     ) : (
                       <>大人¥{selectedPlanData.price.toLocaleString()}</>
@@ -717,50 +661,43 @@ export function BookingForm() {
               <h3 className="font-semibold text-emerald-800">料金計算</h3>
             </div>
             <div className="space-y-2 text-sm">
-              {bookingData.selectedPlan === "S5" ? (
-                <div className="flex justify-between">
-                  <span>1組料金 ({bookingData.selectedDuration}プラン)</span>
-                  <span>￥{adultPrice.toLocaleString()}</span>
-                </div>
-              ) : (
-                <>
-                  {bookingData.adultCount > 0 && (
-                    <div className="flex justify-between">
-                      <span>
-                        大人 {bookingData.adultCount}名 × ￥{adultPrice.toLocaleString()}
-                      </span>
-                      <span>￥{(bookingData.adultCount * adultPrice).toLocaleString()}</span>
-                    </div>
-                  )}
-                  {bookingData.childCount > 0 && (
-                    <div className="flex justify-between">
-                      <span>
-                        子ども {bookingData.childCount}名 × ￥{childPrice.toLocaleString()}
-                      </span>
-                      <span>￥{(bookingData.childCount * childPrice).toLocaleString()}</span>
-                    </div>
-                  )}
-                  {bookingData.under3Count > 0 && (
-                    <div className="flex justify-between">
-                      <span>
-                        3歳未満 {bookingData.under3Count}名 ×{" "}
-                        {bookingData.selectedPlan === "S3" ? "無料" : `￥${childPrice.toLocaleString()}`}
-                      </span>
-                      <span>
-                        {bookingData.selectedPlan === "S3"
-                          ? "￥0"
-                          : `￥${(bookingData.under3Count * childPrice).toLocaleString()}`}
-                      </span>
-                    </div>
-                  )}
-                  {selectedPlanData?.vipSurcharge && (
-                    <div className="flex justify-between text-orange-600">
-                      <span>貸切追加料金</span>
-                      <span>￥{selectedPlanData.vipSurcharge.toLocaleString()}</span>
-                    </div>
-                  )}
-                </>
-              )}
+              <>
+                {bookingData.adultCount > 0 && (
+                  <div className="flex justify-between">
+                    <span>
+                      大人 {bookingData.adultCount}名 × ￥{adultPrice.toLocaleString()}
+                    </span>
+                    <span>￥{(bookingData.adultCount * adultPrice).toLocaleString()}</span>
+                  </div>
+                )}
+                {bookingData.childCount > 0 && (
+                  <div className="flex justify-between">
+                    <span>
+                      子ども {bookingData.childCount}名 × ￥{childPrice.toLocaleString()}
+                    </span>
+                    <span>￥{(bookingData.childCount * childPrice).toLocaleString()}</span>
+                  </div>
+                )}
+                {bookingData.under3Count > 0 && (
+                  <div className="flex justify-between">
+                    <span>
+                      3歳未満 {bookingData.under3Count}名 ×{" "}
+                      {bookingData.selectedPlan === "S3" ? "無料" : `￥${childPrice.toLocaleString()}`}
+                    </span>
+                    <span>
+                      {bookingData.selectedPlan === "S3"
+                        ? "￥0"
+                        : `￥${(bookingData.under3Count * childPrice).toLocaleString()}`}
+                    </span>
+                  </div>
+                )}
+                {selectedPlanData?.vipSurcharge && (
+                  <div className="flex justify-between text-orange-600">
+                    <span>貸切追加料金</span>
+                    <span>￥{selectedPlanData.vipSurcharge.toLocaleString()}</span>
+                  </div>
+                )}
+              </>
               {bookingData.selectedStaff && (
                 <div className="flex justify-between text-emerald-600">
                   <span>スタッフ指名料</span>
@@ -773,26 +710,18 @@ export function BookingForm() {
               </div>
             </div>
             <p className="text-xs text-gray-500 mt-3">
-              {bookingData.selectedPlan === "S5" ? (
-                <>
-                  ※1組6名様までの料金です
-                  <br />
-                  ※器材レンタル・保険料込み
-                </>
-              ) : (
-                <>
-                  {ageRestrictionMessage}
-                  <br />
-                  ※器材レンタル・保険料込み
-                  {selectedPlanData?.vipSurcharge && (
-                    <>
-                      <br />
-                      ※貸切プランは通常料金に追加で￥{selectedPlanData.vipSurcharge.toLocaleString()}
-                      の貸切料金がかかります
-                    </>
-                  )}
-                </>
-              )}
+              <>
+                {ageRestrictionMessage}
+                <br />
+                ※器材レンタル・保険料込み
+                {selectedPlanData?.vipSurcharge && (
+                  <>
+                    <br />
+                    ※貸切プランは通常料金に追加で￥{selectedPlanData.vipSurcharge.toLocaleString()}
+                    の貸切料金がかかります
+                  </>
+                )}
+              </>
             </p>
           </div>
         </CardContent>

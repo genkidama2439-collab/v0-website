@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@theme inline {
+  --font-yusei-magic: var(--font-yusei-magic);
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

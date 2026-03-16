@@ -254,7 +254,7 @@ export function BookingForm() {
     }))
   }
 
-  const VALID_COUPON = "UMIKAME500"
+  const VALID_COUPON = "UMIGAME500"
 
   const handleCouponApply = () => {
     const totalPeople = bookingData.adultCount + bookingData.childCount

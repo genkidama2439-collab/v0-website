@@ -755,13 +755,12 @@ export function BookingForm() {
               {/* クーポンコード */}
               <div className="mt-4 pt-4 border-t border-emerald-200">
                 <p className="text-sm font-medium text-gray-700 mb-2">
-                  🎁 LINEクーポンコード
+                  クーポンコード
                 </p>
                 <div className="flex gap-2">
                   <Input
                     value={bookingData.couponCode}
                     onChange={(e) => handleInputChange("couponCode", e.target.value)}
-                    placeholder="例: UMIKAME500"
                     className="rounded-xl border-emerald-200 focus:border-emerald-500"
                   />
                   <Button

@@ -42,6 +42,8 @@ interface BookingData {
   customerPhone: string
   specialRequests: string
   agreedToTerms: boolean
+  couponCode: string
+  couponDiscount: number
 }
 
 const ADULT_PRICE = 6000 // Declare ADULT_PRICE variable
@@ -89,6 +91,8 @@ export function BookingForm() {
     customerPhone: "",
     specialRequests: "",
     agreedToTerms: false,
+    couponCode: "",
+    couponDiscount: 0,
   })
 
   const [totalPrice, setTotalPrice] = useState(0)
@@ -230,13 +234,14 @@ export function BookingForm() {
 
     const staffFee = bookingData.selectedStaff ? STAFF_FEE : 0
 
-    setTotalPrice(baseTotal + under3Total + vipSurcharge + staffFee)
+    setTotalPrice(baseTotal + under3Total + vipSurcharge + staffFee - bookingData.couponDiscount)
   }, [
     bookingData.adultCount,
     bookingData.childCount,
     bookingData.under3Count,
     bookingData.selectedPlan,
     bookingData.selectedStaff,
+    bookingData.couponDiscount,
     selectedPlanData,
     adultPrice,
     childPrice,
@@ -249,6 +254,23 @@ export function BookingForm() {
     }))
   }
 
+  const COUPON_LIST: Record<string, number> = {
+    "UMIGAME500": 500,
+    "カメハメハ": 1000,
+  }
+
+  const handleCouponApply = () => {
+    const totalPeople = bookingData.adultCount + bookingData.childCount
+    const discountPerPerson = COUPON_LIST[bookingData.couponCode]
+    if (discountPerPerson) {
+      const discount = totalPeople * discountPerPerson
+      setBookingData((prev) => ({ ...prev, couponDiscount: discount }))
+    } else {
+      setBookingData((prev) => ({ ...prev, couponDiscount: 0 }))
+      alert("クーポンコードが正しくありません")
+    }
+  }
+
   const handleParticipantChange = (participantId: string, field: keyof ParticipantDetails, value: any) => {
     setBookingData((prev) => ({
       ...prev,
@@ -259,6 +281,12 @@ export function BookingForm() {
   }
 
   const handleCountChange = (field: "adultCount" | "childCount" | "under3Count", increment: boolean) => {
+    const isVip = bookingData.selectedPlan === "S2"
+    const maxParticipants = isVip ? 6 : 999
+    const currentTotal = bookingData.adultCount + bookingData.childCount
+
+    if (increment && isVip && currentTotal >= maxParticipants) return
+
     setBookingData((prev) => ({
       ...prev,
       [field]: Math.max(0, prev[field] + (increment ? 1 : -1)),
@@ -283,6 +311,8 @@ export function BookingForm() {
           childPrice,
           vipSurcharge: selectedPlanData?.vipSurcharge || 0,
           totalPrice,
+          couponCode: bookingData.couponCode,
+          couponDiscount: bookingData.couponDiscount,
         }),
       })
 
@@ -353,7 +383,7 @@ export function BookingForm() {
                   {STAFF_FEE.toLocaleString()})
                 </p>
               )}
-              {selectedPlanData?.vipSurcharge && (
+              {selectedPlanData?.vipSurcharge > 0 && (
                 <p className="text-orange-600">貸切追加料金: ¥{selectedPlanData.vipSurcharge.toLocaleString()}</p>
               )}
               <p className="font-semibold text-emerald-800">合計金額: ¥{totalPrice.toLocaleString()}</p>
@@ -424,17 +454,14 @@ export function BookingForm() {
                       </div>
                     </div>
                     <div className="text-right">
-                      {plan.id === "S2" ? (
-                        <div>
-                          <div className="text-xl font-bold text-emerald-600">+¥20,000</div>
-                          <div className="text-xs text-gray-500">貸切料金</div>
-                        </div>
-                      ) : plan.id === "S3" ? (
+                      {plan.id === "S3" ? (
                         <div className="text-xl font-bold text-emerald-600">¥4,000</div>
                       ) : plan.id === "S5" ? (
                         <div className="text-xl font-bold text-emerald-600">¥58,000〜</div>
                       ) : (
-                        <div className="text-xl font-bold text-emerald-600">¥6,000〜</div>
+                        <div className="text-xl font-bold text-emerald-600">
+                          ¥{plan.price.toLocaleString()}{plan.id !== "S2" && "〜"}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -554,6 +581,17 @@ export function BookingForm() {
               <p className="text-sm text-amber-800">
                 <strong>年齢制限:</strong> このプランは5歳以上のお客様が対象です。
                 3歳未満のお子様が参加できるのは【アマゾン帰りの男と行く】本格ナイトツアーのみとなります。
+              </p>
+            </div>
+          )}
+
+          {bookingData.selectedPlan === "S2" && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+              <p className="text-sm text-blue-800">
+                <strong>VIP貸切プランについて：</strong><br />
+                • 料金：¥9,000 / 1名<br />
+                • 最大6名まで承ります<br />
+                • 7名以上の場合はLINEよりご相談ください
               </p>
             </div>
           )}
@@ -691,7 +729,7 @@ export function BookingForm() {
                     </span>
                   </div>
                 )}
-                {selectedPlanData?.vipSurcharge && (
+                {selectedPlanData?.vipSurcharge > 0 && (
                   <div className="flex justify-between text-orange-600">
                     <span>貸切追加料金</span>
                     <span>￥{selectedPlanData.vipSurcharge.toLocaleString()}</span>
@@ -704,9 +742,41 @@ export function BookingForm() {
                   <span>￥{STAFF_FEE.toLocaleString()}</span>
                 </div>
               )}
+              {bookingData.couponDiscount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>🎉 LINEクーポン割引</span>
+                  <span>-￥{bookingData.couponDiscount.toLocaleString()}</span>
+                </div>
+              )}
               <div className="border-t border-emerald-200 pt-2 flex justify-between font-bold text-lg text-emerald-800">
                 <span>合計金額</span>
                 <span>￥{totalPrice.toLocaleString()}</span>
+              </div>
+
+              {/* クーポンコード */}
+              <div className="mt-4 pt-4 border-t border-emerald-200">
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  クーポンコード
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    value={bookingData.couponCode}
+                    onChange={(e) => handleInputChange("couponCode", e.target.value)}
+                    className="rounded-xl border-emerald-200 focus:border-emerald-500"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleCouponApply}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4"
+                  >
+                    適用
+                  </Button>
+                </div>
+                {bookingData.couponDiscount > 0 && (
+                  <p className="text-emerald-600 text-sm font-semibold mt-2">
+                    🎉 クーポン適用済み！ -{bookingData.couponDiscount.toLocaleString()}円引き
+                  </p>
+                )}
               </div>
             </div>
             <p className="text-xs text-gray-500 mt-3">
@@ -714,7 +784,7 @@ export function BookingForm() {
                 {ageRestrictionMessage}
                 <br />
                 ※器材レンタル・保険料込み
-                {selectedPlanData?.vipSurcharge && (
+                {selectedPlanData?.vipSurcharge > 0 && (
                   <>
                     <br />
                     ※貸切プランは通常料金に追加で￥{selectedPlanData.vipSurcharge.toLocaleString()}

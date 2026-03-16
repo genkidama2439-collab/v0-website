@@ -119,12 +119,7 @@ export default function PlanCard({ plan, priority = false }: { plan: any; priori
             </p>
 
             <div className="flex items-end gap-2 mt-auto">
-              {plan.id === "S2" ? (
-                <div className="flex flex-col">
-                  <span className="text-xs font-semibold text-emerald-600 leading-tight">通常料金</span>
-                  <span className="text-base font-bold text-red-600 leading-tight">＋¥20,000</span>
-                </div>
-              ) : plan.flexibleDurations ? (
+              {plan.flexibleDurations ? (
                 <div className="flex flex-col">
                   <span className="text-base font-bold text-red-600 leading-tight">
                     ¥{currentPrice.toLocaleString()}
@@ -137,7 +132,9 @@ export default function PlanCard({ plan, priority = false }: { plan: any; priori
                     ¥{originalPrice.toLocaleString()}
                   </span>
                   <span className="text-base font-bold text-red-600 leading-tight">
-                    {formatPriceWithTilde({ price: plan.price, childPrice: plan.childPrice })}
+                    {plan.id === "S2"
+                      ? `¥${plan.price.toLocaleString()}`
+                      : formatPriceWithTilde({ price: plan.price, childPrice: plan.childPrice })}
                   </span>
                 </div>
               )}

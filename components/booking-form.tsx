@@ -277,6 +277,13 @@ export function BookingForm() {
   }
 
   const handleCountChange = (field: "adultCount" | "childCount" | "under3Count", increment: boolean) => {
+    const maxParticipants = selectedPlanData?.maxParticipants || Infinity
+    const totalParticipants = bookingData.adultCount + bookingData.childCount + bookingData.under3Count
+
+    if (increment && totalParticipants >= maxParticipants) {
+      return
+    }
+
     setBookingData((prev) => ({
       ...prev,
       [field]: Math.max(0, prev[field] + (increment ? 1 : -1)),
@@ -446,8 +453,8 @@ export function BookingForm() {
                     <div className="text-right">
                       {plan.id === "S2" ? (
                         <div>
-                          <div className="text-xl font-bold text-emerald-600">+¥20,000</div>
-                          <div className="text-xs text-gray-500">貸切料金</div>
+                          <div className="text-xl font-bold text-emerald-600">¥{plan.price.toLocaleString()}</div>
+                          <div className="text-xs text-gray-500">1人（最大6名まで）</div>
                         </div>
                       ) : plan.id === "S3" ? (
                         <div className="text-xl font-bold text-emerald-600">¥4,000</div>
@@ -476,7 +483,9 @@ export function BookingForm() {
                 <div className="bg-white/60 rounded-lg p-2">
                   <div className="text-gray-600 mb-0.5">料金</div>
                   <div className="font-semibold text-gray-800">
-                    {selectedPlanData.id === "S3" ? (
+                    {selectedPlanData.id === "S2" ? (
+                      <>¥{selectedPlanData.price.toLocaleString()} / 1人</>
+                    ) : selectedPlanData.id === "S3" ? (
                       <>
                         ¥{selectedPlanData.price.toLocaleString()}{" "}
                         <span className="text-emerald-600">(3歳以下無料)</span>
@@ -590,23 +599,105 @@ export function BookingForm() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => handleCountChange("adultCount", false)}
-                  disabled={bookingData.adultCount <= 0}
-                  className="rounded-full w-10 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                >
-                  -
-                </Button>
-                <span className="text-2xl font-bold text-emerald-800 w-12 text-center">{bookingData.adultCount}</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
                   onClick={() => handleCountChange("adultCount", true)}
-                  className="rounded-full w-10 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  disabled={
+                    selectedPlanData?.maxParticipants
+                      ? bookingData.adultCount + bookingData.childCount + bookingData.under3Count >=
+                        selectedPlanData.maxParticipants
+                      : false
+                  }
+                  className="rounded-full w-10 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   +
                 </Button>
               </div>
+            </div>
+
+            {/* Child Count */}
+            <div>
+              <Label className="text-sm font-medium text-gray-700 mb-3 block">
+                {childLabel}
+                <span className="text-emerald-600 ml-2">￥{childPrice.toLocaleString()}/人</span>
+              </Label>
+              <div className="flex items-center gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCountChange("childCount", false)}
+                  disabled={bookingData.childCount <= 0}
+                  className="rounded-full w-10 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                >
+                  -
+                </Button>
+                <span className="text-2xl font-bold text-emerald-800 w-12 text-center">{bookingData.childCount}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCountChange("childCount", true)}
+                  disabled={
+                    selectedPlanData?.maxParticipants
+                      ? bookingData.adultCount + bookingData.childCount + bookingData.under3Count >=
+                        selectedPlanData.maxParticipants
+                      : false
+                  }
+                  className="rounded-full w-10 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  +
+                </Button>
+              </div>
+            </div>
+
+            {/* Under-3 Count - Only show for Night Hunter Test */}
+            {showUnder3 && (
+              <div>
+                <Label className="text-sm font-medium text-gray-700 mb-3 block">
+                  3歳未満
+                  <span className="text-emerald-600 ml-2">無料</span>
+                </Label>
+                <div className="flex items-center gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCountChange("under3Count", false)}
+                    disabled={bookingData.under3Count <= 0}
+                    className="rounded-full w-10 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    -
+                  </Button>
+                  <span className="text-2xl font-bold text-emerald-800 w-12 text-center">
+                    {bookingData.under3Count}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCountChange("under3Count", true)}
+                    disabled={
+                      selectedPlanData?.maxParticipants
+                        ? bookingData.adultCount + bookingData.childCount + bookingData.under3Count >=
+                          selectedPlanData.maxParticipants
+                        : false
+                    }
+                    className="rounded-full w-10 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    +
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Max participants warning for S2 */}
+          {selectedPlanData?.id === "S2" && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+              <p className="text-sm text-blue-700 font-semibold">
+                ※VIP貸切プランは最大6名まで。7名以上はLINEよりご相談ください。
+              </p>
+            </div>
+          )}
             </div>
 
             {/* Child Count */}

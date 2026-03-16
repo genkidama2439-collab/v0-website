@@ -197,13 +197,14 @@ SNS映え間違いなし！
 実施海岸はかなり浅く、潮の満ち引きによっては余裕で足がつく深さまで水位が下がります！
 ライフジャケットを着用するため何もしなくても浮きますし、捕まることのできる浮き輪をガイドが常備してます♪
 他の方に気を遣わず、ゆっくりと海に慣れていくことができるので、初めての方にこそおすすめのプランです＾＾`,
-    price: 6500, // 通常料金ベース
-    childPrice: 6000,
-    vipSurcharge: 20000, // グループ単位の追加料金
-    // Inherits private tour surcharge from vipSurcharge
-    privateTourSurcharge: 20000,
-    rating: 5.0, // rating を 5.0 に変更
-    reviewCount: 234, // 口コミ件数をまばらな数字に変更（貸切プランなので少なめ）
+    price: 9000,
+    childPrice: 9000,
+    vipSurcharge: 0,
+    privateTourSurcharge: 0,
+    maxParticipants: 6,
+    priceNote: "1名¥9,000（最大6名まで）\n7名以上はLINEよりご相談ください",
+    rating: 5.0,
+    reviewCount: 234,
     image: "/placeholder-p4pnn.png",
     timeTags: ["07:00", "09:00", "11:00", "14:00", "16:00"],
     provisionalTimes: ["08:00", "10:00", "12:00", "13:00"],

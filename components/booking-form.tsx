@@ -254,12 +254,16 @@ export function BookingForm() {
     }))
   }
 
-  const VALID_COUPON = "UMIGAME500"
+  const COUPON_LIST: Record<string, number> = {
+    "UMIGAME500": 500,
+    "カメハメハ": 1000,
+  }
 
   const handleCouponApply = () => {
     const totalPeople = bookingData.adultCount + bookingData.childCount
-    if (bookingData.couponCode.toUpperCase() === VALID_COUPON) {
-      const discount = totalPeople * 500
+    const discountPerPerson = COUPON_LIST[bookingData.couponCode]
+    if (discountPerPerson) {
+      const discount = totalPeople * discountPerPerson
       setBookingData((prev) => ({ ...prev, couponDiscount: discount }))
     } else {
       setBookingData((prev) => ({ ...prev, couponDiscount: 0 }))

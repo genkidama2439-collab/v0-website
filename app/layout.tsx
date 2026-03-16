@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter, JetBrains_Mono, Noto_Serif_JP, Yusei_Magic } from "next/font/google"
+import { Inter, JetBrains_Mono, Noto_Serif_JP } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { WelcomeAnimation } from "@/components/welcome-animation"
@@ -12,11 +12,6 @@ const notoSerifJP = Noto_Serif_JP({
   subsets: ["latin"],
   weight: ["300", "400", "500"],
   variable: "--font-noto-serif-jp",
-})
-const yuseiMagic = Yusei_Magic({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-yusei-magic",
 })
 
 export const metadata: Metadata = {
@@ -49,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ja" className={`${inter.variable} ${jetbrainsMono.variable} ${notoSerifJP.variable} ${yuseiMagic.variable}`}>
+    <html lang="ja" className={`${inter.variable} ${jetbrainsMono.variable} ${notoSerifJP.variable}`}>
       <head>
         <link rel="preconnect" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" />

@@ -1,23 +1,8 @@
-'use client'
-
 import Image from "next/image"
 import { Star } from "lucide-react"
-import { motion } from "framer-motion"
 import { BLUR_DATA_URLS } from "@/lib/data"
 
 export function HeroSection() {
-  // Wave animation variants
-  const waveVariants = {
-    animate: {
-      y: [0, -20, 0],
-      transition: {
-        duration: 4,
-        repeat: Infinity,
-        ease: "easeInOut",
-      },
-    },
-  }
-
   return (
     <section className="relative min-h-[100svh] flex flex-col overflow-hidden">
       {/* Full-screen background image */}
@@ -48,26 +33,10 @@ export function HeroSection() {
             <span className="text-gray-500 text-sm">/ 1876件の口コミ</span>
           </div>
 
-          {/* Main heading with gradient and animation */}
-          <motion.div
-            variants={waveVariants}
-            animate="animate"
-            className="mb-4"
-          >
-            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight drop-shadow-2xl"
-              style={{
-                backgroundImage: "linear-gradient(135deg, #10b981 0%, #047857 25%, #0369a1 50%, #0284c7 75%, #0369a1 100%)",
-                backgroundSize: "200% 200%",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              <span style={{ fontFamily: "var(--font-yusei-magic)" }}>
-                海亀兄弟
-              </span>
-            </h1>
-          </motion.div>
+          {/* Main heading */}
+          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-white mb-4 tracking-tight drop-shadow-2xl">
+            海亀兄弟
+          </h1>
 
           {/* Subheading */}
           <p className="text-2xl sm:text-3xl md:text-4xl text-white font-medium mb-3 drop-shadow-lg">

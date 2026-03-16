@@ -42,6 +42,8 @@ interface BookingData {
   customerPhone: string
   specialRequests: string
   agreedToTerms: boolean
+  couponCode: string
+  couponDiscount: number
 }
 
 const ADULT_PRICE = 6000 // Declare ADULT_PRICE variable
@@ -89,6 +91,8 @@ export function BookingForm() {
     customerPhone: "",
     specialRequests: "",
     agreedToTerms: false,
+    couponCode: "",
+    couponDiscount: 0,
   })
 
   const [totalPrice, setTotalPrice] = useState(0)
@@ -230,13 +234,14 @@ export function BookingForm() {
 
     const staffFee = bookingData.selectedStaff ? STAFF_FEE : 0
 
-    setTotalPrice(baseTotal + under3Total + vipSurcharge + staffFee)
+    setTotalPrice(baseTotal + under3Total + vipSurcharge + staffFee - bookingData.couponDiscount)
   }, [
     bookingData.adultCount,
     bookingData.childCount,
     bookingData.under3Count,
     bookingData.selectedPlan,
     bookingData.selectedStaff,
+    bookingData.couponDiscount,
     selectedPlanData,
     adultPrice,
     childPrice,
@@ -247,6 +252,19 @@ export function BookingForm() {
       ...prev,
       [field]: value,
     }))
+  }
+
+  const VALID_COUPON = "UMIKAME500"
+
+  const handleCouponApply = () => {
+    const totalPeople = bookingData.adultCount + bookingData.childCount
+    if (bookingData.couponCode.toUpperCase() === VALID_COUPON) {
+      const discount = totalPeople * 500
+      setBookingData((prev) => ({ ...prev, couponDiscount: discount }))
+    } else {
+      setBookingData((prev) => ({ ...prev, couponDiscount: 0 }))
+      alert("クーポンコードが正しくありません")
+    }
   }
 
   const handleParticipantChange = (participantId: string, field: keyof ParticipantDetails, value: any) => {
@@ -283,6 +301,8 @@ export function BookingForm() {
           childPrice,
           vipSurcharge: selectedPlanData?.vipSurcharge || 0,
           totalPrice,
+          couponCode: bookingData.couponCode,
+          couponDiscount: bookingData.couponDiscount,
         }),
       })
 
@@ -704,6 +724,12 @@ export function BookingForm() {
                   <span>￥{STAFF_FEE.toLocaleString()}</span>
                 </div>
               )}
+              {bookingData.couponDiscount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>🎉 LINEクーポン割引</span>
+                  <span>-￥{bookingData.couponDiscount.toLocaleString()}</span>
+                </div>
+              )}
               <div className="border-t border-emerald-200 pt-2 flex justify-between font-bold text-lg text-emerald-800">
                 <span>合計金額</span>
                 <span>￥{totalPrice.toLocaleString()}</span>
@@ -792,6 +818,36 @@ export function BookingForm() {
               className="rounded-xl border-emerald-200 focus:border-emerald-500"
               rows={3}
             />
+          </div>
+
+          {/* LINE Coupon Section */}
+          <div className="border-t border-emerald-200 pt-4 mt-4">
+            <Label htmlFor="coupon" className="text-sm font-medium text-gray-700 mb-2 block">
+              LINEクーポンコード
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="coupon"
+                value={bookingData.couponCode}
+                onChange={(e) => handleInputChange("couponCode", e.target.value.toUpperCase())}
+                placeholder="クーポンコード入力"
+                className="rounded-xl border-emerald-200 focus:border-emerald-500"
+              />
+              <Button
+                type="button"
+                onClick={handleCouponApply}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4"
+              >
+                適用
+              </Button>
+            </div>
+            {bookingData.couponDiscount > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-2">
+                <p className="text-sm text-green-700 font-semibold">
+                  🎉 クーポン適用済み！ -{bookingData.couponDiscount.toLocaleString()}円引き
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

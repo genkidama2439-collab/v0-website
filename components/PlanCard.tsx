@@ -132,7 +132,9 @@ export default function PlanCard({ plan, priority = false }: { plan: any; priori
                     ¥{originalPrice.toLocaleString()}
                   </span>
                   <span className="text-base font-bold text-red-600 leading-tight">
-                    {formatPriceWithTilde({ price: plan.price, childPrice: plan.childPrice })}
+                    {plan.id === "S2"
+                      ? `¥${plan.price.toLocaleString()}`
+                      : formatPriceWithTilde({ price: plan.price, childPrice: plan.childPrice })}
                   </span>
                 </div>
               )}

@@ -450,17 +450,14 @@ export function BookingForm() {
                       </div>
                     </div>
                     <div className="text-right">
-                      {plan.id === "S2" ? (
-                        <div>
-                          <div className="text-xl font-bold text-emerald-600">+¥20,000</div>
-                          <div className="text-xs text-gray-500">貸切料金</div>
-                        </div>
-                      ) : plan.id === "S3" ? (
+                      {plan.id === "S3" ? (
                         <div className="text-xl font-bold text-emerald-600">¥4,000</div>
                       ) : plan.id === "S5" ? (
                         <div className="text-xl font-bold text-emerald-600">¥58,000〜</div>
                       ) : (
-                        <div className="text-xl font-bold text-emerald-600">¥6,000〜</div>
+                        <div className="text-xl font-bold text-emerald-600">
+                          ¥{plan.price.toLocaleString()}〜
+                        </div>
                       )}
                     </div>
                   </div>

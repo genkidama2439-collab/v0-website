@@ -599,6 +599,17 @@ export function BookingForm() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  onClick={() => handleCountChange("adultCount", false)}
+                  disabled={bookingData.adultCount <= 0}
+                  className="rounded-full w-10 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                >
+                  -
+                </Button>
+                <span className="text-2xl font-bold text-emerald-800 w-12 text-center">{bookingData.adultCount}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleCountChange("adultCount", true)}
                   disabled={
                     selectedPlanData?.maxParticipants

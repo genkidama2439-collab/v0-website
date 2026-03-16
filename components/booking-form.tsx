@@ -277,12 +277,11 @@ export function BookingForm() {
   }
 
   const handleCountChange = (field: "adultCount" | "childCount" | "under3Count", increment: boolean) => {
-    const maxParticipants = selectedPlanData?.maxParticipants || Infinity
-    const totalParticipants = bookingData.adultCount + bookingData.childCount + bookingData.under3Count
+    const isVip = bookingData.selectedPlan === "S2"
+    const maxParticipants = isVip ? 6 : 999
+    const currentTotal = bookingData.adultCount + bookingData.childCount
 
-    if (increment && totalParticipants >= maxParticipants) {
-      return
-    }
+    if (increment && isVip && currentTotal >= maxParticipants) return
 
     setBookingData((prev) => ({
       ...prev,
@@ -380,7 +379,7 @@ export function BookingForm() {
                   {STAFF_FEE.toLocaleString()})
                 </p>
               )}
-              {selectedPlanData?.vipSurcharge && (
+              {selectedPlanData?.vipSurcharge > 0 && (
                 <p className="text-orange-600">貸切追加料金: ¥{selectedPlanData.vipSurcharge.toLocaleString()}</p>
               )}
               <p className="font-semibold text-emerald-800">合計金額: ¥{totalPrice.toLocaleString()}</p>
@@ -453,8 +452,8 @@ export function BookingForm() {
                     <div className="text-right">
                       {plan.id === "S2" ? (
                         <div>
-                          <div className="text-xl font-bold text-emerald-600">¥{plan.price.toLocaleString()}</div>
-                          <div className="text-xs text-gray-500">1人（最大6名まで）</div>
+                          <div className="text-xl font-bold text-emerald-600">+¥20,000</div>
+                          <div className="text-xs text-gray-500">貸切料金</div>
                         </div>
                       ) : plan.id === "S3" ? (
                         <div className="text-xl font-bold text-emerald-600">¥4,000</div>
@@ -483,9 +482,7 @@ export function BookingForm() {
                 <div className="bg-white/60 rounded-lg p-2">
                   <div className="text-gray-600 mb-0.5">料金</div>
                   <div className="font-semibold text-gray-800">
-                    {selectedPlanData.id === "S2" ? (
-                      <>¥{selectedPlanData.price.toLocaleString()} / 1人</>
-                    ) : selectedPlanData.id === "S3" ? (
+                    {selectedPlanData.id === "S3" ? (
                       <>
                         ¥{selectedPlanData.price.toLocaleString()}{" "}
                         <span className="text-emerald-600">(3歳以下無料)</span>
@@ -587,6 +584,17 @@ export function BookingForm() {
             </div>
           )}
 
+          {bookingData.selectedPlan === "S2" && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+              <p className="text-sm text-blue-800">
+                <strong>VIP貸切プランについて：</strong><br />
+                • 料金：¥9,000 / 1名<br />
+                • 最大6名まで承ります<br />
+                • 7名以上の場合はLINEよりご相談ください
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Adult Count */}
             <div>
@@ -611,104 +619,11 @@ export function BookingForm() {
                   variant="outline"
                   size="sm"
                   onClick={() => handleCountChange("adultCount", true)}
-                  disabled={
-                    selectedPlanData?.maxParticipants
-                      ? bookingData.adultCount + bookingData.childCount + bookingData.under3Count >=
-                        selectedPlanData.maxParticipants
-                      : false
-                  }
-                  className="rounded-full w-10 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  +
-                </Button>
-              </div>
-            </div>
-
-            {/* Child Count */}
-            <div>
-              <Label className="text-sm font-medium text-gray-700 mb-3 block">
-                {childLabel}
-                <span className="text-emerald-600 ml-2">￥{childPrice.toLocaleString()}/人</span>
-              </Label>
-              <div className="flex items-center gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleCountChange("childCount", false)}
-                  disabled={bookingData.childCount <= 0}
                   className="rounded-full w-10 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                 >
-                  -
-                </Button>
-                <span className="text-2xl font-bold text-emerald-800 w-12 text-center">{bookingData.childCount}</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleCountChange("childCount", true)}
-                  disabled={
-                    selectedPlanData?.maxParticipants
-                      ? bookingData.adultCount + bookingData.childCount + bookingData.under3Count >=
-                        selectedPlanData.maxParticipants
-                      : false
-                  }
-                  className="rounded-full w-10 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
                   +
                 </Button>
               </div>
-            </div>
-
-            {/* Under-3 Count - Only show for Night Hunter Test */}
-            {showUnder3 && (
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-3 block">
-                  3歳未満
-                  <span className="text-emerald-600 ml-2">無料</span>
-                </Label>
-                <div className="flex items-center gap-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCountChange("under3Count", false)}
-                    disabled={bookingData.under3Count <= 0}
-                    className="rounded-full w-10 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                  >
-                    -
-                  </Button>
-                  <span className="text-2xl font-bold text-emerald-800 w-12 text-center">
-                    {bookingData.under3Count}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCountChange("under3Count", true)}
-                    disabled={
-                      selectedPlanData?.maxParticipants
-                        ? bookingData.adultCount + bookingData.childCount + bookingData.under3Count >=
-                          selectedPlanData.maxParticipants
-                        : false
-                    }
-                    className="rounded-full w-10 h-10 border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    +
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Max participants warning for S2 */}
-          {selectedPlanData?.id === "S2" && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
-              <p className="text-sm text-blue-700 font-semibold">
-                ※VIP貸切プランは最大6名まで。7名以上はLINEよりご相談ください。
-              </p>
-            </div>
-          )}
             </div>
 
             {/* Child Count */}
@@ -813,7 +728,7 @@ export function BookingForm() {
                     </span>
                   </div>
                 )}
-                {selectedPlanData?.vipSurcharge && (
+                {selectedPlanData?.vipSurcharge > 0 && (
                   <div className="flex justify-between text-orange-600">
                     <span>貸切追加料金</span>
                     <span>￥{selectedPlanData.vipSurcharge.toLocaleString()}</span>
@@ -842,7 +757,7 @@ export function BookingForm() {
                 {ageRestrictionMessage}
                 <br />
                 ※器材レンタル・保険料込み
-                {selectedPlanData?.vipSurcharge && (
+                {selectedPlanData?.vipSurcharge > 0 && (
                   <>
                     <br />
                     ※貸切プランは通常料金に追加で￥{selectedPlanData.vipSurcharge.toLocaleString()}

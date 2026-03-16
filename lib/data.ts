@@ -202,9 +202,9 @@ SNS映え間違いなし！
     vipSurcharge: 0,
     privateTourSurcharge: 0,
     maxParticipants: 6,
-    priceNote: "1名¥9,000（最大6名まで）\n7名以上はLINEよりご相談ください",
-    rating: 5.0,
-    reviewCount: 234,
+    priceNote: "¥9,000 / 1名（最大6名まで）\n7名以上はLINEよりご相談ください",
+    rating: 5.0, // rating を 5.0 に変更
+    reviewCount: 234, // 口コミ件数をまばらな数字に変更（貸切プランなので少なめ）
     image: "/placeholder-p4pnn.png",
     timeTags: ["07:00", "09:00", "11:00", "14:00", "16:00"],
     provisionalTimes: ["08:00", "10:00", "12:00", "13:00"],

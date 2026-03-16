@@ -751,6 +751,33 @@ export function BookingForm() {
                 <span>合計金額</span>
                 <span>￥{totalPrice.toLocaleString()}</span>
               </div>
+
+              {/* クーポンコード */}
+              <div className="mt-4 pt-4 border-t border-emerald-200">
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  🎁 LINEクーポンコード
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    value={bookingData.couponCode}
+                    onChange={(e) => handleInputChange("couponCode", e.target.value)}
+                    placeholder="例: UMIKAME500"
+                    className="rounded-xl border-emerald-200 focus:border-emerald-500"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleCouponApply}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4"
+                  >
+                    適用
+                  </Button>
+                </div>
+                {bookingData.couponDiscount > 0 && (
+                  <p className="text-emerald-600 text-sm font-semibold mt-2">
+                    🎉 クーポン適用済み！ -{bookingData.couponDiscount.toLocaleString()}円引き
+                  </p>
+                )}
+              </div>
             </div>
             <p className="text-xs text-gray-500 mt-3">
               <>
@@ -835,36 +862,6 @@ export function BookingForm() {
               className="rounded-xl border-emerald-200 focus:border-emerald-500"
               rows={3}
             />
-          </div>
-
-          {/* LINE Coupon Section */}
-          <div className="border-t border-emerald-200 pt-4 mt-4">
-            <Label htmlFor="coupon" className="text-sm font-medium text-gray-700 mb-2 block">
-              LINEクーポンコード
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                id="coupon"
-                value={bookingData.couponCode}
-                onChange={(e) => handleInputChange("couponCode", e.target.value.toUpperCase())}
-                placeholder="クーポンコード入力"
-                className="rounded-xl border-emerald-200 focus:border-emerald-500"
-              />
-              <Button
-                type="button"
-                onClick={handleCouponApply}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4"
-              >
-                適用
-              </Button>
-            </div>
-            {bookingData.couponDiscount > 0 && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-2">
-                <p className="text-sm text-green-700 font-semibold">
-                  🎉 クーポン適用済み！ -{bookingData.couponDiscount.toLocaleString()}円引き
-                </p>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>

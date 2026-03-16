@@ -456,7 +456,7 @@ export function BookingForm() {
                         <div className="text-xl font-bold text-emerald-600">¥58,000〜</div>
                       ) : (
                         <div className="text-xl font-bold text-emerald-600">
-                          ¥{plan.price.toLocaleString()}〜
+                          ¥{plan.price.toLocaleString()}{plan.id !== "S2" && "〜"}
                         </div>
                       )}
                     </div>

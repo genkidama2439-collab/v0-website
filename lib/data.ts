@@ -272,21 +272,20 @@ SNS映え間違いなし！
 宮古島の自然を知り尽くしたガイドが、その日一番生き物に出会えそうなポイントへご案内します。
 運が良ければ、絶滅危惧種に指定されている巨大なヤシガニに遭遇できるかも！？他にも夜にしか見られない珍しい植物や生き物たちがたくさん待っています。`,
     price: 4000,
-    childPrice: 4000, // 一律料金なのでchildPriceも4000に設定
+    childPrice: 4000,
     priceNote: "一律 ¥4,000（3歳以下無料）",
-    rating: 5.0, // rating を 5.0 に変更
-    reviewCount: 423, // 口コミ件数をまばらな数字に変更（ユニークなプラン）
+    rating: 5.0,
+    reviewCount: 423,
     image: "/placeholder-we6r5.png",
-    timeTags: ["20:00〜 (時期により変動)"],
-    provisionalTimes: ["19:00〜"],
+    timeTags: ["19:30", "21:20"],
+    provisionalTimes: ["19:30", "21:20"],
     durationHours: 1.5,
     features: ["親子体験", "安全ガイド同行", "本格ナイトツアー", "3歳以下無料"],
     rank: 3,
     ageRange: "0歳〜75歳",
     location: "ご予約確定時にメールにてご案内",
-
     meetingTime: {
-      regular: "開始15分前に集合",
+      regular: "19:30便は19:20集合 / 21:20便は21:10集合",
     },
     options: [],
     whatToBring: ["歩きやすい靴（ビーチサンダルも一応可能）", "虫よけスプレー", "飲み物", "懐中電灯（貸出あり）"],

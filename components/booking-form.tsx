@@ -339,18 +339,30 @@ export function BookingForm() {
     bookingData.customerEmail &&
     bookingData.customerPhone &&
     bookingData.agreedToTerms &&
-    bookingData.participants.every(
-      (p) =>
-        p.name.trim() !== "" &&
-        typeof p.age === "number" &&
-        p.age > 0 &&
-        typeof p.height === "number" &&
-        p.height > 0 &&
-        typeof p.weight === "number" &&
-        p.weight > 0 &&
-        typeof p.footSize === "number" &&
-        p.footSize > 0,
-    )
+    bookingData.participants.every((p) => {
+      // Check required fields for all participants
+      if (p.name.trim() === "" || typeof p.age !== "number" || p.age <= 0) {
+        return false
+      }
+
+      // For night tour (S3 or night-hunter), height, weight, and footSize are optional
+      const isNightTour = bookingData.selectedPlan === "S3" || bookingData.selectedPlan === "night-hunter"
+
+      if (isNightTour) {
+        // Night tour: these fields are optional, but if provided, must be valid
+        return true
+      } else {
+        // Other plans: height, weight, and footSize are required
+        return (
+          typeof p.height === "number" &&
+          p.height > 0 &&
+          typeof p.weight === "number" &&
+          p.weight > 0 &&
+          typeof p.footSize === "number" &&
+          p.footSize > 0
+        )
+      }
+    })
 
   if (isSubmitted) {
     return (

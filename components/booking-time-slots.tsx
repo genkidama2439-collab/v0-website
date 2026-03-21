@@ -55,7 +55,7 @@ function getSunsetSlots(date: Date) {
 function getTimeSlots(plan: PlanId, date: Date): string[] {
   switch (plan) {
     case "night-hunter":
-      return ["19:30", "21:20"]
+      return ["19:20", "21:10"]
     case "sunset-sup":
       return getSunsetSlots(date)
     default:

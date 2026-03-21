@@ -798,7 +798,7 @@ export function BookingForm() {
       </Card>
 
       {/* Participant Details */}
-      <ParticipantForm participants={bookingData.participants} minAge={minAge} onUpdate={handleParticipantChange} />
+      <ParticipantForm participants={bookingData.participants} minAge={minAge} selectedPlan={bookingData.selectedPlan} onUpdate={handleParticipantChange} />
 
       {/* Customer Information */}
       <Card className="glass-card bg-white/70 backdrop-blur-xl rounded-3xl ring-1 ring-emerald-100 shadow-lg">

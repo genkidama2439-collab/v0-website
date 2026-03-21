@@ -18,11 +18,15 @@ interface ParticipantDetails {
 interface ParticipantFormProps {
   participants: ParticipantDetails[]
   minAge: number
+  selectedPlan: string
   onUpdate: (id: string, field: keyof ParticipantDetails, value: any) => void
 }
 
-export function ParticipantForm({ participants, minAge, onUpdate }: ParticipantFormProps) {
+export function ParticipantForm({ participants, minAge, selectedPlan, onUpdate }: ParticipantFormProps) {
   if (participants.length === 0) return null
+
+  // ナイトツアーかどうかを判定
+  const isNightTour = selectedPlan === "night-hunter" || selectedPlan === "S3"
 
   return (
     <Card className="glass-card bg-white/70 backdrop-blur-xl rounded-3xl ring-1 ring-emerald-100 shadow-lg">
@@ -72,7 +76,9 @@ export function ParticipantForm({ participants, minAge, onUpdate }: ParticipantF
                   />
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">身長 (cm) *</Label>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    身長 (cm) {isNightTour ? "(任意)" : "*"}
+                  </Label>
                   <Input
                     type="number"
                     value={participant.height}
@@ -83,11 +89,13 @@ export function ParticipantForm({ participants, minAge, onUpdate }: ParticipantF
                     min="50"
                     max="220"
                     className="rounded-xl border-emerald-200 focus:border-emerald-500"
-                    required
+                    required={!isNightTour}
                   />
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">体重 (kg) *</Label>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    体重 (kg) {isNightTour ? "(任意)" : "*"}
+                  </Label>
                   <Input
                     type="number"
                     value={participant.weight}
@@ -98,11 +106,13 @@ export function ParticipantForm({ participants, minAge, onUpdate }: ParticipantF
                     min="5"
                     max="150"
                     className="rounded-xl border-emerald-200 focus:border-emerald-500"
-                    required
+                    required={!isNightTour}
                   />
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">足のサイズ (cm) *</Label>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    足のサイズ (cm) {isNightTour ? "(任意)" : "*"}
+                  </Label>
                   <Input
                     type="number"
                     step="0.5"
@@ -114,7 +124,7 @@ export function ParticipantForm({ participants, minAge, onUpdate }: ParticipantF
                     min="10"
                     max="35"
                     className="rounded-xl border-emerald-200 focus:border-emerald-500"
-                    required
+                    required={!isNightTour}
                   />
                 </div>
               </div>
@@ -124,9 +134,19 @@ export function ParticipantForm({ participants, minAge, onUpdate }: ParticipantF
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <p className="text-sm text-blue-800">
             <strong>ご注意:</strong>
-            <br />• 身長・体重・足のサイズは器材選定のために必要です
-            <br />• 安全のため、正確な情報をご入力ください
-            <br />• 当日、大幅に異なる場合は器材の変更をお願いする場合があります
+            <br />
+            {isNightTour ? (
+              <>
+                • 身長・体重・足のサイズは任意です
+                <br />• ただし、より正確なご案内のため、ご入力いただくことをお勧めします
+              </>
+            ) : (
+              <>
+                • 身長・体重・足のサイズは器材選定のために必要です
+                <br />• 安全のため、正確な情報をご入力ください
+                <br />• 当日、大幅に異なる場合は器材の変更をお願いする場合があります
+              </>
+            )}
           </p>
         </div>
       </CardContent>

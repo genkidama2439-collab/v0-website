@@ -211,7 +211,17 @@ export default function CoverflowCarousel({ items }: CoverflowCarouselProps) {
                   {/* Image */}
                   <div className="relative h-48 overflow-hidden">
                     <Image
-                      src={item.image || "/placeholder.svg"}
+                      src={
+                        item.id === "S1"
+                          ? "/images/s1-sea-turtle-snorkeling.jpg"
+                          : item.id === "S2"
+                            ? "/images/s2-sea-turtle-closeup.jpg"
+                            : item.id === "S3"
+                              ? "/images/night-hunter-crab.jpg"
+                              : item.id === "S4"
+                                ? "/images/sunset-sup-silhouettes.jpg"
+                                : item.image || "/placeholder.svg"
+                      }
                       alt={item.name}
                       width={320}
                       height={192}

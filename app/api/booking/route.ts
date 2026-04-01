@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
     // GAS URLを環境変数から取得
     const gasUrl = process.env.GAS_BOOKING_URL
-    
+
     if (!gasUrl) {
       console.error("[v0] GAS_BOOKING_URL is not set in environment variables")
       return NextResponse.json(
@@ -147,9 +147,9 @@ export async function POST(request: Request) {
       )
     }
 
-    console.log("[v0] GAS response success:", { 
-      bookingNumber, 
-      timestamp: new Date().toISOString() 
+    console.log("[v0] GAS response success:", {
+      bookingNumber,
+      timestamp: new Date().toISOString(),
     })
 
     return NextResponse.json({ success: true, bookingNumber })

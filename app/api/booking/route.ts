@@ -59,20 +59,12 @@ export async function POST(request: Request) {
       specialRequests: bookingData.specialRequests,
     }
 
-    // GAS URLを環境変数から取得
-    const gasUrl = process.env.GAS_BOOKING_URL
-    if (!gasUrl) {
-      console.error("[v0] GAS_BOOKING_URL environment variable is not set")
-      return NextResponse.json(
-        {
-          error: "サーバー設定エラー",
-          details: "GAS_BOOKING_URL が設定されていません",
-        },
-        { status: 500 }
-      )
-    }
+    // GAS URLを環境変数から取得、未設定の場合はデフォルトを使用
+    const gasUrl =
+      process.env.GAS_BOOKING_URL ||
+      "https://script.google.com/macros/s/AKfycbz0ltHt_0WcQVw-KUD4iG5yvH32RGYgXkO6ajVjafiPtdRAK1rloQj7rmiXmk3o_Pte/exec"
 
-    console.log("[v0] Sending booking to GAS:", { bookingNumber, gasUrl: gasUrl.substring(0, 50) + "..." })
+    console.log("[v0] Using GAS URL:", gasUrl.substring(0, 60) + "...")
 
     let response
     try {

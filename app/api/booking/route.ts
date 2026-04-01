@@ -12,7 +12,29 @@ function generateBookingNumber(date: string): string {
 
 export async function POST(request: Request) {
   try {
-    const bookingData = await request.json()
+    let bookingData
+    try {
+      bookingData = await request.json()
+    } catch (parseError) {
+      console.error("[v0] JSON parse error:", parseError)
+      return NextResponse.json(
+        { error: "リクエストの形式が正しくありません", details: "JSON パースエラー" },
+        { status: 400 }
+      )
+    }
+
+    // リクエストデータの検証
+    if (!bookingData.selectedDate || !bookingData.customerName || !bookingData.customerEmail) {
+      console.error("[v0] Missing required fields:", {
+        selectedDate: !!bookingData.selectedDate,
+        customerName: !!bookingData.customerName,
+        customerEmail: !!bookingData.customerEmail,
+      })
+      return NextResponse.json(
+        { error: "必須項目が不足しています", details: "selectedDate, customerName, customerEmail は必須です" },
+        { status: 400 }
+      )
+    }
 
     const bookingNumber = generateBookingNumber(bookingData.selectedDate)
 
@@ -42,30 +64,76 @@ export async function POST(request: Request) {
 
     console.log("[v0] Sending booking to GAS:", { bookingNumber, gasUrl })
 
-    const response = await fetch(gasUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(gasPayload),
-    })
+    let response
+    try {
+      response = await fetch(gasUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(gasPayload),
+      })
+    } catch (fetchError) {
+      console.error("[v0] Network error while calling GAS:", fetchError)
+      return NextResponse.json(
+        {
+          error: "ネットワークエラーが発生しました",
+          details: fetchError instanceof Error ? fetchError.message : "不明なエラー",
+        },
+        { status: 500 }
+      )
+    }
 
     if (!response.ok) {
-      const errorText = await response.text()
+      let errorText = ""
+      try {
+        errorText = await response.text()
+      } catch {
+        errorText = "レスポンステキスト取得失敗"
+      }
+
       console.error("[v0] GAS response error:", {
         status: response.status,
         statusText: response.statusText,
         errorText,
       })
-      return NextResponse.json({ error: "送信失敗" }, { status: 500 })
+
+      return NextResponse.json(
+        {
+          error: "GAS処理でエラーが発生しました",
+          details: `ステータス: ${response.status} ${response.statusText}`,
+          gasResponse: errorText.substring(0, 500), // 最初の500文字に制限
+        },
+        { status: response.status >= 500 ? 502 : 500 }
+      )
     }
 
-    const result = await response.json()
+    let result
+    try {
+      result = await response.json()
+    } catch (parseError) {
+      console.error("[v0] GAS JSON parse error:", parseError)
+      return NextResponse.json(
+        {
+          error: "GASレスポンスのパースに失敗しました",
+          details: "GASからの応答が正しいJSON形式ではありません",
+        },
+        { status: 502 }
+      )
+    }
+
     console.log("[v0] GAS response success:", result)
 
     return NextResponse.json({ success: true, bookingNumber })
   } catch (error) {
     console.error("[v0] Booking API error:", error)
-    return NextResponse.json({ error: "送信失敗" }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : "不明なエラー"
+    return NextResponse.json(
+      {
+        error: "予約処理中にエラーが発生しました",
+        details: errorMessage,
+      },
+      { status: 500 }
+    )
   }
 }

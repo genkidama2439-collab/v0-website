@@ -44,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ja" className={`${inter.variable} ${jetbrainsMono.variable} ${notoSerifJP.variable}`}>
+    <html lang="ja" className={`${inter.variable} ${jetbrainsMono.variable} ${notoSerifJP.variable}`} suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" />

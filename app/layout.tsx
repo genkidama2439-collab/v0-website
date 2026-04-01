@@ -63,7 +63,7 @@ export default function RootLayout({
         <link rel="preload" as="image" href="/images/s2-sea-turtle-closeup.jpg" type="image/jpeg" />
         <link rel="preload" as="image" href="/images/night-hunter-crab.jpg" type="image/jpeg" />
       </head>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased" suppressHydrationWarning>
         <WelcomeAnimation />
         <Suspense fallback={null}>
           {children}

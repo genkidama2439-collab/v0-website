@@ -317,14 +317,19 @@ export function BookingForm() {
       })
 
       if (!response.ok) {
-        throw new Error("予約の送信に失敗しました")
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error || `エラーが発生しました（ステータス: ${response.status}）`
+        console.error("[v0] Booking API error:", { status: response.status, error: errorData })
+        throw new Error(errorMessage)
       }
 
-      console.log("[v0] Booking submitted successfully")
+      const result = await response.json()
+      console.log("[v0] Booking submitted successfully:", result)
       setIsSubmitted(true)
     } catch (error) {
       console.error("[v0] Booking submission error:", error)
-      alert("予約の送信中にエラーが発生しました。もう一度お試しください。")
+      const errorMessage = error instanceof Error ? error.message : "予約の送信中にエラーが発生しました。もう一度お試しください。"
+      alert(errorMessage)
     } finally {
       setIsSubmitting(false)
     }

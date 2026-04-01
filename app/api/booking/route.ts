@@ -59,10 +59,20 @@ export async function POST(request: Request) {
       specialRequests: bookingData.specialRequests,
     }
 
-    const gasUrl =
-      "https://script.google.com/macros/s/AKfycbz0ltHt_0WcQVw-KUD4iG5yvH32RGYgXkO6ajVjafiPtdRAK1rloQj7rmiXmk3o_Pte/exec"
+    // GAS URLを環境変数から取得
+    const gasUrl = process.env.GAS_BOOKING_URL
+    if (!gasUrl) {
+      console.error("[v0] GAS_BOOKING_URL environment variable is not set")
+      return NextResponse.json(
+        {
+          error: "サーバー設定エラー",
+          details: "GAS_BOOKING_URL が設定されていません",
+        },
+        { status: 500 }
+      )
+    }
 
-    console.log("[v0] Sending booking to GAS:", { bookingNumber, gasUrl })
+    console.log("[v0] Sending booking to GAS:", { bookingNumber, gasUrl: gasUrl.substring(0, 50) + "..." })
 
     let response
     try {
@@ -79,6 +89,7 @@ export async function POST(request: Request) {
         {
           error: "ネットワークエラーが発生しました",
           details: fetchError instanceof Error ? fetchError.message : "不明なエラー",
+          timestamp: new Date().toISOString(),
         },
         { status: 500 }
       )
@@ -95,14 +106,16 @@ export async function POST(request: Request) {
       console.error("[v0] GAS response error:", {
         status: response.status,
         statusText: response.statusText,
-        errorText,
+        errorText: errorText.substring(0, 200),
+        gasUrl: gasUrl.substring(0, 50) + "...",
       })
 
       return NextResponse.json(
         {
           error: "GAS処理でエラーが発生しました",
           details: `ステータス: ${response.status} ${response.statusText}`,
-          gasResponse: errorText.substring(0, 500), // 最初の500文字に制限
+          gasResponse: errorText.substring(0, 200),
+          timestamp: new Date().toISOString(),
         },
         { status: response.status >= 500 ? 502 : 500 }
       )
@@ -113,16 +126,18 @@ export async function POST(request: Request) {
       result = await response.json()
     } catch (parseError) {
       console.error("[v0] GAS JSON parse error:", parseError)
+      console.error("[v0] GAS response body:", await response.text())
       return NextResponse.json(
         {
           error: "GASレスポンスのパースに失敗しました",
           details: "GASからの応答が正しいJSON形式ではありません",
+          timestamp: new Date().toISOString(),
         },
         { status: 502 }
       )
     }
 
-    console.log("[v0] GAS response success:", result)
+    console.log("[v0] GAS response success:", { bookingNumber, result })
 
     return NextResponse.json({ success: true, bookingNumber })
   } catch (error) {
@@ -132,6 +147,7 @@ export async function POST(request: Request) {
       {
         error: "予約処理中にエラーが発生しました",
         details: errorMessage,
+        timestamp: new Date().toISOString(),
       },
       { status: 500 }
     )

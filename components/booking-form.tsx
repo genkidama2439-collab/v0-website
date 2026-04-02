@@ -248,6 +248,7 @@ export function BookingForm() {
   ])
 
   const handleInputChange = (field: keyof BookingData, value: any) => {
+    console.log("[v0] handleInputChange:", field, value)
     setBookingData((prev) => ({
       ...prev,
       [field]: value,

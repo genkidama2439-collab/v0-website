@@ -122,33 +122,12 @@
 
   html {
     overflow-x: hidden;
-    height: 100%;
-    position: fixed;
-    width: 100%;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: none;
   }
 
   body {
     @apply bg-gradient-to-b from-teal-50 via-cyan-50 to-emerald-50 text-foreground;
     overflow-x: hidden;
-    overscroll-behavior: contain;
-    height: 100vh;
-    overflow-y: auto;
     position: relative;
-    -webkit-overflow-scrolling: touch;
-    touch-action: manipulation;
-  }
-
-  @supports (-webkit-touch-callout: none) {
-    html {
-      height: -webkit-fill-available;
-    }
-
-    body {
-      height: -webkit-fill-available;
-      min-height: -webkit-fill-available;
-    }
   }
 }
 
@@ -192,11 +171,11 @@
   scroll-behavior: smooth;
 }
 
-/* Animations */
 @keyframes rise {
   0% {
     transform: translateY(100vh) scale(0);
     opacity: 0;
+    will-change: transform, opacity;
   }
   10% {
     opacity: 1;
@@ -214,6 +193,7 @@
   0% {
     transform: translateX(-100%) skewX(-15deg);
     opacity: 0;
+    will-change: transform, opacity;
   }
   50% {
     opacity: 1;
@@ -241,6 +221,8 @@
   animation: rise linear infinite;
   pointer-events: none;
   box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.3), 0 0 20px rgba(16, 185, 129, 0.2);
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .glass-card {

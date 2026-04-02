@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 
 const BUBBLE_CONFIG = {
-  count: 15,
+  count: 6,
   minSize: 20,
   maxSize: 80,
   minDuration: 15,

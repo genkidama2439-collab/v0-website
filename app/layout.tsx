@@ -46,11 +46,10 @@ export default function RootLayout({
   return (
     <html lang="ja" className={`${inter.variable} ${jetbrainsMono.variable} ${notoSerifJP.variable}`} suppressHydrationWarning>
       <head>
-        <link key="preconnect-blob" rel="preconnect" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" crossOrigin="anonymous" />
-        <link key="dns-prefetch-blob" rel="dns-prefetch" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" />
+        <link rel="preconnect" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com" />
 
         <link
-          key="preload-gemini"
           rel="preload"
           as="image"
           href="/images/gemini-generated-image-rq969urq969urq96.jpeg"
@@ -58,11 +57,11 @@ export default function RootLayout({
           fetchPriority="high"
         />
 
-        <link key="preload-hero" rel="preload" as="image" href="/images/hero-aerial-ocean.jpg" type="image/jpeg" fetchPriority="high" />
+        <link rel="preload" as="image" href="/images/hero-aerial-ocean.jpg" type="image/jpeg" fetchPriority="high" />
 
-        <link key="preload-snorkeling" rel="preload" as="image" href="/images/s1-sea-turtle-snorkeling.jpg" type="image/jpeg" />
-        <link key="preload-closeup" rel="preload" as="image" href="/images/s2-sea-turtle-closeup.jpg" type="image/jpeg" />
-        <link key="preload-crab" rel="preload" as="image" href="/images/night-hunter-crab.jpg" type="image/jpeg" />
+        <link rel="preload" as="image" href="/images/s1-sea-turtle-snorkeling.jpg" type="image/jpeg" />
+        <link rel="preload" as="image" href="/images/s2-sea-turtle-closeup.jpg" type="image/jpeg" />
+        <link rel="preload" as="image" href="/images/night-hunter-crab.jpg" type="image/jpeg" />
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <WelcomeAnimation />

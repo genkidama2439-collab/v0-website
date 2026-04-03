@@ -312,9 +312,9 @@ export function ImageGallery() {
 
         <div className="mb-16">
           <div className="flex flex-wrap justify-center gap-3">
-            {categories.map((category) => (
+            {categories.map((category, categoryIndex) => (
               <Button
-                key={category}
+                key={`category-${categoryIndex}`}
                 variant={selectedCategory === category ? "default" : "outline"}
                 size="sm"
                 onClick={() => {
@@ -344,7 +344,7 @@ export function ImageGallery() {
           <>
             <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
               {visibleImages.map((image, index) => (
-                <div key={index} className="break-inside-avoid">
+                <div key={`image-${image.title}-${index}`} className="break-inside-avoid">
                   <Card
                     className="glass-card bg-white/80 backdrop-blur-xl rounded-2xl overflow-hidden ring-1 ring-emerald-100/50 shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer group relative will-change-transform"
                     onClick={() => openLightbox(index)}
@@ -440,7 +440,7 @@ export function ImageGallery() {
           <div className="flex gap-2">
             {filteredImages.map((_, index) => (
               <button
-                key={index}
+                key={`indicator-${index}`}
                 onClick={() => {
                   setCurrentIndex(index)
                   scrollToIndex(index)

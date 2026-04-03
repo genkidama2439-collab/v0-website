@@ -91,7 +91,7 @@ export default function PlanCard({ plan, priority = false }: { plan: any; priori
               <div className="flex gap-1 flex-wrap mb-1">
                 {plan.flexibleDurations.map((duration: any, index: number) => (
                   <button
-                    key={index}
+                    key={`duration-${index}-${duration.label}`}
                     onClick={(e) => {
                       e.preventDefault()
                       setSelectedDuration(index)
@@ -169,7 +169,7 @@ export default function PlanCard({ plan, priority = false }: { plan: any; priori
               <div className="flex gap-2 pb-1">
                 {availableDates.map((date) => (
                   <button
-                    key={date.fullDate}
+                    key={`date-${date.fullDate}`}
                     onClick={() => setSelectedDate(selectedDate === date.fullDate ? null : date.fullDate)}
                     className={`flex-shrink-0 flex flex-col items-center justify-center w-[70px] h-14 rounded-full border-2 transition-all ${
                       selectedDate === date.fullDate
@@ -244,7 +244,7 @@ export default function PlanCard({ plan, priority = false }: { plan: any; priori
                 <h4 className="text-xs font-semibold text-gray-900 mb-1">特徴</h4>
                 <div className="flex flex-wrap gap-1.5">
                   {plan.features.map((feature: string, index: number) => (
-                    <span key={index} className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full">
+                    <span key={`feature-${index}-${feature}`} className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full">
                       {feature}
                     </span>
                   ))}
@@ -264,7 +264,7 @@ export default function PlanCard({ plan, priority = false }: { plan: any; priori
                 <h4 className="text-xs font-semibold text-gray-900 mb-1">持ち物</h4>
                 <ul className="text-[11px] text-gray-700 space-y-0.5">
                   {plan.whatToBring.map((item: string, index: number) => (
-                    <li key={index} className="flex items-start gap-1">
+                    <li key={`item-${index}-${item}`} className="flex items-start gap-1">
                       <span className="text-emerald-500 mt-0.5">•</span>
                       <span>{item}</span>
                     </li>
@@ -303,7 +303,7 @@ export default function PlanCard({ plan, priority = false }: { plan: any; priori
                 <h4 className="text-xs font-semibold text-gray-900 mb-1">オプション</h4>
                 <ul className="text-[11px] text-gray-700 space-y-1">
                   {plan.options.map((option: any, index: number) => (
-                    <li key={index} className="flex justify-between items-center">
+                    <li key={`option-${index}-${option.name}`} className="flex justify-between items-center">
                       <span>{option.name}</span>
                       <span className="text-emerald-600 font-medium">
                         ¥{option.price.toLocaleString()}
@@ -323,7 +323,7 @@ export default function PlanCard({ plan, priority = false }: { plan: any; priori
                 <h4 className="text-xs font-semibold text-gray-900 mb-1">注意事項</h4>
                 <ul className="text-[11px] text-gray-700 space-y-0.5">
                   {plan.precautions.map((item: string, index: number) => (
-                    <li key={index} className="flex items-start gap-1">
+                    <li key={`precaution-${index}-${item}`} className="flex items-start gap-1">
                       <span className="text-red-500 mt-0.5">•</span>
                       <span>{item}</span>
                     </li>

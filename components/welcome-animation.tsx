@@ -128,7 +128,7 @@ export function WelcomeAnimation() {
 
                 return (
                   <motion.span
-                    key={index}
+                    key={`char-${index}-${char}`}
                     initial={{ opacity: 0, filter: "blur(12px)", y: 20 }}
                     animate={{
                       opacity: phase !== "initial" ? 1 : 0,

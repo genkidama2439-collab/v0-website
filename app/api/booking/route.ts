@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { generateBookingNumber, sendToGAS, createAPIResponse, createAPIError } from '@/lib/services/gas-service'
-import { validateEmail, validatePhoneNumber, validateRequired } from '@/lib/utils/validation'
+import { validateEmail, validateRequired } from '@/lib/utils/validation'
 
 interface BookingRequest {
   selectedDate: string

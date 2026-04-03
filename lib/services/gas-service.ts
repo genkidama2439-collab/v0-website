@@ -63,21 +63,21 @@ export const sendToGAS = async (payload: BookingPayload): Promise<GASResponse> =
 };
 
 // APIレスポンスを標準化
-export const createAPIResponse<T = any>(success: boolean, data: T, message?: string) {
+export const createAPIResponse = <T = any,>(success: boolean, data: T, message?: string) => {
   return {
     success,
     data,
     message: message || (success ? 'Success' : 'Error'),
     timestamp: new Date().toISOString(),
   };
-}
+};
 
 // APIエラーレスポンスを作成
-export const createAPIError(error: unknown, defaultMessage: string = 'An error occurred') {
+export const createAPIError = (error: unknown, defaultMessage: string = 'An error occurred') => {
   const message = error instanceof Error ? error.message : defaultMessage;
   return {
     success: false,
     error: message,
     timestamp: new Date().toISOString(),
   };
-}
+};

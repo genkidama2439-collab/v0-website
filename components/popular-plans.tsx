@@ -1,9 +1,9 @@
 "use client"
-import { plans } from "@/lib/data/plans"
+import { PLANS } from "@/lib/data"
 import PlanCard from "@/components/PlanCard"
 
 export function PopularPlans() {
-  const sortedPlans = [...plans].sort((a, b) => (a.rank || 999) - (b.rank || 999))
+  const sortedPlans = [...PLANS].sort((a, b) => (a.rank || 999) - (b.rank || 999))
 
   return (
     <section className="py-12 md:py-20 relative overflow-hidden">

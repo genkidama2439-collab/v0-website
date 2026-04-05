@@ -26,7 +26,7 @@ export const ERROR_MESSAGES = {
   INVALID_TIME: '無効な時刻です',
   INVALID_PARTICIPANTS: '参加者数が無効です',
   INVALID_PHONE: '電話番号が無効です',
-  INVALID_EMAIL: 'メールアドレスが無効です',
+  INVALID_EMAIL: '連絡先情報が無効です',
   BOOKING_FAILED: '予約に失敗しました',
   GAS_ERROR: 'システムエラーが発生しました',
   REQUIRED_FIELD: '必須項目です',
@@ -35,5 +35,5 @@ export const ERROR_MESSAGES = {
 // 成功メッセージ
 export const SUCCESS_MESSAGES = {
   BOOKING_CREATED: '予約が作成されました',
-  EMAIL_SENT: 'メールが送信されました',
+  BOOKING_SENT: '予約が送信されました',
 } as const;

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { generateBookingNumber, sendToGAS, createAPIResponse, createAPIError } from '@/lib/services/gas-service'
-import { validateEmail, validateRequired } from '@/lib/utils/validation'
+import { validateRequired } from '@/lib/utils/validation'
 
 interface BookingRequest {
   selectedDate: string
   customerName: string
-  customerEmail: string
+  customerEmail?: string
   customerPhone?: string
   planName: string
   selectedTime?: string
@@ -13,11 +13,12 @@ interface BookingRequest {
   totalPrice: number
   staffName?: string
   specialRequests?: string
+  lineUserId?: string | null
 }
 
 // 必須フィールドの検証
 const validateBookingRequest = (data: BookingRequest): { valid: boolean; error?: string } => {
-  const { selectedDate, customerName, customerEmail, participants } = data
+  const { selectedDate, customerName, participants } = data
 
   // 基本フィールド
   const dateValidation = validateRequired(selectedDate)
@@ -25,9 +26,6 @@ const validateBookingRequest = (data: BookingRequest): { valid: boolean; error?:
 
   const nameValidation = validateRequired(customerName)
   if (!nameValidation.valid) return { valid: false, error: '氏名が必須です' }
-
-  const emailValidation = validateEmail(customerEmail)
-  if (!emailValidation.valid) return { valid: false, error: emailValidation.error }
 
   // 参加者
   if (!Array.isArray(participants) || participants.length === 0) {
@@ -53,7 +51,7 @@ const buildGASPayload = (bookingData: BookingRequest, bookingNumber: string) => 
   return {
     bookingNumber,
     customerName: bookingData.customerName,
-    customerEmail: bookingData.customerEmail,
+    customerEmail: bookingData.customerEmail || '',
     customerPhone: bookingData.customerPhone || '',
     planName: bookingData.planName,
     selectedDate: bookingData.selectedDate,
@@ -65,6 +63,7 @@ const buildGASPayload = (bookingData: BookingRequest, bookingNumber: string) => 
     totalPrice: bookingData.totalPrice,
     staffName: bookingData.staffName || '',
     specialRequests: bookingData.specialRequests || '',
+    lineUserId: bookingData.lineUserId || '',
   }
 }
 

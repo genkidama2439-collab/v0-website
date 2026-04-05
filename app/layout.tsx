@@ -3,7 +3,9 @@ import type { Metadata } from "next"
 import { Inter, JetBrains_Mono, Noto_Serif_JP } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
+import Script from "next/script"
 import { WelcomeAnimation } from "@/components/welcome-animation"
+import { LiffProvider } from "@/components/liff-provider"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
@@ -65,11 +67,17 @@ export default function RootLayout({
         <link key="preload-crab" rel="preload" as="image" href="/images/night-hunter-crab.jpg" type="image/jpeg" />
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
+        <Script
+          src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"
+          strategy="beforeInteractive"
+        />
         <WelcomeAnimation />
-        <Suspense fallback={null}>
-          {children}
-          <Analytics />
-        </Suspense>
+        <LiffProvider>
+          <Suspense fallback={null}>
+            {children}
+            <Analytics />
+          </Suspense>
+        </LiffProvider>
       </body>
     </html>
   )

@@ -9,15 +9,20 @@ export interface GASResponse {
 // 予約ペイロードの型定義
 export interface BookingPayload {
   bookingNumber: string;
-  date: string;
-  time: string;
-  participants: number;
-  planId: string;
-  name: string;
-  email: string;
-  phone: string;
-  notes: string;
-  specialRequests: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  planName: string;
+  selectedDate: string;
+  selectedTime?: string;
+  participants: Array<{ category: string }>;
+  adultCount: number;
+  childCount: number;
+  under3Count: number;
+  totalPrice: number;
+  staffName?: string;
+  specialRequests?: string;
+  lineUserId?: string;
 }
 
 // GAS URLを取得
@@ -35,21 +40,48 @@ export const generateBookingNumber = (): string => {
   return `${timestamp}${random}`;
 };
 
-// GASにデータを送信
+// GASにデータを送信（サーバーサイドから呼び出し）
 export const sendToGAS = async (payload: BookingPayload): Promise<GASResponse> => {
   const gasUrl = getGASUrl();
+
+  // 10秒タイムアウト
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
   try {
     const response = await fetch(gasUrl, {
       method: 'POST',
-      mode: 'no-cors',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
+      signal: controller.signal,
+      redirect: 'follow',
     });
 
-    // no-corsモードではレスポンスが読めないため、常に成功と仮定
+    clearTimeout(timeoutId);
+
+    console.log('[v0] GAS response status:', response.status);
+
+    // レスポンスボディを確認
+    const responseText = await response.text();
+    console.log('[v0] GAS response body:', responseText);
+
+    try {
+      const gasResult = JSON.parse(responseText);
+      if (gasResult.success === false) {
+        console.error('[v0] GAS returned error:', gasResult.error);
+        throw new Error(gasResult.error || 'GAS処理エラー');
+      }
+    } catch (parseErr) {
+      // JSONでない場合（GASのリダイレクト先HTMLなど）はログのみ
+      if (parseErr instanceof SyntaxError) {
+        console.warn('[v0] GAS response is not JSON (may be redirect page):', responseText.slice(0, 200));
+      } else {
+        throw parseErr;
+      }
+    }
+
     return {
       success: true,
       message: '予約がシステムに送信されました',
@@ -57,8 +89,15 @@ export const sendToGAS = async (payload: BookingPayload): Promise<GASResponse> =
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('[v0] GAS送信タイムアウト（10秒）');
+      throw new Error('GASへの送信がタイムアウトしました');
+    }
+
     console.error('[v0] GAS送信エラー:', error);
-    throw new Error('GAS連携に失敗しました');
+    throw new Error(error instanceof Error ? error.message : 'GAS連携に失敗しました');
   }
 };
 

@@ -5,9 +5,11 @@ export interface Plan {
   description: string
   duration: string
   price: number
+  childPrice?: number
   maxParticipants: number
   features: string[]
   image: string
+  rank?: number
 }
 
 // サンセットシュノーケリングプラン
@@ -71,3 +73,6 @@ export const getPlanById = (id: string): Plan | undefined => {
 export const getPlanPrice = (id: string): number => {
   return planPriceMap[id] || 0
 }
+
+// 大文字でも利用できるようにエクスポート（互換性）
+export const PLANS = plans

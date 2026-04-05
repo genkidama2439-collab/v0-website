@@ -37,15 +37,15 @@ export function FAQHero() {
             </div>
 
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-              <MessageCircle className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
-              <div className="text-lg font-bold text-white">メール</div>
+              <MessageSquare className="w-6 h-6 text-green-400 mx-auto mb-2" />
+              <div className="text-lg font-bold text-white">LINE</div>
               <div className="text-cyan-100 text-sm">24時間受付</div>
             </div>
 
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-              <MessageSquare className="w-6 h-6 text-green-400 mx-auto mb-2" />
-              <div className="text-lg font-bold text-white">LINE</div>
-              <div className="text-cyan-100 text-sm">24時間受付</div>
+              <MessageCircle className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
+              <div className="text-lg font-bold text-white">電話</div>
+              <div className="text-cyan-100 text-sm">営業時間内</div>
             </div>
           </div>
         </div>

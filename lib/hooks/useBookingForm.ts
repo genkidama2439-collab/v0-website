@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { validateEmail, validatePhoneNumber, validateParticipants } from '@/lib/utils/validation'
+import { validatePhoneNumber, validateParticipants } from '@/lib/utils/validation'
 import { calculatePrice, formatDate } from '@/lib/utils/calculations'
 import { BOOKING_CONFIG, ERROR_MESSAGES } from '@/lib/constants/booking'
 
@@ -20,7 +20,6 @@ export interface BookingFormData {
   planName: string
   totalPrice: number
   customerName: string
-  customerEmail: string
   customerPhone: string
   staffName?: string
   specialRequests?: string
@@ -34,7 +33,6 @@ export const useBookingForm = () => {
     planId: '',
     planName: '',
     customerName: '',
-    customerEmail: '',
     customerPhone: '',
     specialRequests: '',
   })
@@ -109,9 +107,6 @@ export const useBookingForm = () => {
     if (!formData.planId) newErrors.planId = 'プランを選択してください'
     if (!formData.customerName) newErrors.customerName = '氏名を入力してください'
 
-    const emailValidation = validateEmail(formData.customerEmail || '')
-    if (!emailValidation.valid) newErrors.customerEmail = emailValidation.error || 'メールアドレスが不正です'
-
     const phoneValidation = validatePhoneNumber(formData.customerPhone || '')
     if (!phoneValidation.valid) newErrors.customerPhone = phoneValidation.error || '電話番号が不正です'
 
@@ -135,7 +130,6 @@ export const useBookingForm = () => {
       planId: '',
       planName: '',
       customerName: '',
-      customerEmail: '',
       customerPhone: '',
       specialRequests: '',
     })

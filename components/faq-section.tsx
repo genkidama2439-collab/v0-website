@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronUp, MessageSquare, Mail } from "lucide-react"
+import { ChevronDown, ChevronUp, MessageSquare, Phone } from "lucide-react"
 import { FAQS } from "@/lib/data"
 
 export function FAQSection() {
@@ -81,15 +81,16 @@ export function FAQSection() {
                   variant="outline"
                   size="lg"
                   className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-xl bg-transparent"
+                  onClick={() => window.open("tel:08053442439")}
                 >
-                  <Mail className="w-5 h-5 mr-2" />
-                  メールで問い合わせ
+                  <Phone className="w-5 h-5 mr-2" />
+                  電話で問い合わせ
                 </Button>
               </div>
 
               <div className="mt-6 text-sm text-gray-500">
                 <p>LINE: 24時間受付（返信は営業時間内）</p>
-                <p>メール: 24時間受付（返信は営業時間内）</p>
+                <p>電話: 営業時間内（7:00〜18:00）</p>
               </div>
             </CardContent>
           </Card>

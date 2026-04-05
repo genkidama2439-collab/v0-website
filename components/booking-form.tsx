@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { ParticipantForm } from "./participant-form"
+import { useLiff } from "./liff-provider"
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
@@ -44,6 +45,7 @@ interface BookingData {
   agreedToTerms: boolean
   couponCode: string
   couponDiscount: number
+  lineUserId: string | null
 }
 
 const ADULT_PRICE = 6000 // Declare ADULT_PRICE variable
@@ -93,6 +95,7 @@ export function BookingForm() {
     agreedToTerms: false,
     couponCode: "",
     couponDiscount: 0,
+    lineUserId: null,
   })
 
   const [totalPrice, setTotalPrice] = useState(0)
@@ -114,6 +117,15 @@ export function BookingForm() {
       }))
     }
   }, [searchParams])
+
+  // LIFFコンテキストからlineUserIdを取得
+  const { lineUserId: liffUserId } = useLiff()
+
+  useEffect(() => {
+    if (liffUserId) {
+      setBookingData((prev) => ({ ...prev, lineUserId: liffUserId }))
+    }
+  }, [liffUserId])
 
   const selectedPlanData = PLANS.find((plan) => plan.id === bookingData.selectedPlan)
 
@@ -324,14 +336,14 @@ export function BookingForm() {
         throw new Error(errorMessage)
       }
 
-      const result = await response.json()
-      console.log("[v0] Booking submitted successfully:", result)
+      // fetch が成功したら即座に完了と判断（response.json は無視）
+      console.log("[v0] Booking submitted successfully, status:", response.status)
       setIsSubmitted(true)
+      setIsSubmitting(false)
     } catch (error) {
       console.error("[v0] Booking submission error:", error)
       const errorMessage = error instanceof Error ? error.message : "予約の送信中にエラーが発生しました。もう一度お試しください。"
       alert(errorMessage)
-    } finally {
       setIsSubmitting(false)
     }
   }
@@ -342,7 +354,6 @@ export function BookingForm() {
     (getPlanType(bookingData.selectedPlan) === "sunset-sup" || bookingData.selectedTime) &&
     (bookingData.adultCount > 0 || bookingData.childCount > 0 || bookingData.under3Count > 0) &&
     bookingData.customerName &&
-    bookingData.customerEmail &&
     bookingData.customerPhone &&
     bookingData.agreedToTerms &&
     bookingData.participants.every((p) => {
@@ -375,11 +386,11 @@ export function BookingForm() {
       <Card className="glass-card bg-white/70 backdrop-blur-xl rounded-3xl ring-1 ring-emerald-100 shadow-lg max-w-2xl mx-auto">
         <CardContent className="p-8 text-center">
           <CheckCircle className="w-16 h-16 text-emerald-600 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-emerald-800 mb-4">仮予約が完了しました！</h2>
+          <h2 className="text-2xl font-bold text-emerald-800 mb-4">予約リクエストを受け付けました！</h2>
           <p className="text-gray-600 mb-6">
-            ご予約ありがとうございます。確認メールを送信いたしました。
+            ご予約ありがとうございます。
             <br />
-            24時間以内にスタッフよりご連絡いたします。
+            スタッフが内容を確認し、LINE公式アカウントから確定のご連絡をお送りします。
           </p>
           <div className="bg-emerald-50 rounded-lg p-4 mb-6">
             <h3 className="font-semibold text-emerald-800 mb-2">予約内容</h3>
@@ -407,9 +418,23 @@ export function BookingForm() {
               <p className="font-semibold text-emerald-800">合計金額: ¥{totalPrice.toLocaleString()}</p>
             </div>
           </div>
-          <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
-            <a href="/">ホームに戻る</a>
-          </Button>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-green-800">
+              予約の確定・変更・キャンセルはすべてLINEのトーク画面からご連絡いただけます。
+            </p>
+          </div>
+          {bookingData.lineUserId ? (
+            <Button
+              onClick={() => { if (typeof window !== 'undefined' && window.liff) window.liff.closeWindow() }}
+              className="bg-[#06C755] hover:bg-[#05b34d] text-white rounded-xl w-full"
+            >
+              LINEに戻る
+            </Button>
+          ) : (
+            <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
+              <a href="/">ホームに戻る</a>
+            </Button>
+          )}
         </CardContent>
       </Card>
     )
@@ -833,21 +858,6 @@ export function BookingForm() {
               value={bookingData.customerName}
               onChange={(e) => handleInputChange("customerName", e.target.value)}
               placeholder="山田 太郎"
-              className="rounded-xl border-emerald-200 focus:border-emerald-500"
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="email" className="text-sm font-medium text-gray-700 mb-2 block">
-              メールアドレス *
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={bookingData.customerEmail}
-              onChange={(e) => handleInputChange("customerEmail", e.target.value)}
-              placeholder="example@email.com"
               className="rounded-xl border-emerald-200 focus:border-emerald-500"
               required
             />

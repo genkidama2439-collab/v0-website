@@ -1,10 +1,10 @@
 import Link from "next/link"
-import { Phone, Mail, MapPin, Clock } from "lucide-react"
+import { Phone, MessageSquare, MapPin, Clock } from "lucide-react"
 import { TurtleLogo } from "./TurtleLogo"
 
 const CONTACT_INFO = {
   phone: "08053442439",
-  email: "umigamekyoudai@gmail.com",
+  lineUrl: "https://lin.ee/jfp4laz",
   address: "沖縄県宮古島市平良西里861-5",
 } as const
 
@@ -48,9 +48,9 @@ export function Footer() {
                 </a>
               </div>
               <div className="flex items-center">
-                <Mail className="w-4 h-4 mr-2 flex-shrink-0" />
-                <a href={`mailto:${CONTACT_INFO.email}`} className="hover:text-white transition-colors break-all">
-                  {CONTACT_INFO.email}
+                <MessageSquare className="w-4 h-4 mr-2 flex-shrink-0" />
+                <a href={CONTACT_INFO.lineUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                  LINE公式アカウント
                 </a>
               </div>
               <div className="flex items-center">

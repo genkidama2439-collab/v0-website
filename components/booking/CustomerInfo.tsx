@@ -6,7 +6,6 @@ import { Textarea } from '@/components/ui/textarea'
 
 interface CustomerInfoProps {
   customerName: string
-  customerEmail: string
   customerPhone: string
   specialRequests: string
   errors: Record<string, string>
@@ -15,7 +14,6 @@ interface CustomerInfoProps {
 
 export function CustomerInfo({
   customerName,
-  customerEmail,
   customerPhone,
   specialRequests,
   errors,
@@ -35,19 +33,6 @@ export function CustomerInfo({
           className={errors.customerName ? 'border-red-500' : ''}
         />
         {errors.customerName && <p className="text-sm text-red-500">{errors.customerName}</p>}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="customerEmail">メールアドレス *</Label>
-        <Input
-          id="customerEmail"
-          type="email"
-          value={customerEmail}
-          onChange={(e) => onChange('customerEmail', e.target.value)}
-          placeholder="example@mail.com"
-          className={errors.customerEmail ? 'border-red-500' : ''}
-        />
-        {errors.customerEmail && <p className="text-sm text-red-500">{errors.customerEmail}</p>}
       </div>
 
       <div className="space-y-2">

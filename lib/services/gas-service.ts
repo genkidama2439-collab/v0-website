@@ -27,10 +27,9 @@ export interface BookingPayload {
 
 // GAS URLを取得
 export const getGASUrl = (): string => {
-  return (
-    process.env.GAS_BOOKING_URL ||
-    'https://script.google.com/macros/s/AKfycbz0ltHt_0WcQVw-KUD4iG5yvH32RGYgXkO6ajVjafiPtdRAK1rloQj7rmiXmk3o_Pte/exec'
-  );
+  const url = process.env.GAS_BOOKING_URL;
+  if (!url) throw new Error('GAS_BOOKING_URL が設定されていません');
+  return url;
 };
 
 // 予約番号を生成

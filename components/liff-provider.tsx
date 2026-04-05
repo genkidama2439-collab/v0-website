@@ -11,11 +11,13 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 interface LiffContextType {
   lineUserId: string | null
   isLiffReady: boolean
+  liffError: string | null
 }
 
 const LiffContext = createContext<LiffContextType>({
   lineUserId: null,
   isLiffReady: false,
+  liffError: null,
 })
 
 export const useLiff = () => useContext(LiffContext)
@@ -35,6 +37,7 @@ async function waitForLiffSDK(maxWaitMs = 5000): Promise<boolean> {
 export function LiffProvider({ children }: { children: ReactNode }) {
   const [lineUserId, setLineUserId] = useState<string | null>(null)
   const [isLiffReady, setIsLiffReady] = useState(false)
+  const [liffError, setLiffError] = useState<string | null>(null)
   const initialized = useRef(false)
 
   useEffect(() => {
@@ -52,7 +55,7 @@ export function LiffProvider({ children }: { children: ReactNode }) {
 
         const liffId = process.env.NEXT_PUBLIC_LIFF_ID
         if (!liffId) {
-          console.error("[LIFF] NEXT_PUBLIC_LIFF_ID is not set")
+          setLiffError("LIFF_ID未設定")
           setIsLiffReady(true)
           return
         }
@@ -74,7 +77,9 @@ export function LiffProvider({ children }: { children: ReactNode }) {
 
         setIsLiffReady(true)
       } catch (error) {
-        console.error("[LIFF] init error:", error)
+        const msg = error instanceof Error ? error.message : String(error)
+        console.error("[LIFF] init error:", msg)
+        setLiffError(msg)
         setIsLiffReady(true)
       }
     }
@@ -83,7 +88,7 @@ export function LiffProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <LiffContext.Provider value={{ lineUserId, isLiffReady }}>
+    <LiffContext.Provider value={{ lineUserId, isLiffReady, liffError }}>
       {children}
     </LiffContext.Provider>
   )

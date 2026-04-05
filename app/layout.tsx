@@ -67,10 +67,6 @@ export default function RootLayout({
         <link key="preload-crab" rel="preload" as="image" href="/images/night-hunter-crab.jpg" type="image/jpeg" />
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
-        <Script
-          src="https://static.line-scdn.net/liff/edge/2/sdk.js"
-          strategy="afterInteractive"
-        />
         <WelcomeAnimation />
         <LiffProvider>
           <Suspense fallback={null}>

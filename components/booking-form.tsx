@@ -448,6 +448,7 @@ export function BookingForm() {
         <p>LIFF ID: {process.env.NEXT_PUBLIC_LIFF_ID ?? '❌未設定'}</p>
         <p>LINE ID: {liffUserId ?? '未取得'}</p>
         <p>Error: {liffError ?? 'なし'}</p>
+        <p>URL: {typeof window !== 'undefined' ? window.location.href : 'SSR'}</p>
       </div>
       {/* Plan Selection */}
       <Card className="glass-card bg-white/70 backdrop-blur-xl rounded-3xl ring-1 ring-emerald-100 shadow-lg">

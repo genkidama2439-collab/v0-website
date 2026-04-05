@@ -68,8 +68,8 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <Script
-          src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"
-          strategy="beforeInteractive"
+          src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+          strategy="afterInteractive"
         />
         <WelcomeAnimation />
         <LiffProvider>

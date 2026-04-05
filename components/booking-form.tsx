@@ -119,7 +119,7 @@ export function BookingForm() {
   }, [searchParams])
 
   // LIFFコンテキストからlineUserIdを取得
-  const { lineUserId: liffUserId } = useLiff()
+  const { lineUserId: liffUserId, isLiffReady } = useLiff()
 
   useEffect(() => {
     if (liffUserId) {
@@ -442,6 +442,12 @@ export function BookingForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
+      {/* DEBUGパネル - 確認後削除 */}
+      <div className="text-xs bg-gray-100 rounded p-2 font-mono space-y-1">
+        <p>LIFF Ready: {isLiffReady ? '✅' : '⏳'}</p>
+        <p>LINE ID: {liffUserId ?? '未取得'}</p>
+        <p>BookingData ID: {bookingData.lineUserId ?? '未セット'}</p>
+      </div>
       {/* Plan Selection */}
       <Card className="glass-card bg-white/70 backdrop-blur-xl rounded-3xl ring-1 ring-emerald-100 shadow-lg">
         <CardHeader>

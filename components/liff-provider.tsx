@@ -1,7 +1,6 @@
 "use client"
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
-import { useRouter } from "next/navigation"
 
 interface LiffContextType {
   lineUserId: string | null
@@ -22,31 +21,12 @@ export const useLiff = () => useContext(LiffContext)
 const STORAGE_KEY_USER_ID = "line_user_id"
 const STORAGE_KEY_DISPLAY_NAME = "line_display_name"
 
-// ページマッピング（クエリパラメータ → パス）
-const PAGE_MAP: Record<string, string> = {
-  home: "/",
-  staff: "/staff",
-  plan: "/",
-  book: "/book",
-  booking: "/book",
-  gallery: "/gallery",
-  faq: "/faq",
-  blog: "/blog",
-}
-
 export function LiffProvider({ children }: { children: ReactNode }) {
   const [lineUserId, setLineUserId] = useState<string | null>(null)
   const [lineDisplayName, setLineDisplayName] = useState<string | null>(null)
   const [isLiffReady, setIsLiffReady] = useState(false)
   const [liffError, setLiffError] = useState<string | null>(null)
-  const [isRedirecting, setIsRedirecting] = useState(() => {
-    if (typeof window === "undefined") return false
-    const params = new URLSearchParams(window.location.search)
-    const page = params.get("page")
-    return !!(page && PAGE_MAP[page])
-  })
   const initialized = useRef(false)
-  const router = useRouter()
 
   useEffect(() => {
     if (initialized.current) return
@@ -65,7 +45,6 @@ export function LiffProvider({ children }: { children: ReactNode }) {
 
       try {
         if (!liffId) {
-          setIsRedirecting(false)
           setIsLiffReady(true)
           return
         }
@@ -98,48 +77,19 @@ export function LiffProvider({ children }: { children: ReactNode }) {
             liff.login()
             return
           }
-
-          // pageクエリパラメータによるリダイレクト
-          const params = new URLSearchParams(window.location.search)
-          const page = params.get("page")
-          if (page && PAGE_MAP[page]) {
-            router.replace(PAGE_MAP[page])
-          }
         }
 
-        setIsRedirecting(false)
         setIsLiffReady(true)
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error)
         const detail = error instanceof Error && (error as any).code ? ` (code: ${(error as any).code})` : ""
         setLiffError(`${msg}${detail}`)
-        setIsRedirecting(false)
         setIsLiffReady(true)
       }
     }
 
     initLiff()
-  }, [router])
-
-  // リダイレクト中はローディング表示（コンテンツを一切出さない）
-  if (isRedirecting) {
-    return (
-      <LiffContext.Provider value={{ lineUserId, lineDisplayName, isLiffReady, liffError }}>
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 9999,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          background: "#f0fdf4",
-        }}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🐢</div>
-            <div style={{ color: "#065f46", fontSize: 14, fontWeight: 500 }}>
-              ページを読み込み中...
-            </div>
-          </div>
-        </div>
-      </LiffContext.Provider>
-    )
-  }
+  }, [])
 
   return (
     <LiffContext.Provider value={{ lineUserId, lineDisplayName, isLiffReady, liffError }}>

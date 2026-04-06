@@ -114,8 +114,6 @@ export function LiffProvider({ children }: { children: ReactNode }) {
           const page = params.get("page")
           if (page && PAGE_MAP[page]) {
             router.replace(PAGE_MAP[page])
-            // リダイレクト先でisLiffReadyがセットされるので、ここではreturn
-            return
           }
         }
 

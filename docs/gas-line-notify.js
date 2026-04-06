@@ -1,45 +1,163 @@
 /**
- * GAS（Google Apps Script）用 - 予約確定時にLINE通知を送信
+ * GAS（Google Apps Script）用
+ * - 予約データ受信 → シートに書き込み（ヘッダー自動作成）
+ * - O列「予約ステータス」を「確定」に変更 → LINE通知を自動送信
  *
- * 使い方:
+ * セットアップ:
  * 1. Google スプレッドシートの「拡張機能」→「Apps Script」を開く
- * 2. このコードを貼り付ける
- * 3. NOTIFY_API_URL と NOTIFY_SECRET を設定する
- * 4. トリガー設定: onEdit をスプレッドシートの「編集時」に設定
- *
- * シートの想定カラム構成:
- *   A: 予約番号, B: 顧客名, C: メール, D: 電話, E: プラン名,
- *   F: 日付, G: 時間, ..., (ステータス列), (LINE ID列)
- *
- * ★ 下のカラム番号を実際のシートに合わせて変更してください ★
+ * 2. このコードを貼り付けて保存
+ * 3. 「デプロイ」→「新しいデプロイ」→ ウェブアプリ → アクセス: 全員 → デプロイ
+ * 4. トリガー設定: onEdit を「スプレッドシートから」→「編集時」に設定
  */
 
 // === 設定 ===
 var NOTIFY_API_URL = 'https://www.umigamekyoudaimiyakojima.com/api/line/notify';
 var NOTIFY_SECRET = '9f855607c9d6caa86f5160282780e9db';
+var SHEET_NAME = '予約一覧'; // シート名（存在しなければ自動作成）
 
-// カラム番号（1始まり）
-// A:受付日時 B:予約番号 C:参加日 D:時間 E:名前 F:プラン G:合計金額
-// H:メール I:電話 J:ステータス K:送信完了日 L:人数内訳 M:参加者詳細
-// N:lineUserId O:予約ステータス
-var COL_BOOKING_NUMBER = 2;   // B: 予約番号
-var COL_CUSTOMER_NAME = 5;    // E: 名前
-var COL_PLAN_NAME = 6;        // F: プラン
-var COL_DATE = 3;             // C: 参加日
-var COL_TIME = 4;             // D: 時間
-var COL_LINE_USER_ID = 14;    // N: lineUserId
-var COL_STATUS = 15;          // O: 予約ステータス（「確定」or「キャンセル」を入力する列）
+// カラム定義（A=1, B=2, ...）
+var COLUMNS = {
+  TIMESTAMP:     1,  // A: 受付日時
+  BOOKING_NUM:   2,  // B: 予約番号
+  DATE:          3,  // C: 参加日
+  TIME:          4,  // D: 時間
+  NAME:          5,  // E: 名前
+  PLAN:          6,  // F: プラン
+  TOTAL_PRICE:   7,  // G: 合計金額
+  EMAIL:         8,  // H: メール
+  PHONE:         9,  // I: 電話
+  STATUS:       10,  // J: ステータス
+  SENT_DATE:    11,  // K: 送信完了日
+  HEADCOUNT:    12,  // L: 人数内訳
+  PARTICIPANTS: 13,  // M: 参加者詳細
+  LINE_USER_ID: 14,  // N: lineUserId
+  BOOKING_STATUS:15, // O: 予約ステータス
+};
+
+var HEADERS = [
+  '受付日時', '予約番号', '参加日', '時間', '名前', 'プラン', '合計金額',
+  'メール', '電話', 'ステータス', '送信完了日', '人数内訳', '参加者詳細',
+  'lineUserId', '予約ステータス'
+];
+
+// ============================================================
+// シート取得・ヘッダー自動作成
+// ============================================================
+
+/**
+ * シートを取得（なければ作成し、ヘッダーを自動設定）
+ */
+function getOrCreateSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEET_NAME);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+  }
+
+  // ヘッダーが空なら自動作成
+  var firstCell = sheet.getRange(1, 1).getValue();
+  if (!firstCell) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+    // ヘッダー行の書式設定
+    var headerRange = sheet.getRange(1, 1, 1, HEADERS.length);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#d9ead3');
+    sheet.setFrozenRows(1);
+    // 列幅調整
+    sheet.setColumnWidth(COLUMNS.TIMESTAMP, 150);
+    sheet.setColumnWidth(COLUMNS.BOOKING_NUM, 130);
+    sheet.setColumnWidth(COLUMNS.NAME, 120);
+    sheet.setColumnWidth(COLUMNS.PLAN, 150);
+    sheet.setColumnWidth(COLUMNS.PARTICIPANTS, 300);
+    sheet.setColumnWidth(COLUMNS.LINE_USER_ID, 180);
+  }
+
+  return sheet;
+}
+
+// ============================================================
+// 予約データ受信（Next.js → GAS）
+// ============================================================
+
+/**
+ * POSTリクエスト受信（ウェブアプリとしてデプロイ時に使用）
+ */
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var sheet = getOrCreateSheet();
+
+    // 人数内訳
+    var headcount = '大人' + (data.adultCount || 0) +
+                    ' 子供' + (data.childCount || 0) +
+                    ' 3歳未満' + (data.under3Count || 0);
+
+    // 参加者詳細
+    var participantsDetail = '';
+    if (data.participants && Array.isArray(data.participants)) {
+      participantsDetail = data.participants.map(function(p, i) {
+        var parts = [(i + 1) + '.'];
+        if (p.name) parts.push(p.name);
+        if (p.age) parts.push(p.age + '歳');
+        if (p.height) parts.push(p.height + 'cm');
+        if (p.weight) parts.push(p.weight + 'kg');
+        if (p.footSize) parts.push('足' + p.footSize + 'cm');
+        parts.push('(' + (p.category || '') + ')');
+        return parts.join(' ');
+      }).join('\n');
+    }
+
+    // 新しい行にデータを追加
+    var newRow = [
+      new Date(),                          // A: 受付日時
+      data.bookingNumber || '',            // B: 予約番号
+      data.selectedDate || '',             // C: 参加日
+      data.selectedTime || '',             // D: 時間
+      data.customerName || '',             // E: 名前
+      data.planName || '',                 // F: プラン
+      data.totalPrice || 0,                // G: 合計金額
+      data.customerEmail || '',            // H: メール
+      data.customerPhone || '',            // I: 電話
+      '受信済み',                           // J: ステータス
+      '',                                  // K: 送信完了日
+      headcount,                           // L: 人数内訳
+      participantsDetail,                  // M: 参加者詳細
+      data.lineUserId || '',               // N: lineUserId
+      '',                                  // O: 予約ステータス（手動で「確定」入力）
+    ];
+
+    sheet.appendRow(newRow);
+
+    return ContentService.createTextOutput(
+      JSON.stringify({ success: true, bookingNumber: data.bookingNumber })
+    ).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    Logger.log('doPost エラー: ' + error.message);
+    return ContentService.createTextOutput(
+      JSON.stringify({ success: false, error: error.message })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// ============================================================
+// 予約確定時のLINE通知（シート編集トリガー）
+// ============================================================
 
 /**
  * シート編集時に自動実行
- * ステータス列が「確定」または「キャンセル」に変更されたらLINE通知を送信
+ * O列（予約ステータス）が「確定」or「キャンセル」に変更されたらLINE通知を送信
  */
 function onEdit(e) {
   var range = e.range;
   var sheet = range.getSheet();
 
-  // ステータス列の変更のみ処理
-  if (range.getColumn() !== COL_STATUS) return;
+  // 対象シートかチェック
+  if (sheet.getName() !== SHEET_NAME) return;
+
+  // O列（予約ステータス）の変更のみ処理
+  if (range.getColumn() !== COLUMNS.BOOKING_STATUS) return;
 
   var newValue = range.getValue();
   if (newValue !== '確定' && newValue !== 'キャンセル') return;
@@ -47,19 +165,22 @@ function onEdit(e) {
   var row = range.getRow();
   if (row <= 1) return; // ヘッダー行はスキップ
 
-  var lineUserId = sheet.getRange(row, COL_LINE_USER_ID).getValue();
+  var lineUserId = sheet.getRange(row, COLUMNS.LINE_USER_ID).getValue();
   if (!lineUserId) {
     Logger.log('LINE User ID が空のためスキップ: row ' + row);
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      'LINE User ID が未登録のため通知をスキップしました', '注意', 3
+    );
     return;
   }
 
   var payload = {
     lineUserId: String(lineUserId),
-    bookingNumber: String(sheet.getRange(row, COL_BOOKING_NUMBER).getValue()),
-    customerName: String(sheet.getRange(row, COL_CUSTOMER_NAME).getValue()),
-    planName: String(sheet.getRange(row, COL_PLAN_NAME).getValue()),
-    selectedDate: String(sheet.getRange(row, COL_DATE).getValue()),
-    selectedTime: String(sheet.getRange(row, COL_TIME).getValue()),
+    bookingNumber: String(sheet.getRange(row, COLUMNS.BOOKING_NUM).getValue()),
+    customerName: String(sheet.getRange(row, COLUMNS.NAME).getValue()),
+    planName: String(sheet.getRange(row, COLUMNS.PLAN).getValue()),
+    selectedDate: String(sheet.getRange(row, COLUMNS.DATE).getValue()),
+    selectedTime: String(sheet.getRange(row, COLUMNS.TIME).getValue()),
     status: newValue,
   };
 
@@ -95,4 +216,26 @@ function onEdit(e) {
       'LINE通知エラー: ' + error.message, 'エラー', 5
     );
   }
+}
+
+// ============================================================
+// メニュー追加（手動セットアップ用）
+// ============================================================
+
+/**
+ * スプレッドシートを開いた時にカスタムメニューを追加
+ */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('🐢 海亀兄弟')
+    .addItem('ヘッダーを初期化', 'setupHeaders')
+    .addToUi();
+}
+
+/**
+ * ヘッダーを手動で初期化（メニューから実行可能）
+ */
+function setupHeaders() {
+  getOrCreateSheet();
+  SpreadsheetApp.getActiveSpreadsheet().toast('ヘッダーを設定しました', '完了', 3);
 }

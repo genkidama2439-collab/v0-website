@@ -18,14 +18,17 @@
 var NOTIFY_API_URL = 'https://www.umigamekyoudaimiyakojima.com/api/line/notify';
 var NOTIFY_SECRET = '9f855607c9d6caa86f5160282780e9db';
 
-// カラム番号（1始まり）- シートに合わせて変更
-var COL_BOOKING_NUMBER = 1;   // 予約番号
-var COL_CUSTOMER_NAME = 2;    // 顧客名
-var COL_PLAN_NAME = 5;        // プラン名
-var COL_DATE = 6;             // 日付
-var COL_TIME = 7;             // 時間
-var COL_LINE_USER_ID = 16;    // LINE User ID
-var COL_STATUS = 17;          // ステータス（「確定」or「キャンセル」を入力する列）
+// カラム番号（1始まり）
+// A:受付日時 B:予約番号 C:参加日 D:時間 E:名前 F:プラン G:合計金額
+// H:メール I:電話 J:ステータス K:送信完了日 L:人数内訳 M:参加者詳細
+// N:lineUserId O:予約ステータス
+var COL_BOOKING_NUMBER = 2;   // B: 予約番号
+var COL_CUSTOMER_NAME = 5;    // E: 名前
+var COL_PLAN_NAME = 6;        // F: プラン
+var COL_DATE = 3;             // C: 参加日
+var COL_TIME = 4;             // D: 時間
+var COL_LINE_USER_ID = 14;    // N: lineUserId
+var COL_STATUS = 15;          // O: 予約ステータス（「確定」or「キャンセル」を入力する列）
 
 /**
  * シート編集時に自動実行

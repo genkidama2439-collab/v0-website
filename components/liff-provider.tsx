@@ -40,12 +40,6 @@ export function LiffProvider({ children }: { children: ReactNode }) {
       log(`URL: ${window.location.href}`)
       log(`UA: ${navigator.userAgent.slice(0, 80)}`)
 
-      // init前に古いハッシュトークンをクリア（これが残っているとINIT_FAILEDになる）
-      if (window.location.hash && window.location.hash.includes("access_token")) {
-        log("Clearing stale hash tokens before init")
-        window.history.replaceState(null, "", window.location.pathname + window.location.search)
-      }
-
       try {
         if (!liffId) {
           setLiffError("LIFF_ID未設定")
@@ -57,19 +51,36 @@ export function LiffProvider({ children }: { children: ReactNode }) {
         const liff = liffModule.default
         log("SDK loaded")
 
-        await liff.init({ liffId })
-        log(`init OK | isInClient: ${liff.isInClient()} | isLoggedIn: ${liff.isLoggedIn()} | OS: ${liff.getOS()}`)
+        let initSuccess = false
+        try {
+          await liff.init({ liffId })
+          initSuccess = true
+        } catch (initError) {
+          // ハッシュに古いトークンが残っている場合、クリアしてリトライ
+          if (window.location.hash && window.location.hash.includes("access_token")) {
+            log("init failed with hash tokens, clearing and retrying...")
+            window.history.replaceState(null, "", window.location.pathname + window.location.search)
+            await liff.init({ liffId })
+            initSuccess = true
+          } else {
+            throw initError
+          }
+        }
 
-        if (liff.isLoggedIn()) {
-          const profile = await liff.getProfile()
-          setLineUserId(profile.userId)
-          log(`userId: ${profile.userId}`)
-        } else if (liff.isInClient()) {
-          log("In LINE client but not logged in → login()")
-          liff.login()
-          return
-        } else {
-          log("External browser → skipping login, no userId")
+        if (initSuccess) {
+          log(`init OK | isInClient: ${liff.isInClient()} | isLoggedIn: ${liff.isLoggedIn()} | OS: ${liff.getOS()}`)
+
+          if (liff.isLoggedIn()) {
+            const profile = await liff.getProfile()
+            setLineUserId(profile.userId)
+            log(`userId: ${profile.userId}`)
+          } else if (liff.isInClient()) {
+            log("In LINE client but not logged in → login()")
+            liff.login()
+            return
+          } else {
+            log("External browser → skipping login, no userId")
+          }
         }
 
         setIsLiffReady(true)
@@ -77,9 +88,6 @@ export function LiffProvider({ children }: { children: ReactNode }) {
         const msg = error instanceof Error ? error.message : String(error)
         const detail = error instanceof Error && (error as any).code ? ` (code: ${(error as any).code})` : ""
         log(`ERROR: ${msg}${detail}`)
-        if (window.location.hash && window.location.hash.includes("access_token")) {
-          window.history.replaceState(null, "", window.location.pathname + window.location.search)
-        }
         setLiffError(`${msg}${detail}`)
         setIsLiffReady(true)
       }

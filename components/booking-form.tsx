@@ -444,14 +444,17 @@ export function BookingForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {/* DEBUGパネル - 確認後削除 */}
-      <div className="text-xs bg-gray-100 rounded p-2 font-mono space-y-1">
-        <p>LIFF Ready: {isLiffReady ? '✅' : '⏳'}</p>
-        <p>LIFF ID: {process.env.NEXT_PUBLIC_LIFF_ID ?? '❌未設定'}</p>
-        <p>LINE ID: {liffUserId ?? '未取得'}</p>
-        <p>Error: {liffError ?? 'なし'}</p>
-        <p>URL: {typeof window !== 'undefined' ? window.location.href : 'SSR'}</p>
-      </div>
+      {/* LINE連携エラー通知 */}
+      {isLiffReady && !liffUserId && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <p className="text-sm text-amber-800 font-medium">
+            LINE連携が確認できませんでした。予約は可能ですが、LINEでの確定通知が届かない場合があります。
+          </p>
+          <p className="text-xs text-amber-600 mt-1">
+            LINE公式アカウントのメニューからアクセスすると自動連携されます。
+          </p>
+        </div>
+      )}
       {/* Plan Selection */}
       <Card className="glass-card bg-white/70 backdrop-blur-xl rounded-3xl ring-1 ring-emerald-100 shadow-lg">
         <CardHeader>

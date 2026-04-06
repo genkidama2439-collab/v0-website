@@ -40,6 +40,12 @@ export function LiffProvider({ children }: { children: ReactNode }) {
       log(`URL: ${window.location.href}`)
       log(`UA: ${navigator.userAgent.slice(0, 80)}`)
 
+      // init前に古いハッシュトークンをクリア（これが残っているとINIT_FAILEDになる）
+      if (window.location.hash && window.location.hash.includes("access_token")) {
+        log("Clearing stale hash tokens before init")
+        window.history.replaceState(null, "", window.location.pathname + window.location.search)
+      }
+
       try {
         if (!liffId) {
           setLiffError("LIFF_ID未設定")

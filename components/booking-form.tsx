@@ -46,6 +46,7 @@ interface BookingData {
   couponCode: string
   couponDiscount: number
   lineUserId: string | null
+  lineDisplayName: string | null
 }
 
 const ADULT_PRICE = 6000 // Declare ADULT_PRICE variable
@@ -96,6 +97,7 @@ export function BookingForm() {
     couponCode: "",
     couponDiscount: 0,
     lineUserId: null,
+    lineDisplayName: null,
   })
 
   const [totalPrice, setTotalPrice] = useState(0)
@@ -119,13 +121,13 @@ export function BookingForm() {
   }, [searchParams])
 
   // LIFFコンテキストからlineUserIdを取得
-  const { lineUserId: liffUserId, isLiffReady, liffError } = useLiff()
+  const { lineUserId: liffUserId, lineDisplayName: liffDisplayName, isLiffReady, liffError } = useLiff()
 
   useEffect(() => {
     if (liffUserId) {
-      setBookingData((prev) => ({ ...prev, lineUserId: liffUserId }))
+      setBookingData((prev) => ({ ...prev, lineUserId: liffUserId, lineDisplayName: liffDisplayName }))
     }
-  }, [liffUserId])
+  }, [liffUserId, liffDisplayName])
 
   const selectedPlanData = PLANS.find((plan) => plan.id === bookingData.selectedPlan)
 

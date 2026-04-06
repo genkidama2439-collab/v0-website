@@ -23,6 +23,7 @@ export interface BookingPayload {
   staffName?: string;
   specialRequests?: string;
   lineUserId?: string;
+  lineDisplayName?: string;
 }
 
 // GAS URLを取得

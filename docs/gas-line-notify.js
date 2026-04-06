@@ -34,12 +34,14 @@ var COLUMNS = {
   PARTICIPANTS: 13,  // M: 参加者詳細
   LINE_USER_ID: 14,  // N: lineUserId
   BOOKING_STATUS:15, // O: 予約ステータス
+  LOCATION:     16,  // P: 開催場所
+  LINE_NAME:    17,  // Q: LINE名
 };
 
 var HEADERS = [
   '受付日時', '予約番号', '参加日', '時間', '名前', 'プラン', '合計金額',
   'メール', '電話', 'ステータス', '送信完了日', '人数内訳', '参加者詳細',
-  'lineUserId', '予約ステータス'
+  'lineUserId', '予約ステータス', '開催場所', 'LINE名'
 ];
 
 // ============================================================
@@ -127,6 +129,8 @@ function doPost(e) {
       participantsDetail,                  // M: 参加者詳細
       data.lineUserId || '',               // N: lineUserId
       '',                                  // O: 予約ステータス（手動で「確定」入力）
+      '',                                  // P: 開催場所
+      data.lineDisplayName || '',          // Q: LINE名
     ];
 
     sheet.appendRow(newRow);

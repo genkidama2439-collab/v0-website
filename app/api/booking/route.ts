@@ -14,6 +14,7 @@ interface BookingRequest {
   staffName?: string
   specialRequests?: string
   lineUserId?: string | null
+  lineDisplayName?: string | null
 }
 
 // 必須フィールドの検証
@@ -64,6 +65,7 @@ const buildGASPayload = (bookingData: BookingRequest, bookingNumber: string) => 
     staffName: bookingData.staffName || '',
     specialRequests: bookingData.specialRequests || '',
     lineUserId: bookingData.lineUserId || '',
+    lineDisplayName: bookingData.lineDisplayName || '',
   }
 }
 

@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 
 interface LiffContextType {
   lineUserId: string | null
+  lineDisplayName: string | null
   isLiffReady: boolean
   liffError: string | null
   debugLog: string[]
@@ -11,6 +12,7 @@ interface LiffContextType {
 
 const LiffContext = createContext<LiffContextType>({
   lineUserId: null,
+  lineDisplayName: null,
   isLiffReady: false,
   liffError: null,
   debugLog: [],
@@ -20,6 +22,7 @@ export const useLiff = () => useContext(LiffContext)
 
 export function LiffProvider({ children }: { children: ReactNode }) {
   const [lineUserId, setLineUserId] = useState<string | null>(null)
+  const [lineDisplayName, setLineDisplayName] = useState<string | null>(null)
   const [isLiffReady, setIsLiffReady] = useState(false)
   const [liffError, setLiffError] = useState<string | null>(null)
   const [debugLog, setDebugLog] = useState<string[]>([])
@@ -73,7 +76,8 @@ export function LiffProvider({ children }: { children: ReactNode }) {
           if (liff.isLoggedIn()) {
             const profile = await liff.getProfile()
             setLineUserId(profile.userId)
-            log(`userId: ${profile.userId}`)
+            setLineDisplayName(profile.displayName)
+            log(`userId: ${profile.userId} | name: ${profile.displayName}`)
           } else if (liff.isInClient()) {
             log("In LINE client but not logged in → login()")
             liff.login()
@@ -97,7 +101,7 @@ export function LiffProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <LiffContext.Provider value={{ lineUserId, isLiffReady, liffError, debugLog }}>
+    <LiffContext.Provider value={{ lineUserId, lineDisplayName, isLiffReady, liffError, debugLog }}>
       {/* デバッグパネル（確認後削除） */}
       <div style={{
         position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9999,

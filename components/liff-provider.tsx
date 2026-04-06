@@ -1,13 +1,13 @@
 "use client"
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 
 interface LiffContextType {
   lineUserId: string | null
   lineDisplayName: string | null
   isLiffReady: boolean
   liffError: string | null
-  debugLog: string[]
 }
 
 const LiffContext = createContext<LiffContextType>({
@@ -15,53 +15,64 @@ const LiffContext = createContext<LiffContextType>({
   lineDisplayName: null,
   isLiffReady: false,
   liffError: null,
-  debugLog: [],
 })
 
 export const useLiff = () => useContext(LiffContext)
+
+const STORAGE_KEY_USER_ID = "line_user_id"
+const STORAGE_KEY_DISPLAY_NAME = "line_display_name"
+
+// ページマッピング（クエリパラメータ → パス）
+const PAGE_MAP: Record<string, string> = {
+  home: "/",
+  staff: "/staff",
+  plan: "/",
+  book: "/book",
+  booking: "/book",
+  gallery: "/gallery",
+  faq: "/faq",
+  blog: "/blog",
+}
 
 export function LiffProvider({ children }: { children: ReactNode }) {
   const [lineUserId, setLineUserId] = useState<string | null>(null)
   const [lineDisplayName, setLineDisplayName] = useState<string | null>(null)
   const [isLiffReady, setIsLiffReady] = useState(false)
   const [liffError, setLiffError] = useState<string | null>(null)
-  const [debugLog, setDebugLog] = useState<string[]>([])
   const initialized = useRef(false)
-
-  const log = (msg: string) => {
-    console.log("[LIFF]", msg)
-    setDebugLog((prev) => [...prev, `${new Date().toLocaleTimeString()} ${msg}`])
-  }
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     if (initialized.current) return
     initialized.current = true
 
+    // localStorageから復元
+    const savedUserId = localStorage.getItem(STORAGE_KEY_USER_ID)
+    const savedDisplayName = localStorage.getItem(STORAGE_KEY_DISPLAY_NAME)
+    if (savedUserId) {
+      setLineUserId(savedUserId)
+      setLineDisplayName(savedDisplayName)
+    }
+
     const initLiff = async () => {
       const liffId = process.env.NEXT_PUBLIC_LIFF_ID
-      log(`liffId: ${liffId ?? "undefined"}`)
-      log(`URL: ${window.location.href}`)
-      log(`UA: ${navigator.userAgent.slice(0, 80)}`)
 
       try {
         if (!liffId) {
-          setLiffError("LIFF_ID未設定")
           setIsLiffReady(true)
           return
         }
 
         const liffModule = await import("@line/liff")
         const liff = liffModule.default
-        log("SDK loaded")
 
         let initSuccess = false
         try {
           await liff.init({ liffId })
           initSuccess = true
         } catch (initError) {
-          // ハッシュに古いトークンが残っている場合、クリアしてリトライ
           if (window.location.hash && window.location.hash.includes("access_token")) {
-            log("init failed with hash tokens, clearing and retrying...")
             window.history.replaceState(null, "", window.location.pathname + window.location.search)
             await liff.init({ liffId })
             initSuccess = true
@@ -71,19 +82,16 @@ export function LiffProvider({ children }: { children: ReactNode }) {
         }
 
         if (initSuccess) {
-          log(`init OK | isInClient: ${liff.isInClient()} | isLoggedIn: ${liff.isLoggedIn()} | OS: ${liff.getOS()}`)
-
           if (liff.isLoggedIn()) {
             const profile = await liff.getProfile()
             setLineUserId(profile.userId)
             setLineDisplayName(profile.displayName)
-            log(`userId: ${profile.userId} | name: ${profile.displayName}`)
+            // localStorageに保存（サイト回遊時に保持）
+            localStorage.setItem(STORAGE_KEY_USER_ID, profile.userId)
+            localStorage.setItem(STORAGE_KEY_DISPLAY_NAME, profile.displayName)
           } else if (liff.isInClient()) {
-            log("In LINE client but not logged in → login()")
             liff.login()
             return
-          } else {
-            log("External browser → skipping login, no userId")
           }
         }
 
@@ -91,7 +99,6 @@ export function LiffProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error)
         const detail = error instanceof Error && (error as any).code ? ` (code: ${(error as any).code})` : ""
-        log(`ERROR: ${msg}${detail}`)
         setLiffError(`${msg}${detail}`)
         setIsLiffReady(true)
       }
@@ -100,17 +107,19 @@ export function LiffProvider({ children }: { children: ReactNode }) {
     initLiff()
   }, [])
 
+  // pageクエリパラメータによるリダイレクト
+  useEffect(() => {
+    const page = searchParams.get("page")
+    if (page && PAGE_MAP[page]) {
+      const target = PAGE_MAP[page]
+      // クエリパラメータをURLから除去してリダイレクト
+      window.history.replaceState(null, "", window.location.pathname)
+      router.push(target)
+    }
+  }, [searchParams, router])
+
   return (
-    <LiffContext.Provider value={{ lineUserId, lineDisplayName, isLiffReady, liffError, debugLog }}>
-      {/* デバッグパネル（確認後削除） */}
-      <div style={{
-        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9999,
-        background: "rgba(0,0,0,0.85)", color: "#0f0", fontSize: 11,
-        padding: 8, maxHeight: "40vh", overflow: "auto", fontFamily: "monospace"
-      }}>
-        <div><b>LIFF Debug</b> | ready: {String(isLiffReady)} | userId: {lineUserId ?? "null"} | error: {liffError ?? "none"}</div>
-        {debugLog.map((l, i) => <div key={i}>{l}</div>)}
-      </div>
+    <LiffContext.Provider value={{ lineUserId, lineDisplayName, isLiffReady, liffError }}>
       {children}
     </LiffContext.Provider>
   )

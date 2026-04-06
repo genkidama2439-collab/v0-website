@@ -68,12 +68,12 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <WelcomeAnimation />
-        <LiffProvider>
-          <Suspense fallback={null}>
+        <Suspense fallback={null}>
+          <LiffProvider>
             {children}
             <Analytics />
-          </Suspense>
-        </LiffProvider>
+          </LiffProvider>
+        </Suspense>
       </body>
     </html>
   )

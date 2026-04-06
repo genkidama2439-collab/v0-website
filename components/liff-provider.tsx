@@ -39,12 +39,28 @@ export function LiffProvider({ children }: { children: ReactNode }) {
   const [lineDisplayName, setLineDisplayName] = useState<string | null>(null)
   const [isLiffReady, setIsLiffReady] = useState(false)
   const [liffError, setLiffError] = useState<string | null>(null)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const initialized = useRef(false)
   const router = useRouter()
+
+  // 初回マウント時に ?page= があるか即座に判定（SSR後の初回レンダリングで判定）
+  const needsRedirect = useRef(false)
+  if (!initialized.current && typeof window !== "undefined") {
+    const params = new URLSearchParams(window.location.search)
+    const page = params.get("page")
+    if (page && PAGE_MAP[page]) {
+      needsRedirect.current = true
+    }
+  }
 
   useEffect(() => {
     if (initialized.current) return
     initialized.current = true
+
+    // ?page= がある場合はリダイレクト中フラグを立てる
+    if (needsRedirect.current) {
+      setIsRedirecting(true)
+    }
 
     // localStorageから復元
     const savedUserId = localStorage.getItem(STORAGE_KEY_USER_ID)
@@ -59,6 +75,7 @@ export function LiffProvider({ children }: { children: ReactNode }) {
 
       try {
         if (!liffId) {
+          setIsRedirecting(false)
           setIsLiffReady(true)
           return
         }
@@ -92,26 +109,49 @@ export function LiffProvider({ children }: { children: ReactNode }) {
             return
           }
 
-          // pageクエリパラメータによるリダイレクト（LIFF init完了後に実行）
+          // pageクエリパラメータによるリダイレクト
           const params = new URLSearchParams(window.location.search)
           const page = params.get("page")
           if (page && PAGE_MAP[page]) {
             router.replace(PAGE_MAP[page])
+            // リダイレクト先でisLiffReadyがセットされるので、ここではreturn
             return
           }
         }
 
+        setIsRedirecting(false)
         setIsLiffReady(true)
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error)
         const detail = error instanceof Error && (error as any).code ? ` (code: ${(error as any).code})` : ""
         setLiffError(`${msg}${detail}`)
+        setIsRedirecting(false)
         setIsLiffReady(true)
       }
     }
 
     initLiff()
-  }, [])
+  }, [router])
+
+  // リダイレクト中はローディング表示（コンテンツを一切出さない）
+  if (isRedirecting) {
+    return (
+      <LiffContext.Provider value={{ lineUserId, lineDisplayName, isLiffReady, liffError }}>
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: "#f0fdf4",
+        }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🐢</div>
+            <div style={{ color: "#065f46", fontSize: 14, fontWeight: 500 }}>
+              ページを読み込み中...
+            </div>
+          </div>
+        </div>
+      </LiffContext.Provider>
+    )
+  }
 
   return (
     <LiffContext.Provider value={{ lineUserId, lineDisplayName, isLiffReady, liffError }}>

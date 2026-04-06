@@ -39,28 +39,18 @@ export function LiffProvider({ children }: { children: ReactNode }) {
   const [lineDisplayName, setLineDisplayName] = useState<string | null>(null)
   const [isLiffReady, setIsLiffReady] = useState(false)
   const [liffError, setLiffError] = useState<string | null>(null)
-  const [isRedirecting, setIsRedirecting] = useState(false)
-  const initialized = useRef(false)
-  const router = useRouter()
-
-  // 初回マウント時に ?page= があるか即座に判定（SSR後の初回レンダリングで判定）
-  const needsRedirect = useRef(false)
-  if (!initialized.current && typeof window !== "undefined") {
+  const [isRedirecting, setIsRedirecting] = useState(() => {
+    if (typeof window === "undefined") return false
     const params = new URLSearchParams(window.location.search)
     const page = params.get("page")
-    if (page && PAGE_MAP[page]) {
-      needsRedirect.current = true
-    }
-  }
+    return !!(page && PAGE_MAP[page])
+  })
+  const initialized = useRef(false)
+  const router = useRouter()
 
   useEffect(() => {
     if (initialized.current) return
     initialized.current = true
-
-    // ?page= がある場合はリダイレクト中フラグを立てる
-    if (needsRedirect.current) {
-      setIsRedirecting(true)
-    }
 
     // localStorageから復元
     const savedUserId = localStorage.getItem(STORAGE_KEY_USER_ID)

@@ -15,6 +15,7 @@ var NOTIFY_API_URL = 'https://www.umigamekyoudaimiyakojima.com/api/line/notify';
 var NOTIFY_SECRET = '9f855607c9d6caa86f5160282780e9db';
 var SHEET_NAME = '予約一覧'; // シート名（存在しなければ自動作成）
 var CALENDAR_ID = 'genkidama2439@gmail.com'; // Googleカレンダー
+var NOTIFY_EMAIL = 'genkidama2439@gmail.com'; // 予約通知メール送信先
 
 // カラム定義（A=1, B=2, ...）
 var COLUMNS = {
@@ -137,6 +138,13 @@ function doPost(e) {
       Logger.log('カレンダー登録エラー: ' + calError.message);
     }
 
+    // 業者にメール通知
+    try {
+      sendBookingEmail(data, headcount, participantsDetail);
+    } catch (mailError) {
+      Logger.log('メール送信エラー: ' + mailError.message);
+    }
+
     return ContentService.createTextOutput(
       JSON.stringify({ success: true, bookingNumber: data.bookingNumber })
     ).setMimeType(ContentService.MimeType.JSON);
@@ -147,6 +155,39 @@ function doPost(e) {
       JSON.stringify({ success: false, error: error.message })
     ).setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+// ============================================================
+// メール通知（業者向け）
+// ============================================================
+
+function sendBookingEmail(data, headcount, participantsDetail) {
+  var subject = '【新規予約】' + (data.customerName || '名前なし') + ' 様 / ' + (data.planName || '');
+
+  var body = '新しい予約が入りました。\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━\n' +
+    '予約番号: ' + (data.bookingNumber || '') + '\n' +
+    '参加日: ' + (data.selectedDate || '') + '\n' +
+    '時間: ' + (data.selectedTime || '未定') + '\n' +
+    '━━━━━━━━━━━━━━━━━━━━\n\n' +
+    '【お客様情報】\n' +
+    '名前: ' + (data.customerName || '') + '\n' +
+    '電話: ' + (data.customerPhone || '未入力') + '\n' +
+    'メール: ' + (data.customerEmail || '未入力') + '\n\n' +
+    '【プラン】\n' +
+    'プラン: ' + (data.planName || '') + '\n' +
+    '人数: ' + headcount + '\n' +
+    '合計金額: ¥' + (data.totalPrice || 0).toLocaleString() + '\n\n' +
+    '【参加者詳細】\n' +
+    (participantsDetail || 'なし') + '\n\n' +
+    '【備考】\n' +
+    (data.specialRequests || 'なし') + '\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━\n' +
+    'スプレッドシートのO列「予約ステータス」に「確定」と入力すると\n' +
+    'お客様のLINEに自動通知されます。\n';
+
+  GmailApp.sendEmail(NOTIFY_EMAIL, subject, body);
+  Logger.log('メール送信完了: ' + subject);
 }
 
 // ============================================================

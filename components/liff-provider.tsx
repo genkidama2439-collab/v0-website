@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 
 interface LiffContextType {
   lineUserId: string | null
@@ -41,7 +41,6 @@ export function LiffProvider({ children }: { children: ReactNode }) {
   const [liffError, setLiffError] = useState<string | null>(null)
   const initialized = useRef(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   useEffect(() => {
     if (initialized.current) return
@@ -86,11 +85,18 @@ export function LiffProvider({ children }: { children: ReactNode }) {
             const profile = await liff.getProfile()
             setLineUserId(profile.userId)
             setLineDisplayName(profile.displayName)
-            // localStorageに保存（サイト回遊時に保持）
             localStorage.setItem(STORAGE_KEY_USER_ID, profile.userId)
             localStorage.setItem(STORAGE_KEY_DISPLAY_NAME, profile.displayName)
           } else if (liff.isInClient()) {
             liff.login()
+            return
+          }
+
+          // pageクエリパラメータによるリダイレクト（LIFF init完了後に実行）
+          const params = new URLSearchParams(window.location.search)
+          const page = params.get("page")
+          if (page && PAGE_MAP[page]) {
+            router.replace(PAGE_MAP[page])
             return
           }
         }
@@ -106,17 +112,6 @@ export function LiffProvider({ children }: { children: ReactNode }) {
 
     initLiff()
   }, [])
-
-  // pageクエリパラメータによるリダイレクト
-  useEffect(() => {
-    const page = searchParams.get("page")
-    if (page && PAGE_MAP[page]) {
-      const target = PAGE_MAP[page]
-      // クエリパラメータをURLから除去してリダイレクト
-      window.history.replaceState(null, "", window.location.pathname)
-      router.push(target)
-    }
-  }, [searchParams, router])
 
   return (
     <LiffContext.Provider value={{ lineUserId, lineDisplayName, isLiffReady, liffError }}>

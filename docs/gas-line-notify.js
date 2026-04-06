@@ -14,6 +14,7 @@
 var NOTIFY_API_URL = 'https://www.umigamekyoudaimiyakojima.com/api/line/notify';
 var NOTIFY_SECRET = '9f855607c9d6caa86f5160282780e9db';
 var SHEET_NAME = '予約一覧'; // シート名（存在しなければ自動作成）
+var CALENDAR_ID = 'genkidama2439@gmail.com'; // Googleカレンダー
 
 // カラム定義（A=1, B=2, ...）
 var COLUMNS = {
@@ -129,6 +130,13 @@ function doPost(e) {
 
     sheet.appendRow(newRow);
 
+    // Googleカレンダーに予約を登録
+    try {
+      addToCalendar(data, headcount);
+    } catch (calError) {
+      Logger.log('カレンダー登録エラー: ' + calError.message);
+    }
+
     return ContentService.createTextOutput(
       JSON.stringify({ success: true, bookingNumber: data.bookingNumber })
     ).setMimeType(ContentService.MimeType.JSON);
@@ -139,6 +147,70 @@ function doPost(e) {
       JSON.stringify({ success: false, error: error.message })
     ).setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+// ============================================================
+// Googleカレンダー登録
+// ============================================================
+
+/**
+ * 予約データをGoogleカレンダーに登録
+ */
+function addToCalendar(data, headcount) {
+  var calendar = CalendarApp.getCalendarById(CALENDAR_ID);
+  if (!calendar) {
+    Logger.log('カレンダーが見つかりません: ' + CALENDAR_ID);
+    return;
+  }
+
+  // 参加日をパース（YYYY-MM-DD形式）
+  var dateStr = data.selectedDate || '';
+  var dateParts = dateStr.split('-');
+  if (dateParts.length !== 3) {
+    Logger.log('日付フォーマット不正: ' + dateStr);
+    return;
+  }
+
+  var year = parseInt(dateParts[0], 10);
+  var month = parseInt(dateParts[1], 10) - 1; // 0始まり
+  var day = parseInt(dateParts[2], 10);
+
+  // 時間をパース（例: "09:00", "14:30", "サンセット時刻（後日連絡）"）
+  var timeStr = data.selectedTime || '';
+  var timeParts = timeStr.match(/^(\d{1,2}):(\d{2})/);
+
+  var title = '🐢 ' + (data.planName || '予約') + ' / ' + (data.customerName || '名前なし');
+
+  var description = '予約番号: ' + (data.bookingNumber || '') +
+    '\n名前: ' + (data.customerName || '') +
+    '\n電話: ' + (data.customerPhone || '') +
+    '\nメール: ' + (data.customerEmail || '') +
+    '\nプラン: ' + (data.planName || '') +
+    '\n人数: ' + (headcount || '') +
+    '\n合計: ¥' + (data.totalPrice || 0).toLocaleString() +
+    '\n備考: ' + (data.specialRequests || '');
+
+  if (timeParts) {
+    // 時間指定あり → 2時間のイベント
+    var startHour = parseInt(timeParts[1], 10);
+    var startMin = parseInt(timeParts[2], 10);
+    var startTime = new Date(year, month, day, startHour, startMin);
+    var endTime = new Date(year, month, day, startHour + 2, startMin);
+
+    calendar.createEvent(title, startTime, endTime, {
+      description: description,
+      location: '宮古島',
+    });
+  } else {
+    // 時間未定 → 終日イベント
+    var eventDate = new Date(year, month, day);
+    calendar.createAllDayEvent(title, eventDate, {
+      description: description,
+      location: '宮古島',
+    });
+  }
+
+  Logger.log('カレンダー登録完了: ' + title + ' ' + dateStr);
 }
 
 // ============================================================

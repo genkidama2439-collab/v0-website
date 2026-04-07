@@ -11,24 +11,28 @@ const staffMembers = [
     role: "現場責任者",
     image: "/yamachan-staff-photo.jpg",
     description: "宮古島の海を知り尽くした頼れるリーダー",
+    objectPosition: "center 20%",
   },
   {
     name: "ひかる",
     role: "やまちゃんの右腕",
     image: "/hikaru-staff-photo.jpg",
     description: "海の生き物が大好きな優しいガイド",
+    objectPosition: "center center",
   },
   {
     name: "そういちろう",
     role: "ナイトツアー専門",
     image: "/souichiro-staff-photo.jpg",
     description: "夜の冒険のスペシャリスト",
+    objectPosition: "center center",
   },
   {
     name: "凪",
     role: "ドローンパイロット",
     image: "/nagi-staff-photo.jpg",
     description: "空からの絶景を記録するプロ",
+    objectPosition: "center center",
   },
 ]
 
@@ -78,6 +82,7 @@ export function StaffSection() {
                   placeholder="blur"
                   blurDataURL={BLUR_DATA_URLS.staff}
                   className="object-cover"
+                  style={{ objectPosition: staff.objectPosition }}
                   sizes="(max-width: 768px) 128px, 160px"
                 />
               </motion.div>

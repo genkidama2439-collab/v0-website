@@ -462,65 +462,100 @@ export function BookingForm() {
           <p className="text-sm text-gray-600 mt-2">ご希望のプランを選択してください</p>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {PLANS.sort((a, b) => (a.rank || 999) - (b.rank || 999)).map((plan) => (
-              <label
-                key={plan.id}
-                className={`block cursor-pointer transition-all duration-200 ${
-                  bookingData.selectedPlan === plan.id ? "scale-[1.02]" : "hover:scale-[1.01]"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="plan"
-                  value={plan.id}
-                  checked={bookingData.selectedPlan === plan.id}
-                  onChange={(e) => handleInputChange("selectedPlan", e.target.value)}
-                  className="sr-only"
-                />
-                <div
-                  className={`relative p-4 rounded-2xl border-2 transition-all ${
-                    bookingData.selectedPlan === plan.id
-                      ? "border-emerald-500 bg-emerald-50 shadow-lg"
-                      : "border-gray-200 bg-white hover:border-emerald-300 hover:shadow-md"
-                  }`}
-                >
-                  {/* Selected indicator */}
-                  {bookingData.selectedPlan === plan.id && (
-                    <div className="absolute top-3 right-3 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
-                      <Check className="w-4 h-4 text-white" />
+          <div className="space-y-4">
+            {/* ウミガメシュノーケル */}
+            {(() => {
+              const s1 = PLANS.find(p => p.id === "S1")!
+              const s2 = PLANS.find(p => p.id === "S2")!
+              const isS1Selected = bookingData.selectedPlan === "S1"
+              const isS2Selected = bookingData.selectedPlan === "S2"
+              const isSnorkelSelected = isS1Selected || isS2Selected
+              return (
+                <div className={`rounded-2xl border-2 transition-all ${isSnorkelSelected ? "border-emerald-500 shadow-lg" : "border-gray-200"}`}>
+                  <div className="p-4">
+                    <h3 className="font-bold text-gray-900 text-base mb-1">ウミガメシュノーケルツアー</h3>
+                    <div className="flex items-center gap-3 text-sm text-gray-500 mb-3">
+                      <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{s1.durationHours}時間</span>
+                      <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />{s1.rating}</span>
                     </div>
-                  )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className={`cursor-pointer p-3 rounded-xl border-2 text-center transition-all ${isS1Selected ? "border-emerald-500 bg-emerald-50" : "border-gray-200 hover:border-emerald-300"}`}>
+                        <input type="radio" name="plan" value="S1" checked={isS1Selected} onChange={(e) => handleInputChange("selectedPlan", e.target.value)} className="sr-only" />
+                        <p className="text-xs text-gray-500 mb-0.5">通常プラン</p>
+                        <p className="font-bold text-emerald-600">¥6,500〜</p>
+                      </label>
+                      <label className={`cursor-pointer p-3 rounded-xl border-2 text-center transition-all ${isS2Selected ? "border-purple-500 bg-purple-50" : "border-gray-200 hover:border-purple-300"}`}>
+                        <input type="radio" name="plan" value="S2" checked={isS2Selected} onChange={(e) => handleInputChange("selectedPlan", e.target.value)} className="sr-only" />
+                        <p className="text-xs text-purple-600 font-semibold mb-0.5">貸切プラン</p>
+                        <p className="font-bold text-purple-600">¥9,000/人</p>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
 
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-900 text-base mb-1">{plan.name}</h3>
-                      <div className="flex items-center gap-3 text-sm text-gray-600">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          {plan.durationHours}時間
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
-                          {plan.rating}
-                        </span>
-                      </div>
+            {/* ナイトツアー */}
+            {(() => {
+              const s3 = PLANS.find(p => p.id === "S3")!
+              const s5 = PLANS.find(p => p.id === "S5")
+              const isS3Selected = bookingData.selectedPlan === "S3"
+              const isS5Selected = bookingData.selectedPlan === "S5"
+              const isNightSelected = isS3Selected || isS5Selected
+              return (
+                <div className={`rounded-2xl border-2 transition-all ${isNightSelected ? "border-emerald-500 shadow-lg" : "border-gray-200"}`}>
+                  <div className="p-4">
+                    <h3 className="font-bold text-gray-900 text-base mb-1">本格ナイトツアー</h3>
+                    <div className="flex items-center gap-3 text-sm text-gray-500 mb-3">
+                      <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{s3.durationHours}時間</span>
+                      <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />{s3.rating}</span>
                     </div>
-                    <div className="text-right">
-                      {plan.id === "S3" ? (
-                        <div className="text-xl font-bold text-emerald-600">¥4,000</div>
-                      ) : plan.id === "S5" ? (
-                        <div className="text-xl font-bold text-emerald-600">¥58,000〜</div>
-                      ) : (
-                        <div className="text-xl font-bold text-emerald-600">
-                          ¥{plan.price.toLocaleString()}{plan.id !== "S2" && "〜"}
-                        </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className={`cursor-pointer p-3 rounded-xl border-2 text-center transition-all ${isS3Selected ? "border-emerald-500 bg-emerald-50" : "border-gray-200 hover:border-emerald-300"}`}>
+                        <input type="radio" name="plan" value="S3" checked={isS3Selected} onChange={(e) => handleInputChange("selectedPlan", e.target.value)} className="sr-only" />
+                        <p className="text-xs text-gray-500 mb-0.5">通常プラン</p>
+                        <p className="font-bold text-emerald-600">¥4,000</p>
+                      </label>
+                      {s5 && (
+                        <label className={`cursor-pointer p-3 rounded-xl border-2 text-center transition-all ${isS5Selected ? "border-purple-500 bg-purple-50" : "border-gray-200 hover:border-purple-300"}`}>
+                          <input type="radio" name="plan" value="S5" checked={isS5Selected} onChange={(e) => handleInputChange("selectedPlan", e.target.value)} className="sr-only" />
+                          <p className="text-xs text-purple-600 font-semibold mb-0.5">貸切プラン</p>
+                          <p className="font-bold text-purple-600">¥8,000/人</p>
+                        </label>
                       )}
                     </div>
                   </div>
                 </div>
-              </label>
-            ))}
+              )
+            })()}
+
+            {/* サンセットSUP */}
+            {(() => {
+              const s4 = PLANS.find(p => p.id === "S4")!
+              const isS4Selected = bookingData.selectedPlan === "S4"
+              return (
+                <label className={`block cursor-pointer rounded-2xl border-2 transition-all ${isS4Selected ? "border-emerald-500 shadow-lg" : "border-gray-200 hover:border-emerald-300"}`}>
+                  <input type="radio" name="plan" value="S4" checked={isS4Selected} onChange={(e) => handleInputChange("selectedPlan", e.target.value)} className="sr-only" />
+                  <div className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-bold text-gray-900 text-base">サンセットSUP</h3>
+                          <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">1日1組限定</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm text-gray-500">
+                          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{s4.durationHours}時間</span>
+                          <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />{s4.rating}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-emerald-600">¥8,000〜</p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              )
+            })()}
           </div>
 
           {selectedPlanData && (
@@ -536,9 +571,9 @@ export function BookingForm() {
                 <div className="bg-white/60 rounded-lg p-2">
                   <div className="text-gray-600 mb-0.5">料金</div>
                   <div className="font-semibold text-gray-800">
-                    {selectedPlanData.id === "S3" ? (
+                    {selectedPlanData.id === "S3" || selectedPlanData.id === "S5" ? (
                       <>
-                        ¥{selectedPlanData.price.toLocaleString()}{" "}
+                        ¥{selectedPlanData.price.toLocaleString()}/人{" "}
                         <span className="text-emerald-600">(3歳以下無料)</span>
                       </>
                     ) : (

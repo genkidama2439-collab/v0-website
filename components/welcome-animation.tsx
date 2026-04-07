@@ -1,227 +1,281 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import Image from "next/image"
 
 export function WelcomeAnimation() {
   const pathname = usePathname()
-  const [phase, setPhase] = useState<"initial" | "text" | "reveal" | "complete" | "done">("initial")
-  
-  // Only show animation on home page
+  const [phase, setPhase] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6 | 99>(0)
   const isHomePage = pathname === "/"
 
-  const completeAnimation = useCallback(() => {
-    setPhase("done")
-  }, [])
-
   useEffect(() => {
-    const textTimer = setTimeout(() => {
-      setPhase("text")
-    }, 800)
-
-    const revealTimer = setTimeout(() => {
-      setPhase("reveal")
-    }, 3500)
-
-    const completeTimer = setTimeout(() => {
-      setPhase("complete")
-    }, 5500)
-
-    const doneTimer = setTimeout(completeAnimation, 6500)
-
-    return () => {
-      clearTimeout(textTimer)
-      clearTimeout(revealTimer)
-      clearTimeout(completeTimer)
-      clearTimeout(doneTimer)
+    if (!isHomePage) { setPhase(99); return }
+    // Only play once per session
+    if (typeof window !== "undefined" && sessionStorage.getItem("welcome-seen")) {
+      setPhase(99)
+      return
     }
-  }, [completeAnimation])
+    const t = [
+      setTimeout(() => setPhase(1), 100),
+      setTimeout(() => setPhase(2), 1600),
+      setTimeout(() => setPhase(3), 3200),
+      setTimeout(() => setPhase(4), 4800),
+      setTimeout(() => setPhase(5), 5800),
+      setTimeout(() => setPhase(6), 6400),
+      setTimeout(() => {
+        setPhase(99)
+        sessionStorage.setItem("welcome-seen", "1")
+      }, 7200),
+    ]
+    return () => t.forEach(clearTimeout)
+  }, [isHomePage])
 
-  // Don't show animation on non-home pages or when done
-  if (!isHomePage || phase === "done") return null
-
-  const phrase1 = "海を敬い、"
-  const phrase2 = "海と遊ぶ。"
-  const allCharacters = (phrase1 + phrase2).split("")
+  if (!isHomePage || phase === 99) return null
 
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-[100] overflow-hidden"
-        initial={{ opacity: 1 }}
-        animate={{ opacity: phase === "complete" ? 0 : 1 }}
-        transition={{ duration: 1, ease: "easeInOut" }}
+        className="fixed inset-0 z-[100] bg-[#020a06]"
+        animate={{ opacity: phase >= 6 ? 0 : 1 }}
+        transition={{ duration: 0.8 }}
       >
-        {/* Layer 1: Deep navy background (initial state) */}
-        <motion.div
-          className="absolute inset-0 bg-[#001a1a]"
-          initial={{ opacity: 1 }}
-          animate={{
-            opacity: phase === "reveal" || phase === "complete" ? 0 : 1,
-          }}
-          transition={{ duration: 1.8, ease: [0.25, 0.46, 0.45, 0.94] }}
-          style={{ zIndex: 30 }}
-        />
-
-        {/* Layer 2: Curtain effect - Top */}
-        <motion.div
-          className="absolute inset-x-0 top-0 h-1/2 bg-[#001a1a] origin-top"
-          initial={{ scaleY: 1 }}
-          animate={{
-            scaleY: phase === "reveal" || phase === "complete" ? 0 : 1,
-          }}
-          transition={{ duration: 1.5, ease: [0.76, 0, 0.24, 1], delay: 0.2 }}
-          style={{ zIndex: 25 }}
-        />
-
-        {/* Layer 2: Curtain effect - Bottom */}
-        <motion.div
-          className="absolute inset-x-0 bottom-0 h-1/2 bg-[#001a1a] origin-bottom"
-          initial={{ scaleY: 1 }}
-          animate={{
-            scaleY: phase === "reveal" || phase === "complete" ? 0 : 1,
-          }}
-          transition={{ duration: 1.5, ease: [0.76, 0, 0.24, 1], delay: 0.2 }}
-          style={{ zIndex: 25 }}
-        />
-
-        {/* Layer 3: Background image with zoom effect */}
-        <motion.div
-          className="absolute inset-0"
-          initial={{ scale: 1.3, opacity: 0 }}
-          animate={{
-            scale: phase === "reveal" || phase === "complete" ? 1 : 1.3,
-            opacity: phase === "reveal" || phase === "complete" ? 1 : 0,
-          }}
-          transition={{ duration: 2.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-          style={{ zIndex: 10 }}
-        >
-          <Image
-            src="/images/gemini-generated-image-rq969urq969urq96.jpeg"
-            alt="宮古島の海"
-            fill
-            className="object-cover"
-            priority
-            quality={90}
+        {/* ===== Deep ocean ambient ===== */}
+        <div className="absolute inset-0 overflow-hidden">
+          {/* Slow morphing underwater light caustics */}
+          <motion.div
+            className="absolute inset-[-50%]"
+            style={{
+              background: "conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(16,185,129,0.06) 60deg, transparent 120deg, rgba(6,182,212,0.04) 180deg, transparent 240deg, rgba(52,211,153,0.05) 300deg, transparent 360deg)",
+            }}
+            animate={{ rotate: [0, 360] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/40" />
-        </motion.div>
 
-        {/* Layer 4: Centered text content with premium typography */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-[10%]" style={{ zIndex: 40 }}>
-          <div className="overflow-hidden text-center">
-            <motion.h1
-              className="font-serif font-light text-[#f5f5f5] leading-relaxed"
-              style={{
-                fontFamily: "'Noto Serif JP', serif",
-                fontSize: "clamp(32px, 8vw, 64px)",
-                letterSpacing: "0.15em",
-                textWrap: "balance",
-              }}
-            >
-              {allCharacters.map((char, index) => {
-                // Determine which phrase this character belongs to
-                const isPhrase1 = index < phrase1.length
-                const charDelay = index * 0.08
+          {/* Breathing light pulse */}
+          <motion.div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{
+              width: "60vmax",
+              height: "60vmax",
+              background: "radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)",
+            }}
+            animate={{
+              scale: [1, 1.3, 1],
+              opacity: [0.5, 1, 0.5],
+            }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </div>
 
-                return (
-                  <motion.span
-                    key={index}
-                    initial={{ opacity: 0, filter: "blur(12px)", y: 20 }}
+        {/* ===== Phase 1: Depth counter / sonar ping ===== */}
+        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 10 }}>
+          {/* Sonar rings */}
+          <AnimatePresence>
+            {phase >= 1 && phase < 5 && (
+              <>
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={`ring-${i}`}
+                    className="absolute rounded-full border border-emerald-400/20"
+                    initial={{ width: 0, height: 0, opacity: 0.4 }}
                     animate={{
-                      opacity: phase !== "initial" ? 1 : 0,
-                      filter: phase !== "initial" ? "blur(0px)" : "blur(12px)",
-                      y: phase !== "initial" ? 0 : 20,
+                      width: [0, 300 + i * 100],
+                      height: [0, 300 + i * 100],
+                      opacity: [0.3, 0],
                     }}
                     transition={{
-                      duration: 0.8,
-                      delay: charDelay,
-                      ease: [0.25, 0.46, 0.45, 0.94],
+                      duration: 3,
+                      delay: i * 0.8,
+                      repeat: Infinity,
+                      ease: "easeOut",
                     }}
-                    className="inline-block"
-                    style={{
-                      whiteSpace: char === "、" || char === "。" ? "normal" : "nowrap",
-                      textShadow: phase === "reveal" || phase === "complete" ? "0 2px 20px rgba(0,0,0,0.5)" : "none",
-                    }}
-                  >
-                    {char}
-                  </motion.span>
-                )
-              })}
-            </motion.h1>
-          </div>
+                  />
+                ))}
+              </>
+            )}
+          </AnimatePresence>
 
+          {/* Center dot */}
           <motion.div
-            className="mt-[clamp(24px,6vw,48px)] flex items-center gap-4 sm:gap-6"
-            initial={{ opacity: 0, scaleX: 0 }}
+            className="absolute w-2 h-2 rounded-full bg-emerald-400"
+            initial={{ scale: 0 }}
             animate={{
-              opacity: phase !== "initial" ? 0.6 : 0,
-              scaleX: phase !== "initial" ? 1 : 0,
+              scale: phase >= 1 && phase < 4 ? [1, 1.5, 1] : 0,
+              opacity: phase >= 1 && phase < 4 ? [0.8, 1, 0.8] : 0,
             }}
-            transition={{ duration: 1.2, delay: 1.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-          >
-            <span className="h-px w-[clamp(48px,12vw,96px)] bg-white/60" />
-            <span
-              className="text-white/60 tracking-[0.4em] uppercase font-light"
-              style={{
-                fontSize: "clamp(8px, 2vw, 14px)",
-              }}
-            >
-              Miyakojima
-            </span>
-            <span className="h-px w-[clamp(48px,12vw,96px)] bg-white/60" />
-          </motion.div>
+            transition={{
+              scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+              opacity: { duration: 0.3 },
+            }}
+            style={{ boxShadow: "0 0 20px rgba(16,185,129,0.6), 0 0 60px rgba(16,185,129,0.2)" }}
+          />
+        </div>
 
-          {/* Brand name - appears after reveal */}
-          <motion.div
-            className="mt-[clamp(16px,4vw,32px)]"
-            initial={{ opacity: 0, y: 30 }}
+        {/* ===== Phase 1: Location coordinates ===== */}
+        <motion.div
+          className="absolute top-8 left-6 sm:top-12 sm:left-12"
+          style={{ zIndex: 20 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: phase >= 1 && phase < 5 ? 0.4 : 0 }}
+          transition={{ duration: 0.8, delay: 0.5 }}
+        >
+          <p className="text-emerald-400/70 font-mono text-[10px] sm:text-xs tracking-wider">
+            24°47&apos;N 125°17&apos;E
+          </p>
+          <motion.p
+            className="text-white/30 font-mono text-[9px] sm:text-[10px] mt-1"
             animate={{
-              opacity: phase === "reveal" || phase === "complete" ? 1 : 0,
-              y: phase === "reveal" || phase === "complete" ? 0 : 30,
+              opacity: phase >= 1 ? [0.2, 0.5, 0.2] : 0,
             }}
-            transition={{ duration: 1, delay: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+            transition={{ duration: 2, repeat: Infinity }}
           >
-            <p
-              className="text-white/80 tracking-[0.3em] font-light"
+            ▸ SIGNAL FOUND
+          </motion.p>
+        </motion.div>
+
+        {/* ===== Phase 1: Depth indicator (right side) ===== */}
+        <motion.div
+          className="absolute top-8 right-6 sm:top-12 sm:right-12 text-right"
+          style={{ zIndex: 20 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: phase >= 1 && phase < 5 ? 0.4 : 0 }}
+          transition={{ duration: 0.8, delay: 0.7 }}
+        >
+          <p className="text-white/30 font-mono text-[9px] sm:text-[10px] tracking-wider">DEPTH</p>
+          <motion.p
+            className="text-emerald-400/70 font-mono text-[10px] sm:text-xs"
+            animate={phase >= 1 ? { opacity: [0.4, 0.8, 0.4] } : {}}
+            transition={{ duration: 3, repeat: Infinity }}
+          >
+            -3.2m
+          </motion.p>
+        </motion.div>
+
+        {/* ===== Phase 2: The encounter text ===== */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-8" style={{ zIndex: 30 }}>
+          {/* First message */}
+          <div className="overflow-hidden">
+            <motion.p
+              className="text-emerald-400/80 text-center"
               style={{
                 fontFamily: "'Noto Serif JP', serif",
-                fontSize: "clamp(16px, 4vw, 28px)",
+                fontSize: "clamp(13px, 3vw, 18px)",
+                letterSpacing: "0.3em",
+                fontWeight: 300,
+              }}
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{
+                y: phase >= 2 ? "0%" : "100%",
+                opacity: phase >= 2 && phase < 5 ? 1 : 0,
+              }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            >
+              その日、海が呼んでいた。
+            </motion.p>
+          </div>
+
+          {/* Main title - big dramatic reveal */}
+          <motion.div
+            className="mt-6 sm:mt-10 relative"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: phase >= 3 ? 1 : 0 }}
+          >
+            {/* Glow behind text */}
+            <motion.div
+              className="absolute inset-0 blur-3xl"
+              style={{ background: "radial-gradient(ellipse, rgba(16,185,129,0.15) 0%, transparent 70%)" }}
+              animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 3, repeat: Infinity }}
+            />
+
+            <div className="relative overflow-hidden">
+              <motion.h1
+                className="text-white text-center leading-[1.1]"
+                style={{
+                  fontFamily: "'Noto Serif JP', serif",
+                  fontSize: "clamp(40px, 12vw, 100px)",
+                  fontWeight: 400,
+                  letterSpacing: "0.08em",
+                }}
+                initial={{ y: "100%", filter: "blur(20px)" }}
+                animate={{
+                  y: phase >= 3 ? "0%" : "100%",
+                  filter: phase >= 3 ? "blur(0px)" : "blur(20px)",
+                }}
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+              >
+                海亀兄弟
+              </motion.h1>
+            </div>
+
+            {/* Underline accent */}
+            <motion.div
+              className="mt-3 sm:mt-4 mx-auto h-[2px] rounded-full"
+              style={{ background: "linear-gradient(90deg, transparent, #34d399, transparent)" }}
+              initial={{ width: 0 }}
+              animate={{ width: phase >= 3 ? "clamp(80px, 20vw, 200px)" : 0 }}
+              transition={{ duration: 1, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            />
+          </motion.div>
+
+          {/* Phase 4: Invitation text */}
+          <motion.div
+            className="mt-8 sm:mt-12"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{
+              opacity: phase >= 4 && phase < 6 ? 1 : 0,
+              y: phase >= 4 ? 0 : 20,
+            }}
+            transition={{ duration: 0.8 }}
+          >
+            <p
+              className="text-white/60 text-center leading-relaxed"
+              style={{
+                fontFamily: "'Noto Serif JP', serif",
+                fontSize: "clamp(12px, 2.5vw, 16px)",
+                letterSpacing: "0.15em",
+                fontWeight: 300,
               }}
             >
-              海亀兄弟
+              宮古島の海の底で、<br className="sm:hidden" />
+              彼らは静かに待っている。
             </p>
           </motion.div>
         </div>
 
-        {/* Layer 5: Scroll indicator - appears last */}
+        {/* ===== Phase 5: Wipe transition - water surface rising ===== */}
         <motion.div
-          className="absolute bottom-[clamp(24px,6vw,48px)] left-1/2 -translate-x-1/2 flex flex-col items-center"
-          style={{ zIndex: 50 }}
-          initial={{ opacity: 0 }}
-          animate={{
-            opacity: phase === "complete" ? 1 : 0,
+          className="absolute inset-x-0 bottom-0"
+          style={{
+            zIndex: 40,
+            background: "linear-gradient(to top, rgba(16,185,129,0.1) 0%, rgba(6,182,212,0.05) 40%, transparent 100%)",
           }}
-          transition={{ duration: 1, ease: "easeOut" }}
+          initial={{ height: "0%" }}
+          animate={{ height: phase >= 5 ? "100%" : "0%" }}
+          transition={{ duration: 1.2, ease: [0.76, 0, 0.24, 1] }}
+        />
+
+        {/* ===== Bottom data bar ===== */}
+        <motion.div
+          className="absolute bottom-8 left-6 right-6 sm:bottom-12 sm:left-12 sm:right-12 flex justify-between items-end"
+          style={{ zIndex: 20 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: phase >= 1 && phase < 5 ? 0.3 : 0 }}
+          transition={{ duration: 0.8, delay: 1.0 }}
         >
-          <span
-            className="text-white/40 tracking-[0.3em] uppercase mb-2"
-            style={{
-              fontSize: "clamp(10px, 1.5vw, 11px)",
-            }}
-          >
-            Scroll
-          </span>
+          <div>
+            <p className="text-white/30 font-mono text-[8px] sm:text-[9px] tracking-wider">TEMP 26.4°C</p>
+            <p className="text-white/20 font-mono text-[8px] sm:text-[9px]">VISIBILITY 30m+</p>
+          </div>
           <motion.div
-            className="w-px bg-gradient-to-b from-white/40 to-transparent"
-            style={{
-              height: "clamp(20px, 5vw, 40px)",
-            }}
-            animate={{ scaleY: [1, 0.5, 1] }}
-            transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-          />
+            className="flex items-center gap-2"
+            animate={{ opacity: [0.2, 0.5, 0.2] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400/50" />
+            <p className="text-emerald-400/50 font-mono text-[8px] sm:text-[9px]">LIVE</p>
+          </motion.div>
         </motion.div>
       </motion.div>
     </AnimatePresence>

@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     template: "%s | 海亀兄弟 - 宮古島",
   },
   description:
-    "宮古島で家族向け少人数制マリン体験なら海亀兄弟。ウミガメシュノーケル（遭遇率100%継続中）、VIP貸切ツアー、ナイトツアー、サンセットSUP。写真・動画無料、前日キャンセル無料。",
+    "宮古島で家族向け少人数制マリン体験なら海亀兄弟。ウミガメシュノーケル、貸切ツアー、ナイトツアー、サンセットSUP。安全管理徹底、写真・動画無料、前日キャンセル無料。",
   icons: {
     icon: "/icon.png",
     apple: "/icon.png",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "海亀兄弟 | 宮古島ウミガメシュノーケル・マリン体験",
-    description: "宮古島で家族向け少人数制マリン体験。ウミガメ遭遇率100%継続中。写真・動画無料、前日キャンセル無料。",
+    description: "宮古島で家族向け少人数制マリン体験。安全管理徹底、写真・動画無料、前日キャンセル無料。",
     url: "https://www.umigamekyoudaimiyakojima.com",
     siteName: "海亀兄弟",
     locale: "ja_JP",
@@ -59,7 +59,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "海亀兄弟 | 宮古島ウミガメシュノーケル・マリン体験",
-    description: "宮古島で家族向け少人数制マリン体験。ウミガメ遭遇率100%継続中。写真・動画無料。",
+    description: "宮古島で家族向け少人数制マリン体験。安全管理徹底、写真・動画無料。",
     images: ["/images/s1-sea-turtle-snorkeling.jpg"],
   },
 }

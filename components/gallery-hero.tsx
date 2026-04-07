@@ -49,7 +49,7 @@ export function GalleryHero() {
           className="flex gap-3"
         >
           {[
-            { icon: Camera, value: "99%", label: "遭遇率" },
+            { icon: Camera, value: "徹底", label: "安全管理" },
             { icon: ImageIcon, value: "高画質", label: "水中撮影" },
             { icon: Heart, value: "無料", label: "全データ" },
           ].map((s) => (

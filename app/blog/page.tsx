@@ -1,313 +1,200 @@
 "use client"
 
-import { useState, useMemo, useRef, useEffect } from "react"
-import { Calendar, Clock, User, Tag, ChevronLeft, ChevronRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { useState, useMemo } from "react"
+import { Clock, Calendar, Tag } from "lucide-react"
 import { BLOG_POSTS, BLOG_CATEGORIES } from "@/lib/data"
 import Link from "next/link"
 import Image from "next/image"
+import { motion } from "framer-motion"
 import { Navbar } from "@/components/navbar"
+import { MobileCTA } from "@/components/mobile-cta"
+import { Footer } from "@/components/footer"
+import { BLUR_DATA_URLS } from "@/lib/data"
+
+function formatDate(dateString: string) {
+  const date = new Date(dateString)
+  return date.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })
+}
 
 export default function BlogPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("全て")
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([])
+  const categories = ["全て", ...BLOG_CATEGORIES]
 
   const filteredPosts = useMemo(() => {
-    const filtered = BLOG_POSTS.filter((post) => {
-      const matchesCategory = selectedCategory === "全て" || post.category === selectedCategory
-      return matchesCategory
-    })
-
-    return filtered
+    if (selectedCategory === "全て") return BLOG_POSTS
+    return BLOG_POSTS.filter((post) => post.category === selectedCategory)
   }, [selectedCategory])
 
-  useEffect(() => {
-    const container = scrollContainerRef.current
-    if (!container) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
-            const index = cardRefs.current.indexOf(entry.target as HTMLDivElement)
-            if (index !== -1) {
-              setCurrentIndex(index)
-            }
-          }
-        })
-      },
-      {
-        root: container,
-        threshold: [0.5, 0.75, 1.0],
-        rootMargin: "0px",
-      },
-    )
-
-    cardRefs.current.forEach((card) => {
-      if (card) observer.observe(card)
-    })
-
-    return () => observer.disconnect()
-  }, [filteredPosts])
-
-  const scrollToIndex = (index: number) => {
-    const card = cardRefs.current[index]
-    if (card && scrollContainerRef.current) {
-      const container = scrollContainerRef.current
-      const cardRect = card.getBoundingClientRect()
-      const containerRect = container.getBoundingClientRect()
-
-      const scrollLeft = card.offsetLeft - (containerRect.width - cardRect.width) / 2
-
-      container.scrollTo({
-        left: scrollLeft,
-        behavior: "smooth",
-      })
-    }
-  }
-
-  const goToPrevious = () => {
-    if (currentIndex > 0) {
-      scrollToIndex(currentIndex - 1)
-    }
-  }
-
-  const goToNext = () => {
-    if (currentIndex < filteredPosts.length - 1) {
-      scrollToIndex(currentIndex + 1)
-    }
-  }
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("ja-JP", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
-  }
+  // Featured = first post
+  const featured = filteredPosts[0]
+  const rest = filteredPosts.slice(1)
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-emerald-50">
+    <div className="min-h-screen bg-white">
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="relative py-20 bg-gradient-to-r from-teal-600 to-emerald-600">
-        <div className="absolute inset-0 bg-black/20" />
-        <div className="relative container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 text-balance">海亀兄弟ブログ</h1>
-          <p className="text-xl text-white/90 max-w-2xl mx-auto text-pretty">
-            宮古島の海の魅力、海亀との出会い、ダイビングの楽しさを 現地ガイドがお届けします
-          </p>
+      {/* Hero */}
+      <section className="relative min-h-[40svh] sm:min-h-[50svh] flex items-end overflow-hidden bg-gray-900">
+        <div className="absolute inset-0">
+          <Image
+            src="/images/hero-aerial-ocean.jpg"
+            alt=""
+            fill
+            priority
+            quality={80}
+            placeholder="blur"
+            blurDataURL={BLUR_DATA_URLS.ocean}
+            className="object-cover opacity-40"
+            sizes="100vw"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent" />
+        </div>
+        <div className="relative z-10 w-full max-w-5xl mx-auto px-5 sm:px-6 lg:px-8 pb-8 sm:pb-12 pt-24 sm:pt-32">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <p className="text-emerald-400 font-semibold text-xs sm:text-sm tracking-widest uppercase mb-2">Blog</p>
+            <h1 className="text-3xl sm:text-5xl font-black text-white mb-2">海亀兄弟ブログ</h1>
+            <p className="text-sm sm:text-lg text-white/60 max-w-lg">
+              宮古島の海・ウミガメ・アクティビティの最新情報をお届け
+            </p>
+          </motion.div>
         </div>
       </section>
 
-      <div className="container mx-auto px-4 py-12">
-        {/* Search and Filters */}
-        <div className="mb-12 space-y-6">
-          {/* Category Filters */}
-          <div className="flex flex-wrap justify-center gap-3">
-            <Button
-              variant={selectedCategory === "全て" ? "default" : "outline"}
-              onClick={() => setSelectedCategory("全て")}
-              className={`rounded-full ${
-                selectedCategory === "全て"
-                  ? "bg-teal-600 hover:bg-teal-700"
-                  : "border-teal-300 text-teal-700 hover:bg-teal-50"
-              }`}
-            >
-              全て
-            </Button>
-            {BLOG_CATEGORIES.map((category) => (
-              <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "outline"}
-                onClick={() => setSelectedCategory(category)}
-                className={`rounded-full ${
-                  selectedCategory === category
-                    ? "bg-teal-600 hover:bg-teal-700"
-                    : "border-teal-300 text-teal-700 hover:bg-teal-50"
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        {/* Category filter */}
+        <div className="mb-8 sm:mb-10 overflow-x-auto scrollbar-hide -mx-4 px-4">
+          <div className="flex gap-2 w-max sm:w-auto sm:flex-wrap sm:justify-center">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`flex-shrink-0 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-full transition-all active:scale-95 ${
+                  selectedCategory === cat
+                    ? "bg-emerald-500 text-white shadow-md"
+                    : "bg-gray-100 text-gray-600 hover:bg-emerald-50 hover:text-emerald-600"
                 }`}
               >
-                {category}
-              </Button>
+                {cat}
+              </button>
             ))}
           </div>
         </div>
 
-        {/* Results Count */}
-        <div className="text-center mb-8">
-          <p className="text-gray-600">{filteredPosts.length}件の記事が見つかりました</p>
-        </div>
+        <p className="text-xs text-gray-400 mb-6">{filteredPosts.length}件の記事</p>
 
-        {/* Blog Posts Horizontal Scroll */}
-        {filteredPosts.length > 0 ? (
-          <div className="relative">
-            <div className="hidden md:flex items-center justify-between mb-6">
-              <button
-                onClick={goToPrevious}
-                disabled={currentIndex === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg border border-teal-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                aria-label="前の記事へ"
-              >
-                <ChevronLeft className="w-5 h-5" />
-                <span className="text-sm font-medium">前へ</span>
-              </button>
-
-              <div className="flex gap-2">
-                {filteredPosts.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => scrollToIndex(index)}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      currentIndex === index ? "bg-teal-600 w-8" : "bg-teal-200 w-2 hover:bg-teal-300"
-                    }`}
-                    aria-label={`記事 ${index + 1} に移動`}
-                  />
-                ))}
-              </div>
-
-              <button
-                onClick={goToNext}
-                disabled={currentIndex === filteredPosts.length - 1}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg border border-teal-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                aria-label="次の記事へ"
-              >
-                <span className="text-sm font-medium">次へ</span>
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div
-              ref={scrollContainerRef}
-              className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory scroll-smooth gap-8 pb-4"
-              style={{
-                WebkitOverflowScrolling: "touch",
-                scrollSnapType: "x mandatory",
-                overscrollBehaviorX: "contain",
-                touchAction: "auto", // Changed from "pan-x pinch-zoom" to "auto" to allow vertical scrolling
-              }}
-              role="region"
-              aria-roledescription="carousel"
-              aria-label="ブログ記事一覧"
-            >
-              {filteredPosts.map((post, index) => (
-                <div
-                  key={post.id}
-                  ref={(el) => {
-                    cardRefs.current[index] = el
-                  }}
-                  className="flex-none w-[85vw] md:w-[45vw] lg:w-[30vw] snap-center"
-                  style={{
-                    scrollSnapAlign: "center",
-                    scrollSnapStop: "always",
-                  }}
-                >
-                  <Link href={`/blog/${post.id}`}>
-                    <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-2 bg-white/80 backdrop-blur-sm border-0 shadow-lg overflow-hidden h-full">
-                      <div className="relative h-48 overflow-hidden">
-                        <Image
-                          src={post.image || "/placeholder.svg?height=200&width=400&query=blog post"}
-                          alt={post.title}
-                          fill
-                          className="object-cover group-hover:scale-110 transition-transform duration-300"
-                        />
-                        <div className="absolute top-4 left-4">
-                          <Badge className="bg-teal-600 text-white">{post.category}</Badge>
-                        </div>
-                      </div>
-
-                      <CardHeader className="pb-3">
-                        <h3 className="text-lg md:text-xl font-bold text-gray-900 group-hover:text-teal-600 transition-colors line-clamp-2 text-balance leading-tight">
-                          {post.title}
-                        </h3>
-                      </CardHeader>
-
-                      <CardContent className="space-y-4">
-                        <p className="text-gray-600 line-clamp-3 text-pretty text-sm leading-relaxed">{post.excerpt}</p>
-
-                        <div className="flex items-center justify-between text-sm text-gray-500">
-                          <div className="flex items-center space-x-4">
-                            <div className="flex items-center">
-                              <User className="h-4 w-4 mr-1" />
-                              {post.author}
-                            </div>
-                            <div className="flex items-center">
-                              <Clock className="h-4 w-4 mr-1" />
-                              {post.readTime}分
-                            </div>
-                          </div>
-                          <div className="flex items-center">
-                            <Calendar className="h-4 w-4 mr-1" />
-                            {formatDate(post.publishedAt)}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          {post.tags.slice(0, 3).map((tag) => (
-                            <Badge key={tag} variant="secondary" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                          {post.tags.length > 3 && (
-                            <Badge variant="secondary" className="text-xs">
-                              +{post.tags.length - 3}
-                            </Badge>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-center items-center mt-6 md:hidden">
-              <div className="flex flex-col items-center gap-3">
-                <div className="text-sm text-gray-600 font-medium">
-                  {currentIndex + 1} / {filteredPosts.length} 記事
-                </div>
-                <div className="flex gap-2">
-                  {filteredPosts.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => scrollToIndex(index)}
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        currentIndex === index ? "bg-teal-600 w-8" : "bg-teal-200 w-2 hover:bg-teal-300"
-                      }`}
-                      aria-label={`記事 ${index + 1} に移動`}
-                    />
-                  ))}
-                </div>
-                <div className="text-xs text-gray-500">← スワイプして他の記事を見る →</div>
-              </div>
-            </div>
+        {filteredPosts.length === 0 ? (
+          <div className="text-center py-20">
+            <Tag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">この カテゴリの記事はまだありません</p>
           </div>
         ) : (
-          /* No Results */
-          <div className="text-center py-12">
-            <div className="text-gray-400 mb-4">
-              <Tag className="h-16 w-16 mx-auto" />
+          <>
+            {/* Featured post - large card */}
+            {featured && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="mb-8 sm:mb-12"
+              >
+                <Link href={`/blog/${featured.id}`} className="group block">
+                  <div className="flex flex-col md:flex-row gap-0 bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-shadow duration-500">
+                    <div className="relative w-full md:w-1/2 aspect-[16/10] md:aspect-auto md:min-h-[320px] overflow-hidden">
+                      <Image
+                        src={featured.image || "/placeholder.svg"}
+                        alt={featured.title}
+                        fill
+                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                      />
+                      <span className="absolute top-3 left-3 bg-emerald-500 text-white text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full">
+                        {featured.category}
+                      </span>
+                    </div>
+                    <div className="p-5 sm:p-8 md:w-1/2 flex flex-col justify-center">
+                      <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {formatDate(featured.publishedAt)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          {featured.readTime}分
+                        </span>
+                      </div>
+                      <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors mb-3 leading-tight">
+                        {featured.title}
+                      </h2>
+                      <p className="text-sm text-gray-500 leading-relaxed line-clamp-3 mb-4">{featured.excerpt}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {featured.tags.slice(0, 4).map((tag) => (
+                          <span key={tag} className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            )}
+
+            {/* Rest of posts - grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+              {rest.map((post, i) => (
+                <motion.div
+                  key={post.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: Math.min(i * 0.05, 0.3) }}
+                >
+                  <Link href={`/blog/${post.id}`} className="group block h-full">
+                    <div className="bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 h-full flex flex-col">
+                      <div className="relative aspect-[16/10] overflow-hidden">
+                        <Image
+                          src={post.image || "/placeholder.svg"}
+                          alt={post.title}
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          loading="lazy"
+                        />
+                        <span className="absolute top-3 left-3 bg-emerald-500/90 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                          {post.category}
+                        </span>
+                      </div>
+                      <div className="p-4 sm:p-5 flex flex-col flex-1">
+                        <div className="flex items-center gap-3 text-[10px] sm:text-xs text-gray-400 mb-2">
+                          <span>{formatDate(post.publishedAt)}</span>
+                          <span>{post.readTime}分で読める</span>
+                        </div>
+                        <h3 className="text-sm sm:text-base font-bold text-gray-900 group-hover:text-emerald-600 transition-colors mb-2 leading-snug line-clamp-2">
+                          {post.title}
+                        </h3>
+                        <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-3">{post.excerpt}</p>
+                        <div className="flex flex-wrap gap-1 mt-auto">
+                          {post.tags.slice(0, 3).map((tag) => (
+                            <span key={tag} className="text-[9px] bg-gray-50 text-gray-400 px-2 py-0.5 rounded-full">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
             </div>
-            <h3 className="text-xl font-semibold text-gray-600 mb-2">記事が見つかりませんでした</h3>
-            <p className="text-gray-500">フィルター条件を変更してもう一度お試しください</p>
-          </div>
+          </>
         )}
       </div>
 
-      <style jsx>{`
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
+      <Footer />
+      <MobileCTA />
     </div>
   )
 }

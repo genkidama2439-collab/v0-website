@@ -93,22 +93,22 @@ export function HeroSection() {
             初心者・お子様大歓迎。感動の海亀体験をお届けします。
           </motion.p>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8 px-2">
+          {/* CTA Buttons - compact */}
+          <div className="flex flex-row gap-2.5 justify-center mb-6">
             <motion.div
-              initial={{ opacity: 0, x: -40 }}
+              initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ type: "spring", stiffness: 100, damping: 20, delay: 1.7 }}
             >
               <Link
                 href="/book"
-                className="block bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-base px-8 py-3.5 rounded-full shadow-xl transition-all active:scale-95"
+                className="block bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs sm:text-sm px-5 py-2.5 rounded-full shadow-lg transition-all active:scale-95"
               >
-                今すぐ予約する
+                今すぐ予約
               </Link>
             </motion.div>
             <motion.div
-              initial={{ opacity: 0, x: 40 }}
+              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ type: "spring", stiffness: 100, damping: 20, delay: 1.7 }}
             >
@@ -116,7 +116,7 @@ export function HeroSection() {
                 href="https://lin.ee/jfp4laz"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-bold text-base px-8 py-3.5 rounded-full border border-white/40 transition-all active:scale-95"
+                className="block bg-white/15 backdrop-blur-sm hover:bg-white/25 text-white font-semibold text-xs sm:text-sm px-5 py-2.5 rounded-full border border-white/30 transition-all active:scale-95"
               >
                 LINEで相談
               </a>

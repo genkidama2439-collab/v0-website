@@ -18,26 +18,49 @@ const notoSerifJP = Noto_Serif_JP({
 })
 
 export const metadata: Metadata = {
-  title: "海亀兄弟予約ページ | 宮古島マリン体験",
+  metadataBase: new URL("https://www.umigamekyoudaimiyakojima.com"),
+  title: {
+    default: "海亀兄弟 | 宮古島ウミガメシュノーケル・マリン体験",
+    template: "%s | 海亀兄弟 - 宮古島",
+  },
   description:
-    "宮古島で家族向け少人数制マリン体験なら海亀兄弟。ウミガメシュノーケル、ナイトツアーなど、安心・誠実・やわらかな高揚感をお届けします。",
-  generator: "v0.app",
+    "宮古島で家族向け少人数制マリン体験なら海亀兄弟。ウミガメシュノーケル（遭遇率100%継続中）、VIP貸切ツアー、ナイトツアー、サンセットSUP。写真・動画無料、前日キャンセル無料。",
   icons: {
     icon: "/icon.png",
     apple: "/icon.png",
   },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   openGraph: {
-    title: "海亀兄弟 | 宮古島マリン体験",
-    description: "家族向け少人数制マリン体験。安心・誠実・やわらかな高揚感をお届けします。",
-    url: "https://miyakojima.vercel.app",
+    title: "海亀兄弟 | 宮古島ウミガメシュノーケル・マリン体験",
+    description: "宮古島で家族向け少人数制マリン体験。ウミガメ遭遇率100%継続中。写真・動画無料、前日キャンセル無料。",
+    url: "https://www.umigamekyoudaimiyakojima.com",
     siteName: "海亀兄弟",
     locale: "ja_JP",
     type: "website",
+    images: [
+      {
+        url: "/images/s1-sea-turtle-snorkeling.jpg",
+        width: 1200,
+        height: 630,
+        alt: "宮古島の海亀兄弟 - ウミガメシュノーケルツアー",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "海亀兄弟 | 宮古島マリン体験",
-    description: "家族向け少人数制マリン体験。安心・誠実・やわらかな高揚感をお届けします。",
+    title: "海亀兄弟 | 宮古島ウミガメシュノーケル・マリン体験",
+    description: "宮古島で家族向け少人数制マリン体験。ウミガメ遭遇率100%継続中。写真・動画無料。",
+    images: ["/images/s1-sea-turtle-snorkeling.jpg"],
   },
 }
 

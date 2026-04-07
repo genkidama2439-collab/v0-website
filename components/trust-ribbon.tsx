@@ -18,7 +18,7 @@ export function TrustRibbon() {
           <div className="flex flex-col items-center">
             <div className="flex items-center mb-2">
               <MessageCircle className="w-6 h-6 text-blue-500" />
-              <span className="text-3xl font-bold text-emerald-800 ml-2">{"1876"}</span>
+              <span className="text-3xl font-bold text-emerald-800 ml-2">{"10136"}</span>
             </div>
             <p className="text-gray-600 text-sm font-medium">総口コミ件数</p>
           </div>

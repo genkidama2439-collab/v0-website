@@ -1,4 +1,11 @@
+import type { Metadata } from "next"
 import { Navbar } from "@/components/navbar"
+
+export const metadata: Metadata = {
+  title: "スタッフ紹介",
+  description: "海亀兄弟のスタッフをご紹介。宮古島の海を知り尽くした経験豊富なガイドが、安全で楽しい体験をお届けします。",
+  alternates: { canonical: "https://www.umigamekyoudaimiyakojima.com/staff" },
+}
 import { MobileCTA } from "@/components/mobile-cta"
 import { BubbleBackground } from "@/components/bubble-background"
 import { StaffHero } from "@/components/staff-hero"

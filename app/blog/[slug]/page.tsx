@@ -22,8 +22,17 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   }
 
   return {
-    title: `${post.title} | 海亀兄弟ブログ`,
+    title: post.title,
     description: post.excerpt,
+    alternates: {
+      canonical: `https://www.umigamekyoudaimiyakojima.com/blog/${params.slug}`,
+    },
+    openGraph: {
+      title: post.title,
+      description: post.excerpt,
+      type: "article",
+      images: post.image ? [{ url: post.image, width: 1200, height: 630, alt: post.title }] : undefined,
+    },
   }
 }
 

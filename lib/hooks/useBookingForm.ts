@@ -111,7 +111,7 @@ export const useBookingForm = () => {
     if (!phoneValidation.valid) newErrors.customerPhone = phoneValidation.error || '電話番号が不正です'
 
     const participantValidation = validateParticipants(formData.participants?.length ?? 0)
-    if (!participantValidation.valid) newErrors.participants = participantValidation.error
+    if (!participantValidation.valid) newErrors.participants = participantValidation.error || '参加者情報が不正です'
 
     if ((formData.participants?.length ?? 0) === 0) {
       newErrors.participants = '参加者を追加してください'

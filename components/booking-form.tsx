@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "sonner"
 import { Calendar, Clock, Users, Calculator, Star, CheckCircle, UserCheck, Check } from "lucide-react"
 import { PLANS, STAFF_FEE } from "@/lib/data"
 import { todayStr, localDateFromYMD } from "@/lib/date-utils"
@@ -262,7 +263,6 @@ export function BookingForm() {
   ])
 
   const handleInputChange = (field: keyof BookingData, value: any) => {
-    console.log("[v0] handleInputChange:", field, value)
     setBookingData((prev) => ({
       ...prev,
       [field]: value,
@@ -282,7 +282,7 @@ export function BookingForm() {
       setBookingData((prev) => ({ ...prev, couponDiscount: discount }))
     } else {
       setBookingData((prev) => ({ ...prev, couponDiscount: 0 }))
-      alert("クーポンコードが正しくありません")
+      toast.error("クーポンコードが正しくありません")
     }
   }
 
@@ -334,18 +334,15 @@ export function BookingForm() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         const errorMessage = errorData.error || `エラーが発生しました（ステータス: ${response.status}）`
-        console.error("[v0] Booking API error:", { status: response.status, error: errorData })
-        throw new Error(errorMessage)
+          throw new Error(errorMessage)
       }
 
       // fetch が成功したら即座に完了と判断（response.json は無視）
-      console.log("[v0] Booking submitted successfully, status:", response.status)
       setIsSubmitted(true)
       setIsSubmitting(false)
     } catch (error) {
-      console.error("[v0] Booking submission error:", error)
       const errorMessage = error instanceof Error ? error.message : "予約の送信中にエラーが発生しました。もう一度お試しください。"
-      alert(errorMessage)
+      toast.error(errorMessage)
       setIsSubmitting(false)
     }
   }
@@ -414,8 +411,8 @@ export function BookingForm() {
                   {STAFF_FEE.toLocaleString()})
                 </p>
               )}
-              {selectedPlanData?.vipSurcharge > 0 && (
-                <p className="text-orange-600">貸切追加料金: ¥{selectedPlanData.vipSurcharge.toLocaleString()}</p>
+              {(selectedPlanData?.vipSurcharge ?? 0) > 0 && (
+                <p className="text-orange-600">貸切追加料金: ¥{selectedPlanData!.vipSurcharge!.toLocaleString()}</p>
               )}
               <p className="font-semibold text-emerald-800">合計金額: ¥{totalPrice.toLocaleString()}</p>
             </div>
@@ -427,7 +424,7 @@ export function BookingForm() {
           </div>
           {bookingData.lineUserId ? (
             <Button
-              onClick={() => { if (typeof window !== 'undefined' && window.liff) window.liff.closeWindow() }}
+              onClick={() => { if (typeof window !== 'undefined' && (window as any).liff) (window as any).liff.closeWindow() }}
               className="bg-[#06C755] hover:bg-[#05b34d] text-white rounded-xl w-full"
             >
               LINEに戻る
@@ -785,10 +782,10 @@ export function BookingForm() {
                     </span>
                   </div>
                 )}
-                {selectedPlanData?.vipSurcharge > 0 && (
+                {(selectedPlanData?.vipSurcharge ?? 0) > 0 && (
                   <div className="flex justify-between text-orange-600">
                     <span>貸切追加料金</span>
-                    <span>￥{selectedPlanData.vipSurcharge.toLocaleString()}</span>
+                    <span>￥{selectedPlanData!.vipSurcharge!.toLocaleString()}</span>
                   </div>
                 )}
               </>
@@ -840,10 +837,10 @@ export function BookingForm() {
                 {ageRestrictionMessage}
                 <br />
                 ※器材レンタル・保険料込み
-                {selectedPlanData?.vipSurcharge > 0 && (
+                {(selectedPlanData?.vipSurcharge ?? 0) > 0 && (
                   <>
                     <br />
-                    ※貸切プランは通常料金に追加で￥{selectedPlanData.vipSurcharge.toLocaleString()}
+                    ※貸切プランは通常料金に追加で￥{selectedPlanData!.vipSurcharge!.toLocaleString()}
                     の貸切料金がかかります
                   </>
                 )}

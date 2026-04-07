@@ -15,6 +15,8 @@ interface BookingRequest {
   specialRequests?: string
   lineUserId?: string | null
   lineDisplayName?: string | null
+  couponCode?: string
+  couponDiscount?: number
 }
 
 // 必須フィールドの検証
@@ -66,6 +68,8 @@ const buildGASPayload = (bookingData: BookingRequest, bookingNumber: string) => 
     specialRequests: bookingData.specialRequests || '',
     lineUserId: bookingData.lineUserId || '',
     lineDisplayName: bookingData.lineDisplayName || '',
+    couponCode: bookingData.couponCode || '',
+    couponDiscount: bookingData.couponDiscount || 0,
   }
 }
 
@@ -106,8 +110,6 @@ export async function POST(request: Request) {
     // GASに送信
     try {
       const result = await sendToGAS(gasPayload)
-      console.log('[v0] Booking created successfully:', { bookingNumber })
-
       return NextResponse.json(
         createAPIResponse(true, { bookingNumber, result }, '予約が正常に作成されました')
       )

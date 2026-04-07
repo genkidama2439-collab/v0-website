@@ -42,8 +42,6 @@ export async function POST(request: Request) {
       messages: [{ type: 'text', text: body.customMessage }],
     })
 
-    console.log(`[LINE Notify] Sent message to ${body.lineUserId}`)
-
     return NextResponse.json({ success: true, message: '通知を送信しました' })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)

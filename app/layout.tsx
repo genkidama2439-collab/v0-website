@@ -6,6 +6,7 @@ import { Suspense } from "react"
 import Script from "next/script"
 import { WelcomeAnimation } from "@/components/welcome-animation"
 import { LiffProvider } from "@/components/liff-provider"
+import { Toaster } from "sonner"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
@@ -72,6 +73,7 @@ export default function RootLayout({
           <LiffProvider>
             {children}
             <Analytics />
+            <Toaster position="top-center" richColors />
           </LiffProvider>
         </Suspense>
       </body>

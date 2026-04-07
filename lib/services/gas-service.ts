@@ -24,6 +24,8 @@ export interface BookingPayload {
   specialRequests?: string;
   lineUserId?: string;
   lineDisplayName?: string;
+  couponCode?: string;
+  couponDiscount?: number;
 }
 
 // GAS URLを取得
@@ -61,11 +63,8 @@ export const sendToGAS = async (payload: BookingPayload): Promise<GASResponse> =
 
     clearTimeout(timeoutId);
 
-    console.log('[v0] GAS response status:', response.status);
-
     // レスポンスボディを確認
     const responseText = await response.text();
-    console.log('[v0] GAS response body:', responseText);
 
     try {
       const gasResult = JSON.parse(responseText);

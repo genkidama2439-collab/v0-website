@@ -484,7 +484,8 @@ export function BookingForm() {
                       <label className={`cursor-pointer p-3 rounded-xl border-2 text-center transition-all ${isS1Selected ? "border-emerald-500 bg-emerald-50" : "border-gray-200 hover:border-emerald-300"}`}>
                         <input type="radio" name="plan" value="S1" checked={isS1Selected} onChange={(e) => handleInputChange("selectedPlan", e.target.value)} className="sr-only" />
                         <p className="text-xs text-gray-500 mb-0.5">通常プラン</p>
-                        <p className="font-bold text-emerald-600">¥6,500〜</p>
+                        <p className="font-bold text-emerald-600">¥6,500</p>
+                        <p className="text-[10px] text-gray-500">子供¥6,000</p>
                       </label>
                       <label className={`cursor-pointer p-3 rounded-xl border-2 text-center transition-all ${isS2Selected ? "border-purple-500 bg-purple-50" : "border-gray-200 hover:border-purple-300"}`}>
                         <input type="radio" name="plan" value="S2" checked={isS2Selected} onChange={(e) => handleInputChange("selectedPlan", e.target.value)} className="sr-only" />

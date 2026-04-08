@@ -279,7 +279,7 @@ SNS映え間違いなし！
     priceNote: "一律 ¥4,000（3歳以下無料）",
     rating: 5.0,
     reviewCount: 2156,
-    image: "/images/miyakojima-night-tour-creatures.jpg",
+    image: "/images/night-tour-coconut-crab.jpg",
     timeTags: ["19:20", "21:10"],
     provisionalTimes: ["19:20", "21:10"],
     durationHours: 1.5,

@@ -46,6 +46,16 @@ const galleryImages: GalleryImage[] = [
   { src: "/images/gallery-night-tour-4.jpg", title: "岩場のヤシガニ", category: "ナイトツアー" },
   { src: "/images/gallery-night-tour-5.jpg", title: "宮古島のオオヒキガエル", category: "ナイトツアー" },
   { src: "/images/gallery-night-tour-6.jpg", title: "落ち葉の中のヤシガニ", category: "ナイトツアー" },
+  { src: "/images/gallery-nt-0052.jpg", title: "カップルでヤシガニ発見", category: "ナイトツアー" },
+  { src: "/images/gallery-nt-9998.jpg", title: "ヤモリを手のひらに", category: "ナイトツアー" },
+  { src: "/images/gallery-nt-0232.jpg", title: "親子でヤシガニ観察", category: "ナイトツアー" },
+  { src: "/images/gallery-nt-7944.jpg", title: "家族でヤシガニと記念撮影", category: "ナイトツアー" },
+  { src: "/images/gallery-nt-7908.jpg", title: "ナイトツアーの探検風景", category: "ナイトツアー" },
+  { src: "/images/gallery-nt-7884.jpg", title: "ヒキガエルとの出会い", category: "ナイトツアー" },
+  { src: "/images/gallery-nt-7890.jpg", title: "ナナフシを発見", category: "ナイトツアー" },
+  { src: "/images/gallery-nt-0263.jpg", title: "巨大ヤシガニの迫力", category: "ナイトツアー" },
+  { src: "/images/gallery-nt-9317.jpg", title: "家族でヤシガニと記念写真", category: "ナイトツアー" },
+  { src: "/images/gallery-nt-9301.jpg", title: "少年とヤシガニの冒険", category: "ナイトツアー" },
 ]
 
 const categories = ["すべて", "海亀体験", "記念写真", "ファミリー", "海中風景", "海中生物", "ナイトツアー", "スタッフ"]

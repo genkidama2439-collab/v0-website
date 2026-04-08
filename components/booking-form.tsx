@@ -1012,13 +1012,20 @@ export function BookingForm() {
             </Label>
           </div>
 
+          {!isLiffReady && !!process.env.NEXT_PUBLIC_LIFF_ID && (
+            <div className="flex items-center justify-center gap-2 py-3 text-sm text-emerald-600">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+              LINE情報を取得中...
+            </div>
+          )}
+
           <Button
             type="submit"
             size="lg"
-            disabled={!isFormValid || isSubmitting}
+            disabled={!isFormValid || isSubmitting || (!isLiffReady && !!process.env.NEXT_PUBLIC_LIFF_ID)}
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-4 text-lg font-semibold disabled:opacity-50"
           >
-            {isSubmitting ? "送信中..." : "仮予約を送信する"}
+            {!isLiffReady && !!process.env.NEXT_PUBLIC_LIFF_ID ? "LINE連携中..." : isSubmitting ? "送信中..." : "仮予約を送信する"}
           </Button>
 
           <p className="text-xs text-gray-500 text-center mt-3">送信後、24時間以内にスタッフよりご連絡いたします。</p>

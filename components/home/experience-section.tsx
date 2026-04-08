@@ -7,7 +7,6 @@ import { BLUR_DATA_URLS } from "@/lib/data"
 
 const experiences = [
   { image: "/images/s1-sea-turtle-snorkeling.jpg", title: "ウミガメシュノーケル", subtitle: "安全管理徹底の少人数制ツアー" },
-  { image: "/images/s2-sea-turtle-closeup.jpg", title: "VIP貸切ツアー", subtitle: "プライベートな特別な時間" },
   { image: "/images/night-tour-coconut-crab.jpg", title: "ナイトツアー", subtitle: "夜の冒険へ出かけよう" },
   { image: "/images/sunset-sup-silhouettes.jpg", title: "サンセットSUP", subtitle: "黄金の海に浮かぶひととき" },
 ]
@@ -61,14 +60,14 @@ export function ExperienceSection() {
         >
           <p className="text-emerald-400 font-semibold text-xs sm:text-sm tracking-widest uppercase mb-2">Experiences</p>
           <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold text-white mb-3">
-            4つの<span className="text-emerald-400">感動体験</span>
+            3つの<span className="text-emerald-400">感動体験</span>
           </h2>
           <p className="text-gray-400 text-sm sm:text-lg max-w-xl mx-auto">
             宮古島の海と自然を、朝から夜まで満喫できる多彩なプラン
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-4 md:gap-6">
           {experiences.map((exp, i) => (
             <ExperienceCard key={exp.title} exp={exp} index={i} />
           ))}

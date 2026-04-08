@@ -698,9 +698,9 @@ function PlanCTA({ plan }: { plan: PlanDetail }) {
 const otherPlansMeta: Record<string, { name: string; tagline: string; image: string; price: string; badge: string; badgeColor: string }> = {
   S1: { name: "ウミガメシュノーケル", tagline: "安全管理徹底の少人数制ツアー", image: "/images/s1-sea-turtle-snorkeling.jpg", price: "¥6,000〜", badge: "一番人気", badgeColor: "bg-yellow-400 text-yellow-900" },
   S2: { name: "【貸切】ウミガメシュノーケル", tagline: "ウミガメシュノーケルを完全貸切で", image: "/images/s2-sea-turtle-closeup.jpg", price: "¥9,000", badge: "貸切プラン", badgeColor: "bg-purple-500 text-white" },
-  S3: { name: "本格ナイトツアー", tagline: "夜の大冒険へ出かけよう", image: "/images/night-hunter-crab.jpg", price: "¥4,000", badge: "家族人気No.1", badgeColor: "bg-emerald-500 text-white" },
+  S3: { name: "本格ナイトツアー", tagline: "夜の大冒険へ出かけよう", image: "/images/night-tour-coconut-crab.jpg", price: "¥4,000", badge: "家族人気No.1", badgeColor: "bg-emerald-500 text-white" },
   S4: { name: "サンセットSUP【1日1組限定】", tagline: "1日1組だけの特別な夕日体験", image: "/images/sunset-sup-silhouettes.jpg", price: "¥6,000〜", badge: "映え度No.1", badgeColor: "bg-orange-500 text-white" },
-  S5: { name: "【貸切】本格ナイトツアー", tagline: "専属ガイドとプライベート冒険", image: "/images/night-hunter-crab.jpg", price: "¥8,000", badge: "貸切プラン", badgeColor: "bg-violet-500 text-white" },
+  S5: { name: "【貸切】本格ナイトツアー", tagline: "専属ガイドとプライベート冒険", image: "/images/night-tour-coconut-crab.jpg", price: "¥8,000", badge: "貸切プラン", badgeColor: "bg-violet-500 text-white" },
 }
 
 function OtherPlans({ currentId }: { currentId: string }) {

@@ -9,7 +9,7 @@ const galleryImages = [
   { src: "/images/s1-sea-turtle-snorkeling.jpg", alt: "ウミガメとシュノーケリング", span: "col-span-2 row-span-2" },
   { src: "/images/dsc06632.jpeg", alt: "宮古島の海", span: "col-span-1 row-span-1" },
   { src: "/images/sunset-sup-silhouettes.jpg", alt: "サンセットSUP", span: "col-span-1 row-span-1" },
-  { src: "/images/night-hunter-crab.jpg", alt: "ナイトツアー", span: "col-span-1 row-span-1" },
+  { src: "/images/night-tour-coconut-crab.jpg", alt: "ナイトツアー", span: "col-span-1 row-span-1" },
   { src: "/images/s2-sea-turtle-closeup.jpg", alt: "ウミガメと接近", span: "col-span-1 row-span-1" },
 ]
 

@@ -8,7 +8,7 @@ import { BLUR_DATA_URLS } from "@/lib/data"
 const experiences = [
   { image: "/images/s1-sea-turtle-snorkeling.jpg", title: "ウミガメシュノーケル", subtitle: "安全管理徹底の少人数制ツアー" },
   { image: "/images/s2-sea-turtle-closeup.jpg", title: "VIP貸切ツアー", subtitle: "プライベートな特別な時間" },
-  { image: "/images/night-hunter-crab.jpg", title: "ナイトツアー", subtitle: "夜の冒険へ出かけよう" },
+  { image: "/images/night-tour-coconut-crab.jpg", title: "ナイトツアー", subtitle: "夜の冒険へ出かけよう" },
   { image: "/images/sunset-sup-silhouettes.jpg", title: "サンセットSUP", subtitle: "黄金の海に浮かぶひととき" },
 ]
 

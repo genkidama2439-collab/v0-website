@@ -88,7 +88,7 @@ export default function RootLayout({
 
         <link key="preload-snorkeling" rel="preload" as="image" href="/images/s1-sea-turtle-snorkeling.jpg" type="image/jpeg" />
         <link key="preload-closeup" rel="preload" as="image" href="/images/s2-sea-turtle-closeup.jpg" type="image/jpeg" />
-        <link key="preload-crab" rel="preload" as="image" href="/images/night-hunter-crab.jpg" type="image/jpeg" />
+        <link key="preload-crab" rel="preload" as="image" href="/images/night-tour-coconut-crab.jpg" type="image/jpeg" />
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <WelcomeAnimation />

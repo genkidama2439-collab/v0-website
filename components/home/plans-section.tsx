@@ -65,7 +65,7 @@ const tours: Tour[] = [
     name: "本格ナイトツアー",
     tagline: "アマゾン帰りの男と行く夜の大冒険",
     description: "懐中電灯を持って夜のジャングルへ！巨大ヤシガニや夜行性の生き物を探す冒険ツアー。0歳から参加OK、三世代でも楽しめます。",
-    image: "/images/night-hunter-crab.jpg",
+    image: "/images/night-tour-coconut-crab.jpg",
     duration: "約1.5時間",
     age: "0〜75歳",
     rating: 5.0,

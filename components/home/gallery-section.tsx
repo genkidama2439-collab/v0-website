@@ -11,6 +11,7 @@ const galleryImages = [
   { src: "/images/sunset-sup-silhouettes.jpg", alt: "サンセットSUP", span: "col-span-1 row-span-1" },
   { src: "/images/night-tour-coconut-crab.jpg", alt: "ナイトツアー", span: "col-span-1 row-span-1" },
   { src: "/images/s2-sea-turtle-closeup.jpg", alt: "ウミガメと接近", span: "col-span-1 row-span-1" },
+  { src: "/images/gallery-new-1.jpg", alt: "巨大ヤシガニ", span: "col-span-1 row-span-1" },
 ]
 
 export function GallerySection() {

@@ -39,6 +39,10 @@ const galleryImages: GalleryImage[] = [
   { src: "/images/night-tour-coconut-crab.jpg", title: "ヤシガニとガイド", category: "ナイトツアー" },
   { src: "/images/gallery-new-1.jpg", title: "巨大ヤシガニ", category: "ナイトツアー" },
   { src: "/images/gallery-night-tour-2.jpg", title: "ヤシの葉の上のヤシガニ", category: "ナイトツアー" },
+  { src: "/images/gallery-night-tour-3.jpg", title: "夜の森のクワガタ", category: "ナイトツアー" },
+  { src: "/images/gallery-night-tour-4.jpg", title: "岩場のヤシガニ", category: "ナイトツアー" },
+  { src: "/images/gallery-night-tour-5.jpg", title: "宮古島のオオヒキガエル", category: "ナイトツアー" },
+  { src: "/images/gallery-night-tour-6.jpg", title: "落ち葉の中のヤシガニ", category: "ナイトツアー" },
 ]
 
 const categories = ["すべて", "海亀体験", "記念写真", "ファミリー", "海中風景", "海中生物", "ナイトツアー", "スタッフ"]

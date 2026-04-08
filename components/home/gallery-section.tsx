@@ -6,7 +6,7 @@ import { motion } from "framer-motion"
 import { BLUR_DATA_URLS } from "@/lib/data"
 
 const galleryImages = [
-  { src: "/images/s1-sea-turtle-snorkeling.jpg", alt: "ウミガメとシュノーケリング", span: "col-span-2 row-span-2" },
+  { src: "/images/s1-sea-turtle-snorkeling.jpg", alt: "ウミガメとシュノーケリング", span: "col-span-1 row-span-1" },
   { src: "/images/dsc06632.jpeg", alt: "宮古島の海", span: "col-span-1 row-span-1" },
   { src: "/images/sunset-sup-silhouettes.jpg", alt: "サンセットSUP", span: "col-span-1 row-span-1" },
   { src: "/images/night-tour-coconut-crab.jpg", alt: "ナイトツアー", span: "col-span-1 row-span-1" },
@@ -32,7 +32,7 @@ export function GallerySection() {
           <p className="text-gray-500 text-lg">全てスタッフが撮影。データは無料でお渡しします。</p>
         </motion.div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 grid-rows-2 gap-3 md:gap-4 aspect-[2/1] md:aspect-[3/1]">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           {galleryImages.map((img, i) => (
             <motion.div
               key={i}
@@ -45,7 +45,7 @@ export function GallerySection() {
                 damping: 18,
                 delay: i * 0.08,
               }}
-              className={`relative rounded-xl overflow-hidden ${img.span} group cursor-pointer`}
+              className={`relative aspect-[4/3] rounded-xl overflow-hidden group cursor-pointer`}
             >
               <Image
                 src={img.src}
@@ -55,7 +55,7 @@ export function GallerySection() {
                 placeholder="blur"
                 blurDataURL={BLUR_DATA_URLS.turtle}
                 className="object-cover transition-transform duration-700 group-hover:scale-110"
-                sizes={i === 0 ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 50vw, 25vw"}
+                sizes="(max-width: 768px) 50vw, 33vw"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
             </motion.div>

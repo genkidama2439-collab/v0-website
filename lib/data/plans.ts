@@ -32,7 +32,7 @@ export const plans: Plan[] = [
     price: 10000,
     maxParticipants: 6,
     features: ['シュノーケルギア貸出', 'プロガイド同行', 'ランチ付', 'フォト撮影'],
-    image: '/images/snorkeling-underwater-coral-reef-fish.jpg',
+    image: '/snorkeling-underwater-coral-reef-fish.jpg',
   },
   {
     id: 'family-plan',

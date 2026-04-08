@@ -20,7 +20,7 @@ export const galleryImages: GalleryImage[] = [
   },
   {
     id: 'gallery-2',
-    src: '/images/snorkeling-underwater-coral-reef-fish.jpg',
+    src: '/snorkeling-underwater-coral-reef-fish.jpg',
     alt: 'コーラルリーフ',
     category: 'snorkeling',
     title: '美しいサンゴ礁',

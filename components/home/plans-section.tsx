@@ -188,6 +188,7 @@ function TourCard({ tour }: { tour: Tour }) {
                       ? i === 0 ? "text-emerald-600" : "text-purple-600"
                       : "text-gray-700"
                   }`}>{v.price}</p>
+                  {v.priceNote && <p className="text-[9px] text-gray-400 mt-0.5">{v.priceNote}</p>}
                 </button>
               ))}
             </div>

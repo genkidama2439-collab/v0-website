@@ -36,9 +36,11 @@ const galleryImages: GalleryImage[] = [
   { src: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/20230712-P7124452-ZfQhhaCOaswwNIocEdJj5JTfEfisQf.jpg", title: "海亀体験の喜び", category: "記念写真" },
   { src: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/20230712-P7121544-9hBTBwX426xvuNHrPAHgcsDXqg8gLX.jpg", title: "カップルで海亀体験", category: "記念写真" },
   { src: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/DSC06630.JPG-s6zKQo4DVkcMP4KFXSzSbTqVHYZyJy.jpeg", title: "ガイドサービス", category: "スタッフ" },
+  { src: "/images/night-tour-coconut-crab.jpg", title: "ヤシガニとガイド", category: "ナイトツアー" },
+  { src: "/images/gallery-new-1.jpg", title: "巨大ヤシガニ", category: "ナイトツアー" },
 ]
 
-const categories = ["すべて", "海亀体験", "記念写真", "ファミリー", "海中風景", "海中生物", "スタッフ"]
+const categories = ["すべて", "海亀体験", "記念写真", "ファミリー", "海中風景", "海中生物", "ナイトツアー", "スタッフ"]
 
 // --- Lightbox ---
 function Lightbox({ images, index, onClose, onPrev, onNext }: {

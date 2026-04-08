@@ -38,6 +38,7 @@ const galleryImages: GalleryImage[] = [
   { src: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/DSC06630.JPG-s6zKQo4DVkcMP4KFXSzSbTqVHYZyJy.jpeg", title: "ガイドサービス", category: "スタッフ" },
   { src: "/images/night-tour-coconut-crab.jpg", title: "ヤシガニとガイド", category: "ナイトツアー" },
   { src: "/images/gallery-new-1.jpg", title: "巨大ヤシガニ", category: "ナイトツアー" },
+  { src: "/images/gallery-night-tour-2.jpg", title: "ヤシの葉の上のヤシガニ", category: "ナイトツアー" },
 ]
 
 const categories = ["すべて", "海亀体験", "記念写真", "ファミリー", "海中風景", "海中生物", "ナイトツアー", "スタッフ"]

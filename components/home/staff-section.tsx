@@ -23,7 +23,7 @@ const staffMembers = [
   {
     name: "そういちろう",
     role: "ナイトツアー専門",
-    image: "/souichiro-staff-photo.jpg",
+    image: "/images/night-tour-coconut-crab.jpg",
     description: "夜の冒険のスペシャリスト",
     objectPosition: "center center",
   },

@@ -34,7 +34,7 @@ export const staff: Staff[] = [
     name: 'ソウイチロウ',
     role: 'ナイトツアー ガイド',
     bio: '夜間のジャングル探索は私の得意分野。生き物のことなら何でも知ってます。',
-    image: '/souichiro-staff-photo.jpg',
+    image: '/images/night-tour-coconut-crab.jpg',
     languages: ['日本語', '英語'],
     specialties: ['ナイトツアー', '生物学'],
   },

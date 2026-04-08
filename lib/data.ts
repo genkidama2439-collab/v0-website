@@ -447,7 +447,7 @@ export const STAFFS: Staff[] = [
     name: "そういちろう",
     role: "ナイトツアー専門",
     description: "夜の冒険のスペシャリスト。ワクワクする夜の生き物探しをご案内します。",
-    image: "/souichiro-staff-photo.jpg",
+    image: "/images/night-tour-coconut-crab.jpg",
   },
   {
     id: "nagi",

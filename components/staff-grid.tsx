@@ -52,7 +52,7 @@ const staff = [
     icon: Award,
     iconColor: "text-purple-600",
     badgeColor: "bg-purple-500",
-    image: "/souichiro-staff-photo.jpg",
+    image: "/images/night-tour-coconut-crab.jpg",
     objectPosition: "center center",
     catchphrase: "夜の宮古島、冒険しよう。",
     description: "アマゾン帰りの冒険家。夜のジャングルのスペシャリストとして、ワクワクする生き物探しをご案内。",

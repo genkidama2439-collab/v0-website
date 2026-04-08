@@ -382,10 +382,11 @@ export function BookingForm() {
 
   if (isSubmitted) {
     return (
-      <Card className="glass-card bg-white/70 backdrop-blur-xl rounded-3xl ring-1 ring-emerald-100 shadow-lg max-w-2xl mx-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <Card className="glass-card bg-white/95 backdrop-blur-xl rounded-3xl ring-1 ring-emerald-100 shadow-2xl max-w-2xl w-full mx-auto animate-in fade-in zoom-in duration-300">
         <CardContent className="p-8 text-center">
           <CheckCircle className="w-16 h-16 text-emerald-600 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-emerald-800 mb-4">予約リクエストを受け付けました！</h2>
+          <h2 className="text-2xl font-bold text-emerald-800 mb-4">送信完了しました！</h2>
           <p className="text-gray-600 mb-6">
             ご予約ありがとうございます。
             <br />
@@ -436,6 +437,7 @@ export function BookingForm() {
           )}
         </CardContent>
       </Card>
+      </div>
     )
   }
 

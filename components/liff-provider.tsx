@@ -73,8 +73,8 @@ export function LiffProvider({ children }: { children: ReactNode }) {
             setLineDisplayName(profile.displayName)
             localStorage.setItem(STORAGE_KEY_USER_ID, profile.userId)
             localStorage.setItem(STORAGE_KEY_DISPLAY_NAME, profile.displayName)
-          } else if (liff.isInClient()) {
-            liff.login()
+          } else {
+            liff.login({ redirectUri: window.location.href })
             return
           }
         }

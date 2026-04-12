@@ -122,7 +122,7 @@ export function BookingForm() {
   }, [searchParams])
 
   // LIFFコンテキストからlineUserIdを取得
-  const { lineUserId: liffUserId, lineDisplayName: liffDisplayName, isLiffReady, liffError } = useLiff()
+  const { lineUserId: liffUserId, lineDisplayName: liffDisplayName, isLiffReady, liffError, retryLiff } = useLiff()
 
   useEffect(() => {
     if (liffUserId) {
@@ -447,14 +447,21 @@ export function BookingForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* LINE連携エラー通知 */}
-      {isLiffReady && !liffUserId && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <p className="text-sm text-amber-800 font-medium">
-            LINE連携が確認できませんでした。予約は可能ですが、LINEでの確定通知が届かない場合があります。
+      {isLiffReady && !liffUserId && !!process.env.NEXT_PUBLIC_LIFF_ID && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <p className="text-sm text-red-800 font-medium">
+            LINE連携が確認できませんでした。予約にはLINE連携が必要です。
           </p>
-          <p className="text-xs text-amber-600 mt-1">
-            LINE公式アカウントのメニューからアクセスすると自動連携されます。
+          <p className="text-xs text-red-600 mt-1">
+            {liffError || "LINE公式アカウントのメニューからアクセスすると自動連携されます。"}
           </p>
+          <button
+            type="button"
+            onClick={retryLiff}
+            className="mt-3 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            LINE連携を再試行
+          </button>
         </div>
       )}
       {/* Plan Selection */}
@@ -1025,10 +1032,10 @@ export function BookingForm() {
           <Button
             type="submit"
             size="lg"
-            disabled={!isFormValid || isSubmitting || (!isLiffReady && !!process.env.NEXT_PUBLIC_LIFF_ID)}
+            disabled={!isFormValid || isSubmitting || (!!process.env.NEXT_PUBLIC_LIFF_ID && (!isLiffReady || !liffUserId))}
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-4 text-lg font-semibold disabled:opacity-50"
           >
-            {!isLiffReady && !!process.env.NEXT_PUBLIC_LIFF_ID ? "LINE連携中..." : isSubmitting ? "送信中..." : "仮予約を送信する"}
+            {!isLiffReady && !!process.env.NEXT_PUBLIC_LIFF_ID ? "LINE連携中..." : (!!process.env.NEXT_PUBLIC_LIFF_ID && !liffUserId) ? "LINE連携が必要です" : isSubmitting ? "送信中..." : "仮予約を送信する"}
           </Button>
 
           <p className="text-xs text-gray-500 text-center mt-3">送信後、24時間以内にスタッフよりご連絡いたします。</p>

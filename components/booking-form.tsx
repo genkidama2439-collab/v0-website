@@ -320,6 +320,9 @@ export function BookingForm() {
         },
         body: JSON.stringify({
           ...bookingData,
+          // LIFFから最新のuserIdを直接取得（レースコンディション対策）
+          lineUserId: liffUserId || bookingData.lineUserId,
+          lineDisplayName: liffDisplayName || bookingData.lineDisplayName,
           planName: selectedPlanData?.name,
           staffName: STAFF_LIST.find((s) => s.id === bookingData.selectedStaff)?.name,
           adultPrice,

@@ -19,6 +19,35 @@ interface BookingRequest {
   couponDiscount?: number
 }
 
+// サーバー側クーポン検証（クライアント側と同じリストを管理）
+const COUPON_LIST: Record<string, number> = {
+  "UMIGAME500": 500,
+  "カメハメハ": 1000,
+}
+
+const validateCoupon = (couponCode: string | undefined, couponDiscount: number | undefined, participants: Array<{ category: string }>): { validDiscount: number; validCode: string } => {
+  if (!couponCode || !couponDiscount) {
+    return { validDiscount: 0, validCode: '' }
+  }
+
+  const discountPerPerson = COUPON_LIST[couponCode]
+  if (!discountPerPerson) {
+    // 無効なクーポンコード → 割引を0にする
+    return { validDiscount: 0, validCode: '' }
+  }
+
+  const totalPeople = participants.filter((p) => p.category === 'adult').length
+    + participants.filter((p) => p.category === 'child').length
+  const expectedDiscount = totalPeople * discountPerPerson
+
+  // クライアントから送られた割引額が正しいか検証
+  if (couponDiscount !== expectedDiscount) {
+    return { validDiscount: expectedDiscount, validCode: couponCode }
+  }
+
+  return { validDiscount: couponDiscount, validCode: couponCode }
+}
+
 // 必須フィールドの検証
 const validateBookingRequest = (data: BookingRequest): { valid: boolean; error?: string } => {
   const { selectedDate, customerName, participants } = data
@@ -48,7 +77,7 @@ const countParticipantsByCategory = (participants: Array<{ category: string }>) 
 }
 
 // GAS用ペイロードを構築
-const buildGASPayload = (bookingData: BookingRequest, bookingNumber: string) => {
+const buildGASPayload = (bookingData: BookingRequest, bookingNumber: string, validatedCoupon: { validDiscount: number; validCode: string }) => {
   const { adultCount, childCount, under3Count } = countParticipantsByCategory(bookingData.participants)
 
   return {
@@ -68,8 +97,8 @@ const buildGASPayload = (bookingData: BookingRequest, bookingNumber: string) => 
     specialRequests: bookingData.specialRequests || '',
     lineUserId: bookingData.lineUserId || '',
     lineDisplayName: bookingData.lineDisplayName || '',
-    couponCode: bookingData.couponCode || '',
-    couponDiscount: bookingData.couponDiscount || 0,
+    couponCode: validatedCoupon.validCode,
+    couponDiscount: validatedCoupon.validDiscount,
   }
 }
 
@@ -104,8 +133,11 @@ export async function POST(request: Request) {
     // 予約番号生成
     const bookingNumber = generateBookingNumber()
 
+    // クーポンをサーバー側で再検証
+    const validatedCoupon = validateCoupon(bookingData.couponCode, bookingData.couponDiscount, bookingData.participants)
+
     // GASペイロード構築
-    const gasPayload = buildGASPayload(bookingData, bookingNumber)
+    const gasPayload = buildGASPayload(bookingData, bookingNumber, validatedCoupon)
 
     // GASに送信
     try {

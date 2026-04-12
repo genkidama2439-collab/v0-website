@@ -21,6 +21,25 @@ export const useLiff = () => useContext(LiffContext)
 const STORAGE_KEY_USER_ID = "line_user_id"
 const STORAGE_KEY_DISPLAY_NAME = "line_display_name"
 
+function safeGetItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // プライベートブラウジング等でストレージ制限がある場合は無視
+  }
+}
+
+const MAX_LOGIN_RETRIES = 2
+const LOGIN_RETRY_KEY = "liff_login_retry_count"
+
 export function LiffProvider({ children }: { children: ReactNode }) {
   const [lineUserId, setLineUserId] = useState<string | null>(null)
   const [lineDisplayName, setLineDisplayName] = useState<string | null>(null)
@@ -33,8 +52,8 @@ export function LiffProvider({ children }: { children: ReactNode }) {
     initialized.current = true
 
     // localStorageから復元
-    const savedUserId = localStorage.getItem(STORAGE_KEY_USER_ID)
-    const savedDisplayName = localStorage.getItem(STORAGE_KEY_DISPLAY_NAME)
+    const savedUserId = safeGetItem(STORAGE_KEY_USER_ID)
+    const savedDisplayName = safeGetItem(STORAGE_KEY_DISPLAY_NAME)
     if (savedUserId) {
       setLineUserId(savedUserId)
       setLineDisplayName(savedDisplayName)
@@ -68,14 +87,38 @@ export function LiffProvider({ children }: { children: ReactNode }) {
 
         if (initSuccess) {
           if (liff.isLoggedIn()) {
-            const profile = await liff.getProfile()
-            setLineUserId(profile.userId)
-            setLineDisplayName(profile.displayName)
-            localStorage.setItem(STORAGE_KEY_USER_ID, profile.userId)
-            localStorage.setItem(STORAGE_KEY_DISPLAY_NAME, profile.displayName)
+            // ログイン成功 → リトライカウンタをリセット
+            safeSetItem(LOGIN_RETRY_KEY, "0")
+
+            try {
+              const profile = await liff.getProfile()
+              setLineUserId(profile.userId)
+              setLineDisplayName(profile.displayName)
+              safeSetItem(STORAGE_KEY_USER_ID, profile.userId)
+              safeSetItem(STORAGE_KEY_DISPLAY_NAME, profile.displayName)
+            } catch (profileError) {
+              // アクセストークン期限切れ等 → 再ログインを試みる
+              const retryCount = parseInt(safeGetItem(LOGIN_RETRY_KEY) || "0", 10)
+              if (retryCount < MAX_LOGIN_RETRIES) {
+                safeSetItem(LOGIN_RETRY_KEY, String(retryCount + 1))
+                liff.logout()
+                liff.login({ redirectUri: window.location.href })
+                return
+              }
+              // リトライ上限に達した場合はエラーとして処理
+              throw profileError
+            }
           } else {
-            liff.login({ redirectUri: window.location.href })
-            return
+            // 未ログイン → ログインリダイレクト（ループ防止付き）
+            const retryCount = parseInt(safeGetItem(LOGIN_RETRY_KEY) || "0", 10)
+            if (retryCount < MAX_LOGIN_RETRIES) {
+              safeSetItem(LOGIN_RETRY_KEY, String(retryCount + 1))
+              liff.login({ redirectUri: window.location.href })
+              return
+            }
+            // ログインループ検出 → リトライカウンタをリセットしてエラー扱い
+            safeSetItem(LOGIN_RETRY_KEY, "0")
+            setLiffError("LINEログインに失敗しました。LINEアプリからアクセスしてください。")
           }
         }
 

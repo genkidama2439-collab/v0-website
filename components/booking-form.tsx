@@ -295,12 +295,6 @@ export function BookingForm() {
   }
 
   const handleCountChange = (field: "adultCount" | "childCount" | "under3Count", increment: boolean) => {
-    const isVip = bookingData.selectedPlan === "S2"
-    const maxParticipants = isVip ? 6 : 999
-    const currentTotal = bookingData.adultCount + bookingData.childCount
-
-    if (increment && isVip && currentTotal >= maxParticipants) return
-
     setBookingData((prev) => ({
       ...prev,
       [field]: Math.max(0, prev[field] + (increment ? 1 : -1)),

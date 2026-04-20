@@ -8,12 +8,19 @@ interface NotifyRequest {
   customMessage: string
 }
 
-const NOTIFY_SECRET = process.env.LINE_NOTIFY_SECRET
-
 export async function POST(request: Request) {
   try {
+    const notifySecret = process.env.LINE_NOTIFY_SECRET
+    if (!notifySecret) {
+      console.error('[LINE Notify] LINE_NOTIFY_SECRET が未設定のため通知を拒否')
+      return NextResponse.json(
+        { success: false, error: 'サーバー設定エラー' },
+        { status: 500 }
+      )
+    }
+
     const authHeader = request.headers.get('authorization')
-    if (NOTIFY_SECRET && authHeader !== `Bearer ${NOTIFY_SECRET}`) {
+    if (authHeader !== `Bearer ${notifySecret}`) {
       return NextResponse.json({ success: false, error: '認証エラー' }, { status: 401 })
     }
 
@@ -45,9 +52,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, message: '通知を送信しました' })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
-    console.error('[LINE Notify] Error:', msg, error)
+    console.error('[LINE Notify] Error:', msg)
     return NextResponse.json(
-      { success: false, error: msg },
+      { success: false, error: '通知の送信に失敗しました' },
       { status: 500 }
     )
   }

@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { Calendar, Clock, Users, Calculator, Star, CheckCircle, UserCheck, Check } from "lucide-react"
 import { PLANS, STAFF_FEE } from "@/lib/data"
+import { calculateCouponDiscount } from "@/lib/constants/coupons"
 import { todayStr, localDateFromYMD } from "@/lib/date-utils"
 import BookingTimeSlots from "@/components/booking-time-slots"
 
@@ -269,16 +270,14 @@ export function BookingForm() {
     }))
   }
 
-  const COUPON_LIST: Record<string, number> = {
-    "UMIGAME500": 500,
-    "カメハメハ": 1000,
-  }
-
   const handleCouponApply = () => {
-    const totalPeople = bookingData.adultCount + bookingData.childCount
-    const discountPerPerson = COUPON_LIST[bookingData.couponCode]
-    if (discountPerPerson) {
-      const discount = totalPeople * discountPerPerson
+    // 共通関数で割引プレビューを計算（最終的な金額はサーバー側で再検証される）
+    const participants = [
+      ...Array(bookingData.adultCount).fill({ category: "adult" }),
+      ...Array(bookingData.childCount).fill({ category: "child" }),
+    ]
+    const { discount, code } = calculateCouponDiscount(bookingData.couponCode, participants)
+    if (code) {
       setBookingData((prev) => ({ ...prev, couponDiscount: discount }))
     } else {
       setBookingData((prev) => ({ ...prev, couponDiscount: 0 }))

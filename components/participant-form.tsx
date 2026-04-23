@@ -3,7 +3,7 @@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { User } from "lucide-react"
+import { User, AlertTriangle } from "lucide-react"
 
 interface ParticipantDetails {
   id: string
@@ -43,6 +43,8 @@ export function ParticipantForm({ participants, minAge, selectedPlan, onUpdate }
         {participants.map((participant, index) => {
           const categoryLabel =
             participant.category === "adult" ? "大人" : participant.category === "child" ? "子ども" : "3歳未満"
+          const isOverSixty =
+            selectedPlan === "S1" && typeof participant.age === "number" && participant.age >= 60
 
           return (
             <div key={participant.id} className="bg-gray-50 rounded-2xl p-6">
@@ -71,9 +73,20 @@ export function ParticipantForm({ participants, minAge, selectedPlan, onUpdate }
                     }}
                     min={participant.category === "under3" ? 0 : participant.category === "child" ? minAge : 13}
                     max={participant.category === "under3" ? 2 : participant.category === "child" ? 12 : 100}
-                    className="rounded-xl border-emerald-200 focus:border-emerald-500"
+                    className={`rounded-xl focus:border-emerald-500 ${isOverSixty ? "border-red-400 focus:border-red-500" : "border-emerald-200"}`}
+                    aria-invalid={isOverSixty || undefined}
                     required
                   />
+                  {isOverSixty && (
+                    <p className="mt-2 text-xs text-red-600 flex items-start gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                      <span>
+                        安全面を考慮し、60歳以上の方がいるグループは
+                        <strong>【貸切】ウミガメシュノーケルツアー</strong>
+                        をご予約ください。
+                      </span>
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">

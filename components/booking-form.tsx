@@ -343,6 +343,10 @@ export function BookingForm() {
     }
   }
 
+  const hasSeniorOnRegularSnorkel =
+    bookingData.selectedPlan === "S1" &&
+    bookingData.participants.some((p) => typeof p.age === "number" && p.age >= 60)
+
   const isFormValid =
     bookingData.selectedPlan &&
     bookingData.selectedDate &&
@@ -351,6 +355,7 @@ export function BookingForm() {
     bookingData.customerName &&
     bookingData.customerPhone &&
     bookingData.agreedToTerms &&
+    !hasSeniorOnRegularSnorkel &&
     bookingData.participants.every((p) => {
       // Check required fields for all participants
       if (p.name.trim() === "" || typeof p.age !== "number" || p.age <= 0) {
@@ -1035,6 +1040,17 @@ export function BookingForm() {
               </span>
             </Label>
           </div>
+
+          {hasSeniorOnRegularSnorkel && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              <p className="font-semibold mb-1">60歳以上の方がいるため、このプランではご予約いただけません</p>
+              <p>
+                安全面を考慮し、60歳以上の方がご参加のグループは
+                <strong>【貸切】ウミガメシュノーケルツアー</strong>
+                のみのご案内となります。上部のプラン選択から貸切プランへ変更してください。
+              </p>
+            </div>
+          )}
 
           {!isLiffReady && !!process.env.NEXT_PUBLIC_LIFF_ID && (
             <div className="flex items-center justify-center gap-2 py-3 text-sm text-emerald-600">

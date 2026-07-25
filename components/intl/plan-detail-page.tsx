@@ -80,7 +80,6 @@ export function IntlPlanDetailPage({ locale, id }: { locale: IntlLocale; id: str
                 <p className="text-xs text-gray-500">{common.childPricePrefix}¥{getEnPrice(plan).childPrice.toLocaleString()}</p>
               )}
               {t.priceNote && <p className="text-xs text-gray-500 mt-1">{t.priceNote}</p>}
-              <p className="text-xs text-gray-400 mt-1">{dict.priceSupportNote}</p>
             </div>
             <div>
               <p className="text-xs font-semibold text-gray-500 mb-1">{common.durationLabel}</p>
@@ -103,6 +102,11 @@ export function IntlPlanDetailPage({ locale, id }: { locale: IntlLocale; id: str
               </p>
             </div>
           </section>
+
+          {/* 貸切限定である理由と使用言語。料金のすぐ下に単独で置く */}
+          <p className="mt-4 bg-emerald-50 ring-1 ring-emerald-100 rounded-2xl px-4 py-3 text-sm text-gray-700 leading-relaxed">
+            {dict.priceSupportNote}
+          </p>
 
           {/* Description */}
           <section className="mt-10 space-y-4 text-gray-600 leading-relaxed">

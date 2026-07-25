@@ -123,7 +123,11 @@ export function IntlHomePage({ locale }: { locale: IntlLocale }) {
         <section className="py-16 bg-gradient-to-b from-white to-emerald-50">
           <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{home.toursHeading}</h2>
-            <p className="text-gray-600 mb-8 max-w-2xl">{home.toursIntro}</p>
+            <p className="text-gray-600 mb-4 max-w-2xl">{home.toursIntro}</p>
+            {/* 貸切限定である理由と使用言語。価格を見る前に必ず目に入る位置に置く */}
+            <p className="mb-8 max-w-2xl bg-white ring-1 ring-emerald-100 rounded-2xl px-4 py-3 text-sm text-gray-700 leading-relaxed">
+              {dict.priceSupportNote}
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {visiblePlans.map((plan) => {
                 const t = planById[plan.id]

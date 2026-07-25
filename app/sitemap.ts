@@ -67,8 +67,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }))
 
-  // 多言語版プラン詳細。翻訳ページが存在する（EN_PLAN_BY_ID にある）IDのみ
-  //（3言語とも同じプラン構成。昼夜セット C1/C2 は日本語限定のため除外される）。
+  // 多言語版プラン詳細。外国語サイトに掲載しているIDのみ（EN_PLAN_BY_ID にあるもの）。
+  // 外国語サイトは貸切プランのみ扱うため、通常プランとセットプランはここに載らない
+  //（掲載範囲は lib/i18n/locales.ts の INTL_PLAN_IDS）。
   const intlPlanPages: MetadataRoute.Sitemap = INTL_LOCALES.flatMap((l) =>
     Object.keys(PLAN_DETAILS)
       .filter((id) => EN_PLAN_BY_ID[id])

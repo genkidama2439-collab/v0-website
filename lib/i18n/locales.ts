@@ -37,3 +37,23 @@ export const LOCALE_BOOKING_TAGS: Record<IntlLocale, string> = {
   ko: "[KO booking]",
   "zh-tw": "[TW booking]",
 }
+
+/**
+ * 外国語サイト（/en /ko /zh-tw）で掲載・予約できるプランID。
+ *
+ * 海外からのお客様は日本語のお客様と同じグループでご案内できないため、
+ * 外国語サイトでは通常プランを販売せず、貸切（プライベート）プランのみを扱う。
+ * S4「サンセットSUP」は名称に「貸切」が付かないが1日1組限定＝実質プライベートのため含める。
+ *
+ * この配列が外国語サイトの唯一の窓口。各言語の辞書がここで絞り込むため、
+ * 一覧・トップ・詳細ページ・予約フォームの4箇所すべてに同時に効く
+ * （掲載外のIDは詳細ページで notFound() となる）。
+ * サーバー側の最終防衛は app/api/booking/route.ts の isPlanAllowedForLocale。
+ */
+export const INTL_PLAN_IDS: readonly string[] = ["S2", "S4", "S5", "S7"]
+
+/** 指定ロケールでそのプランを扱ってよいか。日本語サイトは全プラン可。 */
+export function isPlanAllowedForLocale(locale: Locale, planId: string): boolean {
+  if (locale === "ja") return true
+  return INTL_PLAN_IDS.includes(planId)
+}

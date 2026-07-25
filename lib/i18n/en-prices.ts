@@ -1,25 +1,19 @@
-// 英語サイト専用の料金（サーバー安全・'use client'なし）。
-// 英語価格は日本語の各プラン＋¥2,000（大人・子供とも）。
-// 「英語対応ガイド＋英語サポート込み」の価格として明示し、外国人税ではなく付加価値として案内する。
+// 外国語サイト（/en /ko /zh-tw）の料金。
 //
-// この1モジュールを、英語予約フォーム（表示・合計）・予約API（サーバー請求）・
-// 英語各ページ（ホーム/一覧/詳細）が共通参照することで、表示と請求の食い違いを防ぐ。
+// 方針: 外国語サイトは貸切（プライベート）プランのみを販売し、料金は日本語サイトと同額。
+// 以前は「日本語価格＋¥2,000（英語サポート込み）」としていたが、
+// ツアー中の英語対応を約束できる体制ではないため、その上乗せと説明を廃止した。
+// 掲載プランそのものを貸切に限定することで、日本語のお客様と同じグループへ
+// ご案内しない運用を担保している（掲載範囲は locales.ts の INTL_PLAN_IDS）。
 //
-// 対象は英語サイトに掲載される稼働プランのみ（S1〜S7）。
-// セット（C1〜C6）は英語サイト対象外、slide-boatはComing Soonのため含めない
-//（マップに無いIDは getEnPrice が日本語価格にフォールバックする）。
+// EN_PRICE_DATA を空にしてあるため getEnPrice は常に日本語価格を返す。
+// 予約フォーム（表示・合計）と予約API（サーバー請求）が同じ関数を通るので、
+// 将来また外国語サイト専用の料金を設ける場合はこのマップに足すだけでよく、
+// 表示と請求が食い違うことがない。
 
-export const EN_PRICE_DATA: Record<string, { price: number; childPrice: number }> = {
-  S1: { price: 8500, childPrice: 8000 },
-  S2: { price: 11000, childPrice: 11000 },
-  S3: { price: 6000, childPrice: 6000 },
-  S4: { price: 10000, childPrice: 8000 },
-  S5: { price: 10000, childPrice: 10000 },
-  S6: { price: 9500, childPrice: 8500 },
-  S7: { price: 11500, childPrice: 10500 },
-}
+export const EN_PRICE_DATA: Record<string, { price: number; childPrice: number }> = {}
 
-// 英語サイトで表示・請求する価格を返す。マップに無いプランは日本語価格にフォールバック。
+// 外国語サイトで表示・請求する価格を返す。マップに無いプランは日本語価格にフォールバック。
 export function getEnPrice(plan: { id: string; price: number; childPrice?: number }): {
   price: number
   childPrice: number
@@ -29,7 +23,7 @@ export function getEnPrice(plan: { id: string; price: number; childPrice?: numbe
   return { price: plan.price, childPrice: plan.childPrice ?? plan.price }
 }
 
-// 価格の根拠を明示する一文（付加価値としての提示）。英語各ページ・予約フォームで価格脇に表示する。
-// 実態に合わせた文言: 予約・連絡は英語、ツアー中も英語でサポート（ガイドの流暢さは約束しない）。
+// 貸切限定である理由と、ツアー中の使用言語を明示する一文。
+// 価格の近く（プラン詳細・予約フォーム・一覧・トップ）に表示する。
 export const EN_PRICE_SUPPORT_NOTE =
-  "Includes English-language support for your booking and during the tour."
+  "For a safe and smooth experience, we accept bookings from international guests for private tours only. Tours are guided in Japanese, with support in simple English and translation tools."

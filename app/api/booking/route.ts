@@ -4,7 +4,7 @@ import { validateEmail, validatePhoneNumber, validateRequired } from '@/lib/util
 import { PLANS, getStaffFee } from '@/lib/data'
 import { calculateCouponDiscount } from '@/lib/constants/coupons'
 import { getEnPrice } from '@/lib/i18n/en-prices'
-import { isIntlLocale } from '@/lib/i18n/locales'
+import { isIntlLocale, isPlanAllowedForLocale } from '@/lib/i18n/locales'
 import { validateBookingRules } from '@/lib/booking-rules'
 import { calculateRentalTotal, planOffersRentals } from '@/lib/rental-options'
 import {
@@ -203,6 +203,12 @@ const validateBookingRequest = (data: BookingRequest): { valid: boolean; error?:
   if (plan.status === 'coming_soon') {
     return { valid: false, error: 'このプランは近日公開のため、まだ予約できません' }
   }
+  // 外国語サイト（en/ko/zh-tw）からは貸切プランのみ受け付ける。
+  // フォームには貸切しか出ないが、古いURLや直接リクエストで通常プランが
+  // 通らないよう、サーバー側でも同じ INTL_PLAN_IDS で弾く。
+  if (isIntlLocale(data.locale) && !isPlanAllowedForLocale(data.locale, plan.id)) {
+    return { valid: false, error: 'このプランは海外からのお客様にはご案内できません（貸切プランのみ受付）' }
+  }
 
   if (!validateRequired(selectedDate).valid) return { valid: false, error: '予約日が必須です' }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
@@ -291,8 +297,9 @@ const calculateServerSidePrice = (
   isIntl: boolean
 ): number => {
   const { adultCount, childCount, under3Count } = countParticipantsByCategory(participants)
-  // 国際版サイト経由（locale が en/ko/zh-tw）は国際版価格（日本語＋¥2,000）で請求。
-  // 3言語とも同じ価格表（EN_PRICE_DATA）で、フォームと同じ getEnPrice を使う。
+  // 国際版サイト経由（locale が en/ko/zh-tw）はフォームと同じ getEnPrice で請求する。
+  // 現在の EN_PRICE_DATA は空＝日本語サイトと同額。外国語サイト専用の料金を
+  // 設ける場合もここを通るので、表示と請求が食い違わない。
   const { price: adultPrice, childPrice } = isIntl
     ? getEnPrice(plan)
     : { price: plan.price, childPrice: plan.childPrice ?? plan.price }

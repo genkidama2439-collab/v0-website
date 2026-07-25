@@ -44,6 +44,10 @@ export function IntlPlansPage({ locale }: { locale: IntlLocale }) {
           <p className="text-emerald-600 font-semibold text-xs sm:text-sm tracking-widest uppercase mb-2">{common.tourPlansEyebrow}</p>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">{common.plansTitle}</h1>
           <p className="mt-3 text-gray-600 text-sm sm:text-base max-w-2xl">{common.plansIntro}</p>
+          {/* 貸切限定である理由と使用言語。価格を見る前に必ず目に入る位置に置く */}
+          <p className="mt-4 max-w-2xl bg-emerald-50 ring-1 ring-emerald-100 rounded-2xl px-4 py-3 text-sm text-gray-700 leading-relaxed">
+            {dict.priceSupportNote}
+          </p>
         </section>
 
         <section className="px-5 sm:px-6 lg:px-8 pb-20 max-w-6xl mx-auto">

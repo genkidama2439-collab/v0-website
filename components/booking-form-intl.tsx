@@ -941,7 +941,8 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
                 {copy.estimatedTotalLabel} ¥{totalPrice.toLocaleString()}
                 <span className="text-xs font-medium text-gray-500 ml-2">{copy.cashOnDay}</span>
               </p>
-              <p className="text-xs text-gray-500">{dict.priceSupportNote}</p>
+              {/* 貸切限定である理由と使用言語。送信直前にもう一度提示する */}
+              <p className="text-xs text-gray-600 leading-relaxed pt-2 border-t border-emerald-100">{dict.priceSupportNote}</p>
             </div>
           )}
 

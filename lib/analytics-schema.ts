@@ -48,6 +48,11 @@ export const ANALYTICS_PROPERTY_KEYS = [
   "location",
   "plan",
   "planName",
+  // ブログ記事内CTAの計測。location にCTA設置位置（article_top 等）、
+  // ctaType に種類（booking / plan_detail / line 等）、ctaLabel にボタン文言が入る。
+  // 記事URLは event.page_path、キャンペーンは utm_campaign / utm_content で判別する。
+  "ctaType",
+  "ctaLabel",
   "headcount",
   "adultCount",
   "childCount",

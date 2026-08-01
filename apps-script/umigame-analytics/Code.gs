@@ -80,6 +80,9 @@ const EVENT_HEADERS = Object.freeze([
   '評価',
   '滞在秒',
   '最大スクロール率',
+  // ブログ記事内CTAの計測。設置位置は「ロケーション」列（article_top 等）に入る。
+  'CTA種別',
+  'CTAボタン文言',
 ]);
 
 const EVENT_DEFINITIONS = Object.freeze([
@@ -91,7 +94,7 @@ const EVENT_DEFINITIONS = Object.freeze([
   ['web_vital', '実ユーザー性能', '指標名・値・評価'],
   ['booking_form_view', '予約フォーム表示', 'ページ・言語'],
   ['booking_started', '予約入力開始', 'ページ・言語'],
-  ['book_cta_click', '予約ボタンクリック', 'ロケーション'],
+  ['book_cta_click', '予約ボタンクリック', 'ロケーション（設置位置）・CTA種別・ボタン文言・プランID・UTM Campaign'],
   ['line_login_click', 'LINEログイン操作', 'ロケーション'],
   ['line_click', 'LINE操作', 'ロケーション'],
   ['line_add_friend_click', 'LINE友だち追加', 'ロケーション'],
@@ -749,6 +752,8 @@ function normalizeProperties_(input) {
     vitalRating: safeText_(properties.vitalRating, 30),
     engagedSeconds: safeNumber_(properties.engagedSeconds),
     maxScrollPercent: safeNumber_(properties.maxScrollPercent),
+    ctaType: safeText_(properties.ctaType, 40),
+    ctaLabel: safeText_(properties.ctaLabel, 120),
   };
 }
 
@@ -794,6 +799,8 @@ function eventToRow_(event) {
     properties.vitalRating,
     properties.engagedSeconds,
     properties.maxScrollPercent,
+    properties.ctaType,
+    properties.ctaLabel,
   ];
 }
 

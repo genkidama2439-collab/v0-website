@@ -33,14 +33,21 @@ export function captureAttribution(): void {
     const campaign = sanitize(params.get("utm_campaign"), 80)
 
     let referrerHost = ""
+    let isInternalNavigation = false
     if (document.referrer) {
       try {
         const host = new URL(document.referrer).hostname
-        if (host && host !== window.location.hostname) referrerHost = sanitize(host, 120)
+        if (host === window.location.hostname) isInternalNavigation = true
+        else if (host) referrerHost = sanitize(host, 120)
       } catch {
         // 参照元URLが不正な形式でも計測全体は続行する
       }
     }
+
+    // ブログ記事内CTAなど、サイト内リンクにも utm_* を付けている。
+    // これを流入元として保存すると本来の獲得元（例: google / instagram）を潰してしまうため、
+    // 同一ホストからの遷移では既存の記録を維持する。CTA自体の計測は book_cta_click 側で行う。
+    if (isInternalNavigation && getAttribution()) return
 
     // 直接アクセス（UTMも外部参照元もなし）は上書きしない＝直前の流入元を保持
     if (!source && !referrerHost) return

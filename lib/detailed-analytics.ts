@@ -47,9 +47,20 @@ function getLocaleFromPath(pathname: string): string {
   return "ja"
 }
 
+// サイト内CTAのように、訪問者の流入元ではなく「クリックされたリンク自身」のUTMを
+// 記録したいイベント向けの上書き。渡さなければ従来どおり流入元（getAttribution）を使う。
+export interface DetailedEventUtmOverride {
+  utm_source?: string
+  utm_medium?: string
+  utm_campaign?: string
+  utm_content?: string
+  utm_term?: string
+}
+
 export function buildDetailedEvent(
   name: AnalyticsEventName,
   properties: AnalyticsEventProperties = {},
+  utmOverride?: DetailedEventUtmOverride,
 ): DetailedAnalyticsEvent | null {
   if (typeof window === "undefined") return null
 
@@ -63,13 +74,15 @@ export function buildDetailedEvent(
     device_type: getDeviceType(),
     viewport_width: window.innerWidth,
     viewport_height: window.innerHeight,
+    // 流入元（referrer_host / landing_page）はUTMを上書きしても残すので、
+    // 「どこから来た人が、どのCTAを押したか」は引き続き追える。
     referrer_host: attribution?.referrer || "",
     landing_page: attribution?.landingPage || pathname,
-    utm_source: attribution?.source || "",
-    utm_medium: attribution?.medium || "",
-    utm_campaign: attribution?.campaign || "",
-    utm_content: "",
-    utm_term: "",
+    utm_source: utmOverride?.utm_source ?? attribution?.source ?? "",
+    utm_medium: utmOverride?.utm_medium ?? attribution?.medium ?? "",
+    utm_campaign: utmOverride?.utm_campaign ?? attribution?.campaign ?? "",
+    utm_content: utmOverride?.utm_content ?? "",
+    utm_term: utmOverride?.utm_term ?? "",
     browser: getBrowser(),
     os: getOS(),
     screen_width: window.screen?.width || 0,
@@ -82,8 +95,9 @@ export function buildDetailedEvent(
 export function sendDetailedEvent(
   name: AnalyticsEventName,
   properties: AnalyticsEventProperties = {},
+  utmOverride?: DetailedEventUtmOverride,
 ): void {
-  const event = buildDetailedEvent(name, properties)
+  const event = buildDetailedEvent(name, properties, utmOverride)
   if (!event) return
 
   trackEvent(name, {

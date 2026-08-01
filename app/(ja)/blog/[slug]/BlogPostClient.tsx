@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 import { ArrowLeft, Calendar, Clock, User, Tag, Share2, Waves, List } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,11 +13,23 @@ import { BLUR_DATA_URLS } from "@/lib/image-placeholders"
 import type { BlogCta, BlogPostSummary } from "@/lib/blog"
 import { trackEvent } from "@/lib/analytics"
 import type { BlogPost } from "@/lib/data"
+import { getArticleCtaCard, type ArticleCtaConfig, type RelatedContentItem } from "@/lib/blog/article-cta"
+import { splitArticleContent } from "@/lib/blog/split-article-content"
+import { ArticleCtaCard } from "@/components/blog/article-cta-card"
+import { ArticleRelatedContent } from "@/components/blog/article-related-content"
+import { ArticleStickyCta } from "@/components/blog/article-sticky-cta"
+
+// 25%地点＝まだ情報収集中、60%地点＝比較検討中、という読者の状態に合わせてCTAの役割を変える
+const CTA_SPLIT_RATIOS = [0.25, 0.6]
 
 interface BlogPostPageProps {
   post: BlogPost
   relatedPosts: BlogPostSummary[]
   cta: BlogCta
+  /** 記事内予約導線。定義のある記事だけ渡され、無い記事ではCTAを描画しない。 */
+  articleCta?: ArticleCtaConfig
+  /** サーバー側で解決済みの「この記事を読んだ方におすすめ」 */
+  articleRelated?: RelatedContentItem[]
 }
 
 // 本文の「## 」見出しからアンカーIDを作る（目次とh2レンダラーで同じ計算を使う）
@@ -28,12 +40,61 @@ function headingId(text: string): string {
   return `h-${text.trim().replace(/\s+/g, "-")}`
 }
 
-export default function BlogPostClient({ post, relatedPosts, cta }: BlogPostPageProps) {
+// 本文を複数セグメントに分けて描画するため、レンダラーは1か所に持つ。
+// セグメントを跨いでも見出しIDの計算は同じなので、目次アンカーは変わらない。
+const markdownComponents = {
+  // ページのh1は記事タイトルが担うため、本文中の # はh2として描画（h1重複防止）
+  h1: ({ children }: { children?: React.ReactNode }) => (
+    <h2 className="text-3xl font-bold text-gray-900 mb-6 mt-8">{children}</h2>
+  ),
+  // idは目次のアンカー先。scroll-mtで固定ナビ分のオフセットを確保
+  h2: ({ children }: { children?: React.ReactNode }) => (
+    <h2
+      id={headingId(headingText(children))}
+      className="text-2xl font-bold text-gray-900 mb-4 mt-8 scroll-mt-20"
+    >
+      {children}
+    </h2>
+  ),
+  h3: ({ children }: { children?: React.ReactNode }) => (
+    <h3 className="text-xl font-bold text-gray-900 mb-3 mt-6">{children}</h3>
+  ),
+  p: ({ children }: { children?: React.ReactNode }) => (
+    <p className="text-gray-700 mb-4 leading-relaxed text-pretty">{children}</p>
+  ),
+  ul: ({ children }: { children?: React.ReactNode }) => (
+    <ul className="list-disc list-inside mb-4 space-y-2 text-gray-700">{children}</ul>
+  ),
+  li: ({ children }: { children?: React.ReactNode }) => <li className="text-gray-700">{children}</li>,
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
+    <a href={href} className="text-teal-600 underline underline-offset-2 hover:text-teal-700 font-medium">
+      {children}
+    </a>
+  ),
+}
+
+export default function BlogPostClient({
+  post,
+  relatedPosts,
+  cta,
+  articleCta,
+  articleRelated,
+}: BlogPostPageProps) {
   // 目次: 本文中の「## 」行を抽出（3つ以上あるときだけ表示）
   const tocHeadings = post.content
     .split("\n")
     .filter((line) => line.startsWith("## "))
     .map((line) => line.replace(/^## /, "").trim())
+
+  // CTA定義のある記事だけ本文を分割する。定義が無ければ従来どおり一括描画。
+  const contentSegments = articleCta
+    ? splitArticleContent(post.content, CTA_SPLIT_RATIOS)
+    : [post.content]
+
+  // セグメントの区切りに差し込むCTA（最後のセグメントの後には置かず、末尾は別枠で出す）
+  const inlineCtaCards = articleCta
+    ? [getArticleCtaCard(articleCta, "article_top"), getArticleCtaCard(articleCta, "article_middle")]
+    : []
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -129,42 +190,39 @@ export default function BlogPostClient({ post, relatedPosts, cta }: BlogPostPage
                     </nav>
                   )}
 
-                  {/* Content */}
+                  {/* Content（CTA定義のある記事は25%・60%地点でセグメントに分かれる） */}
                   <div className="prose prose-lg max-w-none">
-                    <ReactMarkdown
-                      components={{
-                        // ページのh1は記事タイトルが担うため、本文中の # はh2として描画（h1重複防止）
-                        h1: ({ children }) => (
-                          <h2 className="text-3xl font-bold text-gray-900 mb-6 mt-8">{children}</h2>
-                        ),
-                        // idは目次のアンカー先。scroll-mtで固定ナビ分のオフセットを確保
-                        h2: ({ children }) => (
-                          <h2 id={headingId(headingText(children))} className="text-2xl font-bold text-gray-900 mb-4 mt-8 scroll-mt-20">
-                            {children}
-                          </h2>
-                        ),
-                        h3: ({ children }) => <h3 className="text-xl font-bold text-gray-900 mb-3 mt-6">{children}</h3>,
-                        p: ({ children }) => (
-                          <p className="text-gray-700 mb-4 leading-relaxed text-pretty">{children}</p>
-                        ),
-                        ul: ({ children }) => (
-                          <ul className="list-disc list-inside mb-4 space-y-2 text-gray-700">{children}</ul>
-                        ),
-                        li: ({ children }) => <li className="text-gray-700">{children}</li>,
-                        a: ({ href, children }) => (
-                          <a
-                            href={href}
-                            className="text-teal-600 underline underline-offset-2 hover:text-teal-700 font-medium"
-                          >
-                            {children}
-                          </a>
-                        ),
-                      }}
-                    >
-                      {post.content}
-                    </ReactMarkdown>
+                    {contentSegments.map((segment, index) => {
+                      const inlineCard = inlineCtaCards[index]
+
+                      return (
+                        <React.Fragment key={`segment-${index}`}>
+                          <ReactMarkdown components={markdownComponents}>{segment}</ReactMarkdown>
+                          {articleCta && inlineCard && (
+                            <ArticleCtaCard card={inlineCard} campaign={articleCta.campaign} />
+                          )}
+                        </React.Fragment>
+                      )
+                    })}
                   </div>
 
+                  {/* 記事末尾：おすすめ → 予約カードの順。記事内容に沿った導線を優先する */}
+                  {articleCta && (
+                    <>
+                      {articleRelated && articleRelated.length > 0 && (
+                        <ArticleRelatedContent items={articleRelated} campaign={articleCta.campaign} />
+                      )}
+                      {getArticleCtaCard(articleCta, "article_bottom") && (
+                        <ArticleCtaCard
+                          card={getArticleCtaCard(articleCta, "article_bottom")!}
+                          campaign={articleCta.campaign}
+                        />
+                      )}
+                    </>
+                  )}
+
+                  {/* 記事別CTAがある記事では、汎用CTAは重複するので出さない */}
+                  {!articleCta && (
                   <div className="mt-10 rounded-2xl bg-gradient-to-br from-emerald-50 to-cyan-50 p-6 sm:p-7 border border-emerald-100">
                     <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                       <div className="max-w-xl">
@@ -193,6 +251,7 @@ export default function BlogPostClient({ post, relatedPosts, cta }: BlogPostPage
                       </div>
                     </div>
                   </div>
+                  )}
 
                   {/* Tags */}
                   <div className="mt-12 pt-8 border-t border-gray-200">
@@ -304,6 +363,9 @@ export default function BlogPostClient({ post, relatedPosts, cta }: BlogPostPage
           </div>
         </div>
       </div>
+
+      {/* スマホ下部の固定CTA。記事詳細ページのみ（ブログ一覧では描画されない） */}
+      {articleCta && <ArticleStickyCta sticky={articleCta.sticky} campaign={articleCta.campaign} />}
     </div>
   )
 }

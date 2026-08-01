@@ -2,6 +2,7 @@ import BlogPostClient from "./BlogPostClient"
 import { notFound } from "next/navigation"
 import { BlogPostingJsonLd, BreadcrumbJsonLd } from "@/components/json-ld"
 import { getBlogPost, getBlogPostCta, getBlogPostSummaries, getRelatedBlogPostSummaries } from "@/lib/blog"
+import { getArticleCtaConfig, resolveRelatedContent } from "@/lib/blog/article-cta"
 import { createMetadata, SITE_URL } from "@/lib/seo"
 
 // Markdownに存在するslugだけを公開し、未知slugは確実にHTTP 404にする。
@@ -38,6 +39,13 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
     notFound()
   }
 
+  // 記事内予約導線。定義のある記事だけCTAが付く（全記事へ一括では入れない）。
+  // 関連コンテンツのタイトル・画像はここで解決する（getBlogPost が fs を読むためサーバー側限定）。
+  const articleCta = getArticleCtaConfig(post.id)
+  const articleRelated = articleCta
+    ? resolveRelatedContent(articleCta.related, (slug) => getBlogPost(slug))
+    : undefined
+
   return (
     <>
       <BlogPostingJsonLd post={post} />
@@ -48,7 +56,13 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
           { name: post.title, url: `${SITE_URL}/blog/${post.id}` },
         ]}
       />
-      <BlogPostClient post={post} relatedPosts={getRelatedBlogPostSummaries(post)} cta={getBlogPostCta(post)} />
+      <BlogPostClient
+        post={post}
+        relatedPosts={getRelatedBlogPostSummaries(post)}
+        cta={getBlogPostCta(post)}
+        articleCta={articleCta}
+        articleRelated={articleRelated}
+      />
     </>
   )
 }

@@ -6,7 +6,8 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --import ./scripts/test-alias-hooks.mjs --test \"lib/**/*.test.mjs\""
   },
   "dependencies": {
     "@line/bot-sdk": "^10.8.0",

@@ -3,10 +3,14 @@ import Link from "next/link"
 import { CalendarCheck, MessageCircle, Shield, Camera, Users, MapPin, CheckCircle2, AlertTriangle } from "lucide-react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { MobileCTA } from "@/components/mobile-cta"
 import { BreadcrumbJsonLd, FAQJsonLd } from "@/components/json-ld"
 import { createMetadata, SITE_URL } from "@/lib/seo"
 import { TrackedCta } from "@/components/tracked-cta"
+import { getBlogPost } from "@/lib/blog"
+import { getArticleCtaCard, getArticleCtaConfig, resolveRelatedContent } from "@/lib/blog/article-cta"
+import { ArticleCtaCard } from "@/components/blog/article-cta-card"
+import { ArticleRelatedContent } from "@/components/blog/article-related-content"
+import { ArticleStickyCta } from "@/components/blog/article-sticky-cta"
 
 const PAGE_PATH = "/miyakojima-sea-turtle"
 // ユーザー指定の長尺タイトル。ルートの title.template による二重サフィックスを避けるため absolute で指定する。
@@ -60,6 +64,15 @@ function SectionHeading({ children, id }: { children: React.ReactNode; id?: stri
 }
 
 export default function MiyakojimaSeaTurtlePage() {
+  // 記事内予約導線。キーはページパス（ブログ記事はスラッグをキーにしている）。
+  const articleCta = getArticleCtaConfig(PAGE_PATH)
+  const articleRelated = articleCta
+    ? resolveRelatedContent(articleCta.related, (slug) => getBlogPost(slug))
+    : []
+  const topCard = articleCta && getArticleCtaCard(articleCta, "article_top")
+  const middleCard = articleCta && getArticleCtaCard(articleCta, "article_middle")
+  const bottomCard = articleCta && getArticleCtaCard(articleCta, "article_bottom")
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-teal-50 to-emerald-50">
       <BreadcrumbJsonLd
@@ -170,6 +183,9 @@ export default function MiyakojimaSeaTurtlePage() {
             </p>
           </section>
 
+          {/* 25%地点：まだ情報収集中の読者向けの控えめな案内 */}
+          {articleCta && topCard && <ArticleCtaCard card={topCard} campaign={articleCta.campaign} />}
+
           <section className="mb-12">
             <SectionHeading id="beginner">初心者や子どもでもウミガメシュノーケルはできる？</SectionHeading>
             <p className="text-gray-700 leading-relaxed mb-4 text-pretty">
@@ -177,8 +193,25 @@ export default function MiyakojimaSeaTurtlePage() {
             </p>
             <ul className="space-y-2 text-gray-700 leading-relaxed list-disc pl-5">
               <li>ライフジャケットを着用するので、浮いた状態で水面からウミガメを観察できます。</li>
-              <li>少人数制ツアーならガイドがそばでサポートするため、初めての方や泳ぎが苦手な方も安心です。</li>
-              <li>海亀兄弟では5歳から参加可能。お子様連れのご家族にも多くご参加いただいています。</li>
+              <li>
+                <Link
+                  href="/plans/S1"
+                  className="text-teal-600 underline underline-offset-2 hover:text-teal-700 font-medium"
+                >
+                  少人数制ツアー
+                </Link>
+                ならガイドがそばでサポートするため、初めての方や泳ぎが苦手な方も安心です。
+              </li>
+              <li>
+                海亀兄弟では5歳から参加可能。
+                <Link
+                  href="/blog/miyakojima-kids-snorkeling-age-guide"
+                  className="text-teal-600 underline underline-offset-2 hover:text-teal-700 font-medium"
+                >
+                  お子様連れ
+                </Link>
+                のご家族にも多くご参加いただいています。
+              </li>
             </ul>
           </section>
 
@@ -186,6 +219,14 @@ export default function MiyakojimaSeaTurtlePage() {
             <SectionHeading id="caution">個人で行く場合の注意点</SectionHeading>
             <p className="text-gray-700 leading-relaxed mb-4 text-pretty">
               ビーチから個人でシュノーケルする場合は、安全面と環境保全に十分注意してください。
+              入りやすいビーチの設備や海況は
+              <Link
+                href="/blog/aragusu-beach-snorkeling-guide"
+                className="text-teal-600 underline underline-offset-2 hover:text-teal-700 font-medium"
+              >
+                新城海岸完全ガイド
+              </Link>
+              にまとめています。
             </p>
             <ul className="space-y-3">
               {[
@@ -206,6 +247,9 @@ export default function MiyakojimaSeaTurtlePage() {
               不安がある場合や、より安全・確実に楽しみたい場合は、ガイド付きツアーの利用がおすすめです。
             </p>
           </section>
+
+          {/* 60%地点：個人で行く注意点を読んだ直後。ツアーとの違いが一番伝わる位置 */}
+          {articleCta && middleCard && <ArticleCtaCard card={middleCard} campaign={articleCta.campaign} />}
 
           <section className="mb-12">
             <SectionHeading id="why-tour">ツアー参加がおすすめな理由</SectionHeading>
@@ -273,39 +317,20 @@ export default function MiyakojimaSeaTurtlePage() {
             </div>
           </section>
 
-          {/* 最終CTA */}
-          <section className="bg-gradient-to-br from-emerald-600 to-teal-600 rounded-2xl p-7 sm:p-10 text-center text-white shadow-lg">
-            <h2 className="text-2xl sm:text-3xl font-bold mb-3">宮古島でウミガメと泳ごう</h2>
-            <p className="text-white/90 leading-relaxed mb-6 max-w-xl mx-auto text-pretty">
-              初心者・お子様連れも安心の少人数制ツアー。写真・動画データ無料、前日までキャンセル無料です。
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <TrackedCta
-                event="book_cta_click"
-                eventProps={{ location: "pillar" }}
-                href="/book"
-                className="inline-flex items-center justify-center gap-2 bg-white text-emerald-700 font-bold px-7 py-3.5 rounded-full shadow-lg transition-all active:scale-95 hover:bg-emerald-50"
-              >
-                <CalendarCheck className="w-5 h-5" />
-                空き確認・予約する
-              </TrackedCta>
-              <TrackedCta
-                event="line_click"
-                eventProps={{ location: "pillar" }}
-                href="https://lin.ee/jfp4laz"
-                external
-                className="inline-flex items-center justify-center gap-2 bg-white/15 backdrop-blur-sm hover:bg-white/25 text-white font-bold px-7 py-3.5 rounded-full border border-white/35 transition-all active:scale-95"
-              >
-                <MessageCircle className="w-5 h-5" />
-                LINEで相談
-              </TrackedCta>
-            </div>
-          </section>
+          {/* 記事末尾：おすすめ → 予約カード。
+              汎用の最終CTAは記事別CTAと役割が重なるため、こちらへ置き換えている。 */}
+          {articleCta && (
+            <>
+              <ArticleRelatedContent items={articleRelated} campaign={articleCta.campaign} />
+              {bottomCard && <ArticleCtaCard card={bottomCard} campaign={articleCta.campaign} />}
+            </>
+          )}
         </article>
       </main>
 
       <Footer />
-      <MobileCTA />
+      {/* 固定CTAは記事別のものに一本化する（サイト共通の MobileCTA とは二重に出さない） */}
+      {articleCta && <ArticleStickyCta sticky={articleCta.sticky} campaign={articleCta.campaign} />}
     </div>
   )
 }

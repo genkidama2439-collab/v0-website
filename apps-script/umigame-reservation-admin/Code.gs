@@ -183,6 +183,41 @@ function formatCouponInfo(couponCode, couponDiscount) {
   return 'なし';
 }
 
+// 当日その場で受け取る現金の額。
+// data.totalPrice はNext.js側でクーポンを引いたあとの金額なので、そのまま受取額になる。
+function formatReceiveTotalLines_(data) {
+  data = data || {};
+
+  var receiveTotal = toNumber_(data.totalPrice);
+  var discount = toNumber_(data.couponDiscount);
+  var lines = '合計受取金額：' + formatYen(receiveTotal) + '\n';
+
+  if (discount > 0) {
+    lines +=
+      '　　　　　　（通常料金 ' +
+      formatYen(receiveTotal + discount) +
+      ' − クーポン ' +
+      formatYen(discount) +
+      '）\n';
+  }
+
+  return lines;
+}
+
+// 売上内訳の締めに置く合計行。
+// data.totalPrice を貼り直さず、内訳に実際に表示した金額を足すことで
+// ガイド別の按分と受取額が一致していることをメール上で確認できるようにする。
+function formatBreakdownTotalLine_(amounts) {
+  var sum = 0;
+
+  for (var i = 0; i < (amounts || []).length; i++) {
+    sum += toNumber_(amounts[i]);
+  }
+
+  return '──────────────────\n' +
+    '合計受取金額：' + formatYen(sum) + '\n';
+}
+
 function normalizeTime_(value) {
   var m = String(value || '').match(/(\d{1,2})\s*(?::|：|時)\s*(\d{1,2})/);
 
@@ -897,24 +932,28 @@ function sendBookingEmail(data, headcount, participantsDetail) {
       var seaSkyCouponDiscounts = getSeaSkyCouponDiscounts_(data);
 
       planOperationBlock =
-        '\n【海空セット運用・売上内訳】\n' +
+        '\n【海空セット運用・売上内訳】※各金額はクーポン適用後\n' +
         SEA_SKY_TURTLE_PLAN_NAME +
         '：' +
         (normalizeTime_(data.selectedTime) || data.selectedTime || '未入力') +
         '〜 約1.5時間 / ' + formatYen(seaSkyAmounts.turtle) +
-        ' / クーポン-' + formatYen(seaSkyCouponDiscounts.turtle) + '\n' +
+        '（クーポン適用済 -' + formatYen(seaSkyCouponDiscounts.turtle) + '）\n' +
         SEA_SKY_SUP_PLAN_NAME +
         '：' +
         (seaSkySupTime || '未入力') +
         '〜 約1.5時間 / ' + formatYen(seaSkyAmounts.sup) +
-        ' / クーポン-' + formatYen(seaSkyCouponDiscounts.sup) + '\n' +
+        '（クーポン適用済 -' + formatYen(seaSkyCouponDiscounts.sup) + '）\n' +
+        formatBreakdownTotalLine_([
+          seaSkyAmounts.turtle,
+          seaSkyAmounts.sup
+        ]) +
         '※ 海亀終了後、そのままドローンSUPを続けて開催します。基本は同じビーチですが、海況・水位により別ビーチになる場合があります。\n';
 
     } else if (isComboBooking(data)) {
       var comboAmounts = getComboRowAmounts_(data);
 
       planOperationBlock =
-        '\n【昼夜セット売上内訳】\n' +
+        '\n【昼夜セット売上内訳】※各金額はクーポン適用後\n' +
         COMBO_TURTLE_PLAN_NAME +
         '：' +
         formatYen(comboAmounts.turtle) +
@@ -922,7 +961,11 @@ function sendBookingEmail(data, headcount, participantsDetail) {
         COMBO_NIGHT_PLAN_NAME +
         '：' +
         formatYen(comboAmounts.night) +
-        '\n';
+        '\n' +
+        formatBreakdownTotalLine_([
+          comboAmounts.turtle,
+          comboAmounts.night
+        ]);
     }
 
     var body =
@@ -940,7 +983,7 @@ function sendBookingEmail(data, headcount, participantsDetail) {
       '参加日　　：' + (data.selectedDate || '') + '\n' +
       '時間　　　：' + displayTime + '\n' +
       '人数　　　：' + headcount + '\n' +
-      '合計金額　：' + formatYen(data.totalPrice) + '\n' +
+      formatReceiveTotalLines_(data) +
       'クーポン　：' + couponInfo + '\n' +
       'スタッフ指名：' + staffInfo + '\n' +
       planOperationBlock + '\n' +
@@ -1274,6 +1317,74 @@ function buildCalendarDescription_(data, headcount, options) {
     ? options.staffName
     : (data.staffName || '');
 
+  // セットは1予約が複数イベントへ分かれる。このイベントの「売上」は担当分の計上額でしかないため、
+  // お客様から実際に受け取る合計額を各イベントへ載せる。
+  // 現金はセット全体で1回だけ、最初のツアー開始時に全額受け取る運用。
+  var setBreakdown = options.setBreakdown || [];
+  var isSetComponent = setBreakdown.length > 0;
+  var receiptBlock = '';
+
+  if (isSetComponent) {
+    // 受取担当は配列順ではなく開始時刻で決める（並び順が変わっても最初のツアーを指す）
+    var collectorIndex = 0;
+
+    for (var c = 1; c < setBreakdown.length; c++) {
+      var candidateTime = normalizeTime_(setBreakdown[c] && setBreakdown[c].time);
+      var currentTime = normalizeTime_(
+        setBreakdown[collectorIndex] && setBreakdown[collectorIndex].time
+      );
+
+      if (candidateTime && (!currentTime || candidateTime < currentTime)) {
+        collectorIndex = c;
+      }
+    }
+
+    var collector = setBreakdown[collectorIndex] || {};
+    var collectorName = (collector.label || '') +
+      (collector.time ? '（' + collector.time + '〜）' : '');
+
+    // setIndex が渡されていないときは受取担当を断定しない（取りこぼしを防ぐ）
+    var hasSetIndex = typeof options.setIndex === 'number';
+    var isCollector = hasSetIndex && options.setIndex === collectorIndex;
+
+    var breakdownLines = [];
+    var receiveTotal = 0;
+
+    for (var i = 0; i < setBreakdown.length; i++) {
+      var item = setBreakdown[i] || {};
+
+      receiveTotal += toNumber_(item.amount);
+      breakdownLines.push(
+        '　' + (item.label || '') +
+        (item.time ? '（' + item.time + '〜）' : '') +
+        ' … ' + formatYen(item.amount) +
+        (i === collectorIndex ? '　← 受取担当' : '')
+      );
+    }
+
+    receiptBlock =
+      '\n\n【セット全体の受取金額】' +
+      '\n合計受取金額: ' + formatYen(receiveTotal) +
+      (
+        !hasSetIndex
+          ? ''
+          : isCollector
+            ? '　← このツアー開始時に全額受け取る'
+            : '（受取済み・このツアーでは受け取らない）'
+      ) +
+      '\n受取担当: ' + collectorName + ' の開始時に全額' +
+      '\n内訳（担当ごとの売上計上）\n' +
+      breakdownLines.join('\n') +
+      '\n※ 上の「売上」はこのツアー分の計上額です。' +
+      (
+        !hasSetIndex
+          ? '\n※ セット合計は最初のツアー開始時に1回だけ受け取ります。'
+          : isCollector
+            ? '\n※ セット合計をこのツアー開始時に1回だけ受け取ってください。'
+            : '\n※ このツアーでは現金を受け取りません。'
+      );
+  }
+
   return (
     '予約番号: ' + (data.bookingNumber || '') +
     '\n受付日時: ' + new Date().toLocaleString('ja-JP') +
@@ -1287,6 +1398,11 @@ function buildCalendarDescription_(data, headcount, options) {
     '\n時間: ' + (options.time || getBookingDisplayTime(data)) +
     '\n人数: ' + (headcount || '') +
     '\n売上: ' + formatYen(options.totalPrice) +
+    (
+      isSetComponent
+        ? '（このツアー分の計上額）'
+        : '（クーポン適用後・当日この金額を受け取る）'
+    ) +
     '\nクーポン: ' + couponInfo +
     '\nスタッフ指名: ' + valueOrNone(staffName) +
     (
@@ -1294,6 +1410,7 @@ function buildCalendarDescription_(data, headcount, options) {
         ? '\n元プラン: ' + options.originalPlanName
         : ''
     ) +
+    receiptBlock +
     (
       options.additionalNotes
         ? '\n\n' + options.additionalNotes
@@ -1348,6 +1465,19 @@ function addToCalendar(data, headcount) {
     var seaSkyStaffName = data.staffName || '';
     var seaSkyTurtleEvent = null;
 
+    var seaSkySetBreakdown = [
+      {
+        label: '🐢 ' + SEA_SKY_TURTLE_PLAN_NAME,
+        time: seaSkyTurtleTime,
+        amount: seaSkyAmounts.turtle
+      },
+      {
+        label: '🛸 ' + SEA_SKY_SUP_PLAN_NAME,
+        time: seaSkySupTime,
+        amount: seaSkyAmounts.sup
+      }
+    ];
+
     var seaSkyFlowNote =
       '【海空セットの進行】\n' +
       '🐢 ウミガメシュノーケル：' +
@@ -1383,6 +1513,8 @@ function addToCalendar(data, headcount) {
           couponDiscount: seaSkyCouponDiscounts.turtle,
           staffName: seaSkyStaffName,
           originalPlanName: data.planName || '',
+          setBreakdown: seaSkySetBreakdown,
+          setIndex: 0,
           additionalNotes: seaSkyFlowNote
         }),
         '2'
@@ -1406,6 +1538,8 @@ function addToCalendar(data, headcount) {
           couponDiscount: seaSkyCouponDiscounts.sup,
           staffName: seaSkyStaffName,
           originalPlanName: data.planName || '',
+          setBreakdown: seaSkySetBreakdown,
+          setIndex: 1,
           additionalNotes: seaSkyFlowNote
         }),
         '6'
@@ -1446,6 +1580,19 @@ function addToCalendar(data, headcount) {
     var originalStaffName = data.staffName || '';
     var turtleEvent = null;
 
+    var comboSetBreakdown = [
+      {
+        label: '🐢 ' + COMBO_TURTLE_PLAN_NAME,
+        time: turtleTime,
+        amount: amounts.turtle
+      },
+      {
+        label: '🦀 ' + COMBO_NIGHT_PLAN_NAME,
+        time: nightTime,
+        amount: amounts.night
+      }
+    ];
+
     try {
       turtleEvent = createCalendarTimedEvent_(
         calendar,
@@ -1464,7 +1611,9 @@ function addToCalendar(data, headcount) {
           totalPrice: amounts.turtle,
           couponDiscount: couponDiscounts.turtle,
           staffName: originalStaffName,
-          originalPlanName: data.planName || ''
+          originalPlanName: data.planName || '',
+          setBreakdown: comboSetBreakdown,
+          setIndex: 0
         }),
         '2'
       );
@@ -1486,7 +1635,9 @@ function addToCalendar(data, headcount) {
           totalPrice: amounts.night,
           couponDiscount: couponDiscounts.night,
           staffName: originalStaffName,
-          originalPlanName: data.planName || ''
+          originalPlanName: data.planName || '',
+          setBreakdown: comboSetBreakdown,
+          setIndex: 1
         }),
         '8'
       );
@@ -2579,19 +2730,24 @@ sendBookingEmail = function(data, headcount, participantsDetail) {
       '参加日　　：' + (data.selectedDate || '') + '\n' +
       '時間　　　：' + displayTime + '\n' +
       '人数　　　：' + headcount + '\n' +
-      '合計金額　：' + formatYen(data.totalPrice) + '\n' +
+      formatReceiveTotalLines_(data) +
       'クーポン　：' + formatCouponInfo(data.couponCode, data.couponDiscount) + '\n' +
       'スタッフ指名：' + (data.staffName || '指名なし') + '\n\n' +
-      '【まるごと1日セット売上内訳】\n' +
+      '【まるごと1日セット売上内訳】※各金額はクーポン適用後\n' +
       labels.turtle + '：' + turtleTime + '〜 約1.5時間 / ' +
       formatYen(amounts.turtle) +
-      ' / クーポン-' + formatYen(coupons.turtle) + '\n' +
+      '（クーポン適用済 -' + formatYen(coupons.turtle) + '）\n' +
       labels.sup + '：' + supTime + '〜 約1.5時間 / ' +
       formatYen(amounts.sup) +
-      ' / クーポン-' + formatYen(coupons.sup) + '\n' +
+      '（クーポン適用済 -' + formatYen(coupons.sup) + '）\n' +
       labels.night + '：' + (nightTime || '未入力') + '〜 約1.5時間 / ' +
       formatYen(amounts.night) +
-      ' / クーポン-' + formatYen(coupons.night) + '\n\n' +
+      '（クーポン適用済 -' + formatYen(coupons.night) + '）\n' +
+      formatBreakdownTotalLine_([
+        amounts.turtle,
+        amounts.sup,
+        amounts.night
+      ]) + '\n' +
       '【参加者詳細】\n' +
       participantsDetail + '\n\n' +
       '【特別なご要望・アレルギー等】\n' +
@@ -2761,6 +2917,12 @@ addToCalendar = function(data, headcount) {
   var prefix = labels.isPrivate ? 'WEB VIP' : 'WEB';
   var createdEvents = [];
 
+  var tripleSetBreakdown = [
+    { label: '🐢 ' + labels.turtle, time: turtleTime, amount: amounts.turtle },
+    { label: '🛸 ' + labels.sup, time: supTime, amount: amounts.sup },
+    { label: '🦀 ' + labels.night, time: nightTime, amount: amounts.night }
+  ];
+
   var flowNote =
     '【まるごと1日セットの進行】\n' +
     '🐢 ウミガメシュノーケル：' + turtleTime + '〜' +
@@ -2799,6 +2961,8 @@ addToCalendar = function(data, headcount) {
           couponDiscount: coupons.turtle,
           staffName: staffName,
           originalPlanName: labels.display,
+          setBreakdown: tripleSetBreakdown,
+          setIndex: 0,
           additionalNotes: flowNote
         }),
         '2'
@@ -2821,6 +2985,8 @@ addToCalendar = function(data, headcount) {
           couponDiscount: coupons.sup,
           staffName: staffName,
           originalPlanName: labels.display,
+          setBreakdown: tripleSetBreakdown,
+          setIndex: 1,
           additionalNotes: flowNote
         }),
         '6'
@@ -2843,6 +3009,8 @@ addToCalendar = function(data, headcount) {
           couponDiscount: coupons.night,
           staffName: staffName,
           originalPlanName: labels.display,
+          setBreakdown: tripleSetBreakdown,
+          setIndex: 2,
           additionalNotes: flowNote
         }),
         '8'

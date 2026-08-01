@@ -28,9 +28,20 @@ function resolveSourceFile(absolutePath) {
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
-    if (!specifier.startsWith("@/")) return nextResolve(specifier, context)
+    // "@/lib/..." → リポジトリルート起点の実ファイル
+    if (specifier.startsWith("@/")) {
+      const target = resolveSourceFile(path.join(ROOT, specifier.slice(2)))
+      return nextResolve(pathToFileURL(target).href, context)
+    }
 
-    const target = resolveSourceFile(path.join(ROOT, specifier.slice(2)))
-    return nextResolve(pathToFileURL(target).href, context)
+    // "./analytics-schema" のような拡張子なしの相対importにも .ts を補う。
+    // 型だけのimportはTSの型剥がしで消えるが、値のimportは実ファイル解決が要る。
+    if ((specifier.startsWith("./") || specifier.startsWith("../")) && !path.extname(specifier)) {
+      const parentPath = context.parentURL ? fileURLToPath(context.parentURL) : ROOT
+      const target = resolveSourceFile(path.resolve(path.dirname(parentPath), specifier))
+      return nextResolve(pathToFileURL(target).href, context)
+    }
+
+    return nextResolve(specifier, context)
   },
 })

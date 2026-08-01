@@ -14,6 +14,23 @@ export const ANALYTICS_EVENT_NAMES = [
   "line_login_click",
   "booking_submitted",
   "booking_failed",
+  // 予約ファネルの離脱地点を特定するための計測。
+  // 予約フォームの挙動・入力順序・必須条件は変えず、フックとして値を送るだけ。
+  "line_login_redirect_started",
+  "line_login_returned",
+  "line_login_succeeded",
+  "line_login_failed",
+  "booking_plan_selected",
+  "booking_date_selected",
+  "booking_time_selected",
+  "booking_participants_completed",
+  "booking_price_confirmed",
+  "booking_representative_completed",
+  "booking_participant_details_started",
+  "booking_participant_details_completed",
+  "booking_submit_clicked",
+  "booking_validation_error",
+  "booking_abandoned",
 ] as const
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENT_NAMES)[number]
@@ -53,6 +70,33 @@ export const ANALYTICS_PROPERTY_KEYS = [
   // 記事URLは event.page_path、キャンペーンは utm_campaign / utm_content で判別する。
   "ctaType",
   "ctaLabel",
+  // ---- 予約ファネル計測 ----------------------------------------------------
+  // すべて値そのものではなく「区分」だけを持つ。氏名・電話・日付・年齢・体格・
+  // LINEの識別子やトークンは絶対に入れない（lib/booking-funnel.ts で組み立てる）。
+  // 記事の仕様でいう plan_id は既存の plan、participant_count は headcount、
+  // total_amount は total、line_authenticated は line_logged_in を再利用する。
+  "stage",
+  "last_stage",
+  "redirect_method",
+  "return_path",
+  "return_result",
+  "session_fresh",
+  "form_restored",
+  "first_interaction_type",
+  "selection_source",
+  "booking_timing",
+  "time_slot",
+  "group_size_bucket",
+  "coupon_applied",
+  "staff_request_applied",
+  "contact_requirements_completed",
+  "wetsuit_requested",
+  "prescription_mask_requested",
+  "action_type",
+  "missing_field_categories",
+  "error_count",
+  "elapsed_seconds_bucket",
+  "participant_count_bucket",
   "headcount",
   "adultCount",
   "childCount",

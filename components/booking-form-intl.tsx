@@ -28,6 +28,17 @@ import { getEnPrice } from "@/lib/i18n/en-prices"
 import { SENIOR_RESTRICTED_PLAN_IDS, PRIVATE_COUNTERPART, TIME_OPTIONAL_PLAN_IDS, isParticipantAgeValid } from "@/lib/plan-flags"
 import { getSunsetSupGuide } from "@/lib/beach-info"
 import { categorizeBookingFailure, trackEvent } from "@/lib/analytics"
+import {
+  isLineLoginRedirectInProgress,
+  toBookingFailureStage,
+  trackBookingAbandoned,
+  trackBookingFormView,
+  trackBookingStarted as trackBookingStartedEvent,
+  trackLineLoginClick,
+  trackPlanSelected,
+  trackSubmitClicked,
+  type FirstInteractionType,
+} from "@/lib/booking-funnel"
 import { sendDetailedEvent } from "@/lib/detailed-analytics"
 import { getAttribution, getAttributionSourceLabel } from "@/lib/attribution"
 import { getPlanMaxParticipants } from "@/lib/booking-rules"
@@ -161,7 +172,7 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
   useEffect(() => {
     if (hasTrackedFormView.current || !isLiffReady) return
     hasTrackedFormView.current = true
-    trackEvent("booking_form_view", { locale, line_logged_in: hasFreshLineSession, source: getAttributionSourceLabel() })
+    trackBookingFormView({ locale, lineAuthenticated: hasFreshLineSession, source: getAttributionSourceLabel() })
   }, [isLiffReady, hasFreshLineSession, locale])
 
   // 入力内容を随時sessionStorageへ退避（LINEログインのリダイレクトを跨いで復元するため）
@@ -249,6 +260,8 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
     setParticipants((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
 
   const handlePlanChange = (id: string) => {
+    trackBookingStarted("plan")
+    trackPlanSelected({ planId: id, locale, selectionSource: "manual" })
     setPlanId(id)
     setTime("")
     setCouponDiscount(0)
@@ -407,21 +420,52 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
 
   const bookingTag = LOCALE_BOOKING_TAGS[locale]
 
-  const trackBookingStarted = () => {
+  // 離脱計測。LINE認証への遷移中は離脱として数えない。
+  const funnelStateRef = useRef({ planId, participantCount: participants.length, missing: 0 })
+  funnelStateRef.current = { planId, participantCount: participants.length, missing: missingItems.length }
+  const formOpenedAtRef = useRef(Date.now())
+
+  useEffect(() => {
+    const reportAbandon = () => {
+      if (!bookingStartedTrackedRef.current) return
+      if (isSubmitted || submissionInFlightRef.current) return
+      if (isLineLoginRedirectInProgress()) return
+
+      const state = funnelStateRef.current
+      trackBookingAbandoned({
+        lastCompletedStage: state.missing === 0 ? "participant_details" : "form_view",
+        currentStage: state.missing === 0 ? "submission" : "form_view",
+        planId: state.planId,
+        elapsedSeconds: Math.round((Date.now() - formOpenedAtRef.current) / 1000),
+        participantCount: state.participantCount,
+        lineAuthenticated: hasFreshLineSession,
+        locale,
+      })
+    }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") reportAbandon()
+    }
+
+    window.addEventListener("pagehide", reportAbandon)
+    document.addEventListener("visibilitychange", onVisibilityChange)
+    return () => {
+      window.removeEventListener("pagehide", reportAbandon)
+      document.removeEventListener("visibilitychange", onVisibilityChange)
+    }
+  }, [hasFreshLineSession, isSubmitted, locale])
+
+  // 入力開始の起点。従来は input イベントのみだったため、プラン選択などのボタン操作では
+  // 発火しなかった。最初の操作が何であれ1回だけ記録する。
+  const trackBookingStarted = (firstInteractionType: FirstInteractionType = "text_input") => {
     if (bookingStartedTrackedRef.current) return
 
     bookingStartedTrackedRef.current = true
-    sendDetailedEvent("booking_started", {
+    trackBookingStartedEvent({
       locale,
-      plan: planId,
-      planName: t?.name ?? plan?.name ?? "",
-      headcount: participants.length,
-      adultCount: counts.adult,
-      childCount: counts.child,
-      under3Count: counts.under3,
-      total: totalPrice,
-      currency: "JPY",
-      source: getAttributionSourceLabel(),
+      planId,
+      lineAuthenticated: hasFreshLineSession,
+      firstInteractionType,
     })
   }
 
@@ -441,6 +485,17 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
     submissionInFlightRef.current = true
     setIsSubmitting(true)
     let failureCategory = categorizeBookingFailure()
+    let failureStage = toBookingFailureStage()
+
+    // API通信の直前。計測の完了は待たない。
+    trackSubmitClicked({
+      planId: plan.id,
+      participantCount: participants.length,
+      totalAmount: totalPrice,
+      lineAuthenticated: hasFreshLineSession,
+      locale,
+    })
+
     try {
       const response = await fetch("/api/booking", {
         method: "POST",
@@ -477,6 +532,7 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
         }),
       })
       failureCategory = categorizeBookingFailure(response.status)
+      failureStage = toBookingFailureStage(response.status)
       const responseData: {
         success?: boolean
         data?: { totalPrice?: unknown; couponDiscount?: unknown }
@@ -534,6 +590,8 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
         source: getAttributionSourceLabel(),
         outcome: "failed",
         errorCategory: failureCategory,
+        // どの段階で落ちたかを区別する（生のエラー内容は送らない）
+        stage: failureStage,
       })
       toast.error(error instanceof Error ? error.message : copy.genericError)
     } finally {
@@ -596,7 +654,17 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
   }
 
   return (
-    <form onSubmit={handleSubmit} onInputCapture={trackBookingStarted} className="space-y-8">
+    <form
+      onSubmit={handleSubmit}
+      onInputCapture={(event) => {
+        const target = event.target as HTMLElement | null
+        const isCheckbox =
+          target instanceof HTMLInputElement && (target.type === "checkbox" || target.type === "radio")
+        const isDate = target instanceof HTMLInputElement && target.type === "date"
+        trackBookingStarted(isCheckbox ? "checkbox" : isDate ? "date" : "text_input")
+      }}
+      className="space-y-8"
+    >
       {/* Plan */}
       <Card className="bg-white/80 rounded-3xl ring-1 ring-emerald-100 shadow-lg">
         <CardHeader>
@@ -981,7 +1049,7 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
               <Button
                 type="button"
                 onClick={() => {
-                  trackEvent("line_login_click", { location: `booking_${locale}` })
+                  trackLineLoginClick({ location: `booking_${locale}`, locale })
                   loginLiff()
                 }}
                 disabled={!isLiffReady}

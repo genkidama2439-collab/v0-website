@@ -10,6 +10,7 @@ const ANALYTICS_CONFIG = Object.freeze({
   sourceDeviceSheet: '流入元・デバイス分析',
   pageFailureSheet: 'ページ・失敗分析',
   timingSheet: '曜日・時間帯分析',
+  funnelSheet: '予約ファネル分析',
 });
 
 // WEEKDAY(date,2): 1=月...7=日
@@ -38,6 +39,22 @@ const ANALYTICS_EVENTS = Object.freeze([
   'line_login_click',
   'booking_submitted',
   'booking_failed',
+  // 予約ファネルの離脱地点を特定するための計測。
+  'line_login_redirect_started',
+  'line_login_returned',
+  'line_login_succeeded',
+  'line_login_failed',
+  'booking_plan_selected',
+  'booking_date_selected',
+  'booking_time_selected',
+  'booking_participants_completed',
+  'booking_price_confirmed',
+  'booking_representative_completed',
+  'booking_participant_details_started',
+  'booking_participant_details_completed',
+  'booking_submit_clicked',
+  'booking_validation_error',
+  'booking_abandoned',
 ]);
 
 const EVENT_HEADERS = Object.freeze([
@@ -83,6 +100,29 @@ const EVENT_HEADERS = Object.freeze([
   // ブログ記事内CTAの計測。設置位置は「ロケーション」列（article_top 等）に入る。
   'CTA種別',
   'CTAボタン文言',
+  // 予約ファネル計測。すべて区分値で、入力された実値は入らない。
+  'ステージ',
+  '直前到達ステージ',
+  'LINE遷移方法',
+  'LINE戻り先パス',
+  'LINE戻り結果',
+  'LINEセッション新規',
+  'フォーム復元',
+  '最初の操作',
+  'プラン選択元',
+  '予約タイミング',
+  '時間枠',
+  '人数区分',
+  'クーポン適用',
+  'スタッフ指名あり',
+  '連絡先充足',
+  'ウェットスーツ希望数',
+  '度付きマスク希望数',
+  '操作種別',
+  '不足項目種別',
+  '不足項目数',
+  '経過時間区分',
+  '人数区分(離脱)',
 ]);
 
 const EVENT_DEFINITIONS = Object.freeze([
@@ -95,6 +135,21 @@ const EVENT_DEFINITIONS = Object.freeze([
   ['booking_form_view', '予約フォーム表示', 'ページ・言語'],
   ['booking_started', '予約入力開始', 'ページ・言語'],
   ['book_cta_click', '予約ボタンクリック', 'ロケーション（設置位置）・CTA種別・ボタン文言・プランID・UTM Campaign'],
+  ['line_login_redirect_started', 'LINE認証への遷移開始', 'LINE遷移方法'],
+  ['line_login_returned', 'LINE認証からの復帰', 'LINE戻り先パス・LINE戻り結果・LINEログイン'],
+  ['line_login_succeeded', 'LINEログイン成功', 'LINE戻り先パス・LINEセッション新規・フォーム復元'],
+  ['line_login_failed', 'LINEログイン失敗', 'エラー分類・LINE戻り先パス'],
+  ['booking_plan_selected', 'プラン選択', 'プランID・プラン選択元'],
+  ['booking_date_selected', '参加日選択', 'プランID・予約タイミング（実際の日付は記録しない）'],
+  ['booking_time_selected', '開始時間選択', 'プランID・時間枠'],
+  ['booking_participants_completed', '参加人数の確定', 'プランID・人数内訳・人数区分'],
+  ['booking_price_confirmed', '合計料金の表示', 'プランID・金額・クーポン適用・スタッフ指名あり'],
+  ['booking_representative_completed', '代表者情報の充足', 'プランID・連絡先充足・LINEログイン'],
+  ['booking_participant_details_started', '参加者詳細の入力開始', 'プランID・人数合計'],
+  ['booking_participant_details_completed', '参加者詳細の充足', 'プランID・人数合計・レンタル希望数'],
+  ['booking_submit_clicked', '送信ボタン押下', 'プランID・人数合計・金額・LINEログイン'],
+  ['booking_validation_error', '必須不足で進めなかった', 'ステージ・操作種別・不足項目種別・不足項目数'],
+  ['booking_abandoned', '送信せず離脱', '直前到達ステージ・ステージ・経過時間区分・人数区分'],
   ['line_login_click', 'LINEログイン操作', 'ロケーション'],
   ['line_click', 'LINE操作', 'ロケーション'],
   ['line_add_friend_click', 'LINE友だち追加', 'ロケーション'],
@@ -137,6 +192,7 @@ function setupAnalyticsWorkbook() {
     ANALYTICS_CONFIG.pageFailureSheet
   );
   const timing = ensureSheet_(spreadsheet, ANALYTICS_CONFIG.timingSheet);
+  const funnel = ensureSheet_(spreadsheet, ANALYTICS_CONFIG.funnelSheet);
 
   configureEventsSheet_(events);
   configureDailySheet_(daily);
@@ -145,6 +201,7 @@ function setupAnalyticsWorkbook() {
   configureSourceDeviceSheet_(sourceDevice);
   configurePageFailureSheet_(pageFailure);
   configureTimingSheet_(timing);
+  configureFunnelSheet_(funnel);
   removeUnusedDefaultSheets_(spreadsheet);
 
   spreadsheet.setActiveSheet(dashboard);
@@ -256,6 +313,7 @@ function requiredSheetNames_() {
     ANALYTICS_CONFIG.sourceDeviceSheet,
     ANALYTICS_CONFIG.pageFailureSheet,
     ANALYTICS_CONFIG.timingSheet,
+    ANALYTICS_CONFIG.funnelSheet,
   ];
 }
 
@@ -613,6 +671,141 @@ function configurePageFailureSheet_(sheet) {
 }
 
 /**
+ * 予約ファネル分析。
+ * 「どのステージで何人落ちたか」を1枚で見るためのシート。
+ * 各行は1ステージで、件数・前ステージからの到達率・前ステージからの離脱数・
+ * 最初のフォーム表示からの到達率を出します。
+ *
+ * 期間は上部のセルで切り替え、デバイス・ブラウザ・言語・プラン・流入元・
+ * LINEログイン結果でも絞り込めます（空欄なら全件）。
+ */
+const FUNNEL_STAGES = Object.freeze([
+  ['予約フォーム表示', 'booking_form_view'],
+  ['LINEログインクリック', 'line_login_click'],
+  ['LINE認証遷移開始', 'line_login_redirect_started'],
+  ['LINE認証から復帰', 'line_login_returned'],
+  ['LINEログイン成功', 'line_login_succeeded'],
+  ['予約入力開始', 'booking_started'],
+  ['プラン選択', 'booking_plan_selected'],
+  ['日付選択', 'booking_date_selected'],
+  ['時間選択', 'booking_time_selected'],
+  ['人数入力完了', 'booking_participants_completed'],
+  ['料金表示', 'booking_price_confirmed'],
+  ['代表者情報完了', 'booking_representative_completed'],
+  ['参加者詳細開始', 'booking_participant_details_started'],
+  ['参加者詳細完了', 'booking_participant_details_completed'],
+  ['送信クリック', 'booking_submit_clicked'],
+  ['予約完了', 'booking_submitted'],
+  ['予約失敗', 'booking_failed'],
+]);
+
+function configureFunnelSheet_(sheet) {
+  sheet.clear();
+  sheet.setHiddenGridlines(true);
+  sheet.setColumnWidths(1, 8, 150);
+
+  // 絞り込み条件。空欄なら全件を対象にする。
+  sheet.getRange('A1:B1').setValues([['絞り込み', '値（空欄＝全件）']]);
+  sheet.getRange('A2:A8').setValues([
+    ['開始日'],
+    ['終了日'],
+    ['デバイス'],
+    ['ブラウザ'],
+    ['言語'],
+    ['プランID'],
+    ['流入元(UTM Source)'],
+  ]);
+  sheet.getRange('B2').setFormula('=TODAY()-29');
+  sheet.getRange('B3').setFormula('=TODAY()');
+  sheet.getRange('B2:B3').setNumberFormat('yyyy-mm-dd');
+
+  sheet.getRange('A10:E10').setValues([[
+    'ステージ', '件数', '前ステージからの到達率', '前ステージからの離脱数', 'フォーム表示からの到達率',
+  ]]);
+
+  // 各ステージの件数。条件は SUMPRODUCT で重ねる（空欄の条件は無視される）。
+  const rows = FUNNEL_STAGES.map(function (stage) {
+    return [stage[0], stage[1]];
+  });
+  sheet.getRange(11, 1, rows.length, 1).setValues(rows.map(function (row) {
+    return [row[0]];
+  }));
+
+  // H列にイベント名を持たせ、数式から参照する（画面表示用の日本語とは分離）
+  sheet.getRange(11, 8, rows.length, 1).setValues(rows.map(function (row) {
+    return [row[1]];
+  }));
+  sheet.getRange(10, 8).setValue('イベント名（内部）');
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = 11 + i;
+    sheet.getRange(row, 2).setFormula(
+      '=SUMPRODUCT(' +
+        "('イベントデータ'!$B$2:$B=$H" + row + ')*' +
+        "(('イベントデータ'!$A$2:$A>=$B$2)+($B$2=\"\")>0)*" +
+        "(('イベントデータ'!$A$2:$A<$B$3+1)+($B$3=\"\")>0)*" +
+        "(('イベントデータ'!$E$2:$E=$B$4)+($B$4=\"\")>0)*" +
+        "(('イベントデータ'!$O$2:$O=$B$5)+($B$5=\"\")>0)*" +
+        "(('イベントデータ'!$D$2:$D=$B$6)+($B$6=\"\")>0)*" +
+        "(('イベントデータ'!$U$2:$U=$B$7)+($B$7=\"\")>0)*" +
+        "(('イベントデータ'!$J$2:$J=$B$8)+($B$8=\"\")>0)" +
+      ')'
+    );
+
+    if (i === 0) {
+      sheet.getRange(row, 3).setValue('—');
+      sheet.getRange(row, 4).setValue('—');
+    } else {
+      sheet.getRange(row, 3).setFormula('=IFERROR(B' + row + '/B' + (row - 1) + ',"")');
+      sheet.getRange(row, 4).setFormula('=IFERROR(MAX(0,B' + (row - 1) + '-B' + row + '),"")');
+    }
+    sheet.getRange(row, 5).setFormula('=IFERROR(B' + row + '/$B$11,"")');
+  }
+
+  const lastRow = 10 + rows.length;
+
+  // 離脱の内訳。どのステージで止まったか・何が足りなかったか。
+  sheet.getRange('A' + (lastRow + 2)).setValue('離脱したステージ');
+  sheet.getRange('A' + (lastRow + 3)).setFormula(
+    '=QUERY(\'イベントデータ\'!A:BK,"select AP,count(B) ' +
+      'where B=\'booking_abandoned\' and AP is not null group by AP order by count(B) desc ' +
+      'label AP \'ステージ\',count(B) \'件数\'",1)'
+  );
+
+  sheet.getRange('D' + (lastRow + 2)).setValue('不足していた項目種別');
+  sheet.getRange('D' + (lastRow + 3)).setFormula(
+    '=QUERY(\'イベントデータ\'!A:BK,"select BH,count(B) ' +
+      'where B=\'booking_validation_error\' and BH is not null group by BH order by count(B) desc ' +
+      'label BH \'不足項目種別\',count(B) \'件数\'",1)'
+  );
+
+  sheet.getRange('G' + (lastRow + 2)).setValue('LINEログインの結果');
+  sheet.getRange('G' + (lastRow + 3)).setFormula(
+    '=QUERY(\'イベントデータ\'!A:BK,"select AT,count(B) ' +
+      'where B=\'line_login_returned\' and AT is not null group by AT order by count(B) desc ' +
+      'label AT \'戻り結果\',count(B) \'件数\'",1)'
+  );
+
+  sheet.getRangeList([
+    'A1:B1',
+    'A10:E10',
+    'A' + (lastRow + 2),
+    'D' + (lastRow + 2),
+    'G' + (lastRow + 2),
+  ])
+    .setBackground('#0f766e')
+    .setFontColor('#ffffff')
+    .setFontWeight('bold');
+
+  sheet.getRange('B11:B' + lastRow).setNumberFormat('#,##0');
+  sheet.getRange('C11:C' + lastRow).setNumberFormat('0.0%');
+  sheet.getRange('D11:D' + lastRow).setNumberFormat('#,##0');
+  sheet.getRange('E11:E' + lastRow).setNumberFormat('0.0%');
+  sheet.hideColumns(8);
+  sheet.setFrozenRows(10);
+}
+
+/**
  * 曜日別・時間帯別に「表示→予約開始→予約完了」の件数と売上を並べます。
  * 集計対象は固定7曜日・4時間帯のみなので、動的グループ化ではなくSUMPRODUCTで直接算出します。
  */
@@ -754,6 +947,28 @@ function normalizeProperties_(input) {
     maxScrollPercent: safeNumber_(properties.maxScrollPercent),
     ctaType: safeText_(properties.ctaType, 40),
     ctaLabel: safeText_(properties.ctaLabel, 120),
+    stage: safeText_(properties.stage, 40),
+    last_stage: safeText_(properties.last_stage, 40),
+    redirect_method: safeText_(properties.redirect_method, 40),
+    return_path: safeText_(properties.return_path, 120),
+    return_result: safeText_(properties.return_result, 40),
+    session_fresh: safeBoolean_(properties.session_fresh),
+    form_restored: safeText_(properties.form_restored, 40),
+    first_interaction_type: safeText_(properties.first_interaction_type, 40),
+    selection_source: safeText_(properties.selection_source, 40),
+    booking_timing: safeText_(properties.booking_timing, 40),
+    time_slot: safeText_(properties.time_slot, 40),
+    group_size_bucket: safeText_(properties.group_size_bucket, 20),
+    coupon_applied: safeBoolean_(properties.coupon_applied),
+    staff_request_applied: safeBoolean_(properties.staff_request_applied),
+    contact_requirements_completed: safeBoolean_(properties.contact_requirements_completed),
+    wetsuit_requested: safeNumber_(properties.wetsuit_requested),
+    prescription_mask_requested: safeNumber_(properties.prescription_mask_requested),
+    action_type: safeText_(properties.action_type, 30),
+    missing_field_categories: safeText_(properties.missing_field_categories, 200),
+    error_count: safeNumber_(properties.error_count),
+    elapsed_seconds_bucket: safeText_(properties.elapsed_seconds_bucket, 20),
+    participant_count_bucket: safeText_(properties.participant_count_bucket, 20),
   };
 }
 
@@ -801,6 +1016,28 @@ function eventToRow_(event) {
     properties.maxScrollPercent,
     properties.ctaType,
     properties.ctaLabel,
+    properties.stage,
+    properties.last_stage,
+    properties.redirect_method,
+    properties.return_path,
+    properties.return_result,
+    properties.session_fresh,
+    properties.form_restored,
+    properties.first_interaction_type,
+    properties.selection_source,
+    properties.booking_timing,
+    properties.time_slot,
+    properties.group_size_bucket,
+    properties.coupon_applied,
+    properties.staff_request_applied,
+    properties.contact_requirements_completed,
+    properties.wetsuit_requested,
+    properties.prescription_mask_requested,
+    properties.action_type,
+    properties.missing_field_categories,
+    properties.error_count,
+    properties.elapsed_seconds_bucket,
+    properties.participant_count_bucket,
   ];
 }
 

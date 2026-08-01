@@ -458,6 +458,281 @@ const KIDS_AGE_GUIDE_CTA: ArticleCtaConfig = {
   ],
 }
 
+const BEGINNER_GUIDE_CTA: ArticleCtaConfig = {
+  campaign: "beginner_guide",
+  cards: [
+    {
+      position: "article_top",
+      tone: "soft",
+      eyebrow: "初めてのシュノーケルで不安な方へ",
+      title: "泳げなくても、浮いたまま海の中を見られます",
+      description:
+        "ライフジャケットを着けるので、水に顔をつけられれば参加できます。少人数制でガイドがそばに付くため、初めての方が最初にやることから順番に案内します。",
+      primary: {
+        label: "初心者向けツアーの詳細を見る",
+        href: "/plans/S1",
+        type: "plan_detail",
+        planId: "S1",
+      },
+      secondary: {
+        label: "泳げなくても参加できるか聞く",
+        href: LINE_CONSULT_URL,
+        type: "line",
+        external: true,
+      },
+    },
+    {
+      position: "article_middle",
+      tone: "strong",
+      eyebrow: "持ち物を調べている方へ",
+      title: "器材は全部込み。水着とタオルだけで参加できます",
+      description:
+        "シュノーケル・マスク・ライフジャケットはツアーに含まれます。サイズ合わせも当日ガイドが行うので、道具を買い揃える必要はありません。",
+      features: ["器材・ライフジャケット込み", "少人数制・ガイドがそばでサポート", "写真・動画データは無料"],
+      primary: {
+        label: "少人数ツアーの空きを見る",
+        href: "/book?plan=S1",
+        type: "booking",
+        planId: "S1",
+      },
+      secondary: {
+        label: "1組貸切でゆっくり参加する",
+        href: "/plans/S2",
+        type: "private_tour",
+        planId: "S2",
+      },
+    },
+    {
+      position: "article_bottom",
+      tone: "strong",
+      eyebrow: "初心者ガイドを読んだ方へ",
+      title: "初めてでも、その日の海況に合った場所から",
+      description:
+        "波が穏やかで入りやすい場所は日によって変わります。ポイント選びはガイドが担当するので、初めての方でも無理なく参加できます。",
+      features: ["5歳から参加可能", "前日までキャンセル無料", "写真・動画データは無料"],
+      primary: {
+        label: "希望日の空き状況を見る",
+        href: "/book?plan=S1",
+        type: "booking",
+        planId: "S1",
+      },
+      secondary: {
+        label: "ツアー内容を詳しく見る",
+        href: "/plans/S1",
+        type: "plan_detail",
+        planId: "S1",
+      },
+    },
+  ],
+  sticky: {
+    label: "初心者向けツアーの空きを見る",
+    href: "/book?plan=S1",
+    type: "booking",
+    planId: "S1",
+  },
+  related: [
+    {
+      kind: "plan",
+      planId: "S1",
+      description: "器材・ライフジャケット込みの少人数制ツアー。初めての方が一番多く選びます。",
+    },
+    {
+      kind: "post",
+      slug: "miyakojima-snorkeling-tour-vs-self-guide",
+      description: "個人で行く場合とツアー参加の違いを、安全面と費用から比べています。",
+    },
+    {
+      kind: "post",
+      slug: "aragusu-beach-snorkeling-guide",
+      description: "初心者が行きやすい新城海岸の設備と、注意したい海況をまとめています。",
+    },
+  ],
+}
+
+const TOUR_VS_SELF_CTA: ArticleCtaConfig = {
+  campaign: "tour_vs_self",
+  cards: [
+    {
+      position: "article_top",
+      tone: "soft",
+      eyebrow: "個人かツアーか迷っている方へ",
+      title: "判断が分かれるのは、その日の海況を読めるかどうかです",
+      description:
+        "同じビーチでも、風向き・波・潮の流れで安全に入れる場所は変わります。ガイド付きなら当日の条件を見てポイントを選べるため、条件が悪い日ほど差が出ます。",
+      primary: {
+        label: "ガイド付きツアーの内容を見る",
+        href: "/plans/S1",
+        type: "plan_detail",
+        planId: "S1",
+      },
+      secondary: {
+        label: "当日の海況をLINEで聞く",
+        href: LINE_CONSULT_URL,
+        type: "line",
+        external: true,
+      },
+    },
+    {
+      position: "article_middle",
+      tone: "strong",
+      eyebrow: "ウミガメに会いたい方へ",
+      title: "ポイント選びと安全管理をガイドに任せる",
+      description:
+        "ウミガメが見られる可能性のある場所を、その日の海況と合わせて判断します。器材・ライフジャケット込みで、5歳から参加できます。",
+      features: ["少人数制・ガイドがそばでサポート", "器材・ライフジャケット込み", "写真・動画データは無料"],
+      primary: {
+        label: "希望日の空き状況を見る",
+        href: "/book?plan=S1",
+        type: "booking",
+        planId: "S1",
+      },
+      secondary: {
+        label: "1組貸切でゆっくり参加する",
+        href: "/plans/S2",
+        type: "private_tour",
+        planId: "S2",
+      },
+    },
+    {
+      position: "article_bottom",
+      tone: "strong",
+      eyebrow: "比較記事を読んだ方へ",
+      title: "海の中も、海の上も楽しみたいなら",
+      description:
+        "シュノーケル単体のほか、同じビーチでドローンSUPまで続けて楽しめる海空セットもあります。迷っている方はセットで両方を試せます。",
+      features: ["前日までキャンセル無料", "器材・ライフジャケット込み", "写真・動画データは無料"],
+      primary: {
+        label: "希望日の空き状況を見る",
+        href: "/book?plan=S1",
+        type: "booking",
+        planId: "S1",
+      },
+      secondary: {
+        label: "海空セット（SUP付き）を見る",
+        href: "/plans/C3",
+        type: "set_plan",
+        planId: "C3",
+      },
+    },
+  ],
+  sticky: {
+    label: "ガイド付きツアーの空きを見る",
+    href: "/book?plan=S1",
+    type: "booking",
+    planId: "S1",
+  },
+  related: [
+    {
+      kind: "plan",
+      planId: "S1",
+      description: "少人数制でウミガメを探す一番人気のツアー。器材と写真データ込みです。",
+    },
+    {
+      kind: "post",
+      slug: "miyakojima-beginner-snorkeling-guide",
+      description: "初めてのシュノーケリングで押さえておきたい準備と流れをまとめています。",
+    },
+    {
+      kind: "post",
+      slug: "aragusu-beach-snorkeling-guide",
+      description: "個人で行くなら知っておきたい新城海岸の駐車場・設備・海況の注意点。",
+    },
+  ],
+}
+
+const NIGHT_TOUR_CTA: ArticleCtaConfig = {
+  campaign: "night_tour_guide",
+  cards: [
+    {
+      position: "article_top",
+      tone: "soft",
+      eyebrow: "ヤシガニに会いたい方へ",
+      title: "ヤシガニがいる場所は、季節と天候で変わります",
+      description:
+        "夜行性のヤシガニは、気温や雨のあとで出やすさが変わります。海亀兄弟ではジャングルに詳しいガイドが、その日に見つけやすい場所へ案内します。",
+      primary: {
+        label: "ヤシガニ探検ツアーを見る",
+        href: "/plans/S3",
+        type: "plan_detail",
+        planId: "S3",
+      },
+      secondary: {
+        label: "開始時間や持ち物をLINEで聞く",
+        href: LINE_CONSULT_URL,
+        type: "line",
+        external: true,
+      },
+    },
+    {
+      position: "article_middle",
+      tone: "strong",
+      eyebrow: "小さなお子様と参加したい方へ",
+      title: "0歳から参加でき、3歳以下は無料です",
+      description:
+        "歩く距離は短く、途中で休みながら進められます。抱っこやベビーカーのご家族も参加されていて、三世代でのご参加も歓迎です。",
+      features: ["0歳〜75歳まで参加可能", "専用懐中電灯の貸出あり", "探検中の写真データは無料"],
+      priceNote: "一律¥4,000・3歳以下無料",
+      primary: {
+        label: "ナイトツアーの空きを見る",
+        href: "/book?plan=S3",
+        type: "booking",
+        planId: "S3",
+      },
+      secondary: {
+        label: "1組貸切でゆっくり探検する",
+        href: "/plans/S5",
+        type: "private_tour",
+        planId: "S5",
+      },
+    },
+    {
+      position: "article_bottom",
+      tone: "strong",
+      eyebrow: "ナイトツアーの記事を読んだ方へ",
+      title: "昼の海とまとめると1,000円お得になります",
+      description:
+        "昼はウミガメシュノーケル、夜はヤシガニ探検。1日で宮古島の昼と夜を両方楽しめる昼夜セットが人気です。",
+      features: ["昼夜セットは単品より1,000円お得", "3歳以下無料", "前日までキャンセル無料"],
+      priceNote: "ナイトツアー単品 一律¥4,000・3歳以下無料",
+      primary: {
+        label: "希望日の空き状況を見る",
+        href: "/book?plan=S3",
+        type: "booking",
+        planId: "S3",
+      },
+      secondary: {
+        label: "昼と夜のセットプランを見る",
+        href: "/plans/C1",
+        type: "set_plan",
+        planId: "C1",
+      },
+    },
+  ],
+  sticky: {
+    label: "ナイトツアーの空きを見る",
+    href: "/book?plan=S3",
+    type: "booking",
+    planId: "S3",
+  },
+  related: [
+    {
+      kind: "plan",
+      planId: "S3",
+      description: "0歳から参加できる夜のジャングル探検。一律4,000円・3歳以下無料です。",
+    },
+    {
+      kind: "plan",
+      planId: "C1",
+      description: "昼はウミガメ、夜はヤシガニ。単品で申し込むより1,000円お得なセットです。",
+    },
+    {
+      kind: "post",
+      slug: "miyakojima-kids-snorkeling-age-guide",
+      description: "昼のシュノーケルは何歳から参加できるか、年齢別の目安をまとめています。",
+    },
+  ],
+}
+
 /**
  * キーは記事スラッグ（ブログ）またはページパス（ピラーページ）。
  * ここに無いページではCTAを描画しない。
@@ -465,6 +740,9 @@ const KIDS_AGE_GUIDE_CTA: ArticleCtaConfig = {
 export const ARTICLE_CTA_CONFIGS: Record<string, ArticleCtaConfig> = {
   "aragusu-beach-snorkeling-guide": ARAGUSU_BEACH_CTA,
   "miyakojima-kids-snorkeling-age-guide": KIDS_AGE_GUIDE_CTA,
+  "miyakojima-beginner-snorkeling-guide": BEGINNER_GUIDE_CTA,
+  "miyakojima-snorkeling-tour-vs-self-guide": TOUR_VS_SELF_CTA,
+  "miyakojima-night-tour-yashigani-guide": NIGHT_TOUR_CTA,
   "/miyakojima-sea-turtle": SEA_TURTLE_PILLAR_CTA,
 }
 

@@ -11,6 +11,7 @@ const ANALYTICS_CONFIG = Object.freeze({
   pageFailureSheet: 'ページ・失敗分析',
   timingSheet: '曜日・時間帯分析',
   funnelSheet: '予約ファネル分析',
+  funnelMonthlySheet: '予約ファネル月別',
 });
 
 // WEEKDAY(date,2): 1=月...7=日
@@ -193,6 +194,10 @@ function setupAnalyticsWorkbook() {
   );
   const timing = ensureSheet_(spreadsheet, ANALYTICS_CONFIG.timingSheet);
   const funnel = ensureSheet_(spreadsheet, ANALYTICS_CONFIG.funnelSheet);
+  const funnelMonthly = ensureSheet_(
+    spreadsheet,
+    ANALYTICS_CONFIG.funnelMonthlySheet
+  );
 
   configureEventsSheet_(events);
   configureDailySheet_(daily);
@@ -202,6 +207,7 @@ function setupAnalyticsWorkbook() {
   configurePageFailureSheet_(pageFailure);
   configureTimingSheet_(timing);
   configureFunnelSheet_(funnel);
+  configureFunnelMonthlySheet_(funnelMonthly);
   removeUnusedDefaultSheets_(spreadsheet);
 
   spreadsheet.setActiveSheet(dashboard);
@@ -314,6 +320,7 @@ function requiredSheetNames_() {
     ANALYTICS_CONFIG.pageFailureSheet,
     ANALYTICS_CONFIG.timingSheet,
     ANALYTICS_CONFIG.funnelSheet,
+    ANALYTICS_CONFIG.funnelMonthlySheet,
   ];
 }
 
@@ -803,6 +810,117 @@ function configureFunnelSheet_(sheet) {
   sheet.getRange('E11:E' + lastRow).setNumberFormat('0.0%');
   sheet.hideColumns(8);
   sheet.setFrozenRows(10);
+}
+
+/**
+ * 予約ファネルの月別推移。
+ * 「予約ファネル分析」は期間を指定して1本のファネルを見るためのシートで、
+ * こちらは月ごとに並べて増減を比べるためのシート。日付を打ち直す必要はない。
+ *
+ * 行＝月（直近12か月・当月まで）、列＝各ステージの件数。
+ * 右端に「入力開始→完了」「フォーム表示→完了」の到達率を置く。
+ */
+const FUNNEL_MONTHS = 12;
+
+function columnLetter_(index) {
+  let letter = '';
+  let n = index;
+  while (n > 0) {
+    const remainder = (n - 1) % 26;
+    letter = String.fromCharCode(65 + remainder) + letter;
+    n = Math.floor((n - 1) / 26);
+  }
+  return letter;
+}
+
+function configureFunnelMonthlySheet_(sheet) {
+  sheet.clear();
+  sheet.setHiddenGridlines(true);
+
+  const stageCount = FUNNEL_STAGES.length;
+  const firstStageCol = 2;
+  const lastStageCol = firstStageCol + stageCount - 1;
+  const startedCol = columnLetter_(firstStageCol + 5); // 予約入力開始
+  const completedCol = columnLetter_(firstStageCol + 15); // 予約完了
+  const formViewCol = columnLetter_(firstStageCol); // 予約フォーム表示
+
+  // 見出し（1行目）
+  const headers = ['月'].concat(
+    FUNNEL_STAGES.map(function (stage) {
+      return stage[0];
+    })
+  );
+  headers.push('入力開始→完了');
+  headers.push('フォーム表示→完了');
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+
+  // イベント名を最下部の隠し行に置き、各列の数式から参照する
+  const eventNameRow = 2 + FUNNEL_MONTHS + 1;
+  sheet.getRange(eventNameRow, firstStageCol, 1, stageCount).setValues([
+    FUNNEL_STAGES.map(function (stage) {
+      return stage[1];
+    }),
+  ]);
+  sheet.getRange(eventNameRow, 1).setValue('イベント名（内部）');
+
+  for (let i = 0; i < FUNNEL_MONTHS; i++) {
+    const row = 2 + i;
+
+    // 当月を最後にして、古い月から並べる
+    const monthsBack = FUNNEL_MONTHS - 1 - i;
+    sheet
+      .getRange(row, 1)
+      .setFormula('=EOMONTH(TODAY(),' + (-monthsBack - 1) + ')+1');
+
+    for (let stage = 0; stage < stageCount; stage++) {
+      const col = firstStageCol + stage;
+      const colLetter = columnLetter_(col);
+      sheet.getRange(row, col).setFormula(
+        '=SUMPRODUCT(' +
+          "('イベントデータ'!$B$2:$B=" + colLetter + '$' + eventNameRow + ')*' +
+          "('イベントデータ'!$A$2:$A>=$A" + row + ')*' +
+          "('イベントデータ'!$A$2:$A<EDATE($A" + row + ',1))' +
+        ')'
+      );
+    }
+
+    sheet
+      .getRange(row, lastStageCol + 1)
+      .setFormula(
+        '=IFERROR(' + completedCol + row + '/' + startedCol + row + ',"")'
+      );
+    sheet
+      .getRange(row, lastStageCol + 2)
+      .setFormula(
+        '=IFERROR(' + completedCol + row + '/' + formViewCol + row + ',"")'
+      );
+  }
+
+  const lastRow = 1 + FUNNEL_MONTHS;
+
+  sheet
+    .getRange(1, 1, 1, headers.length)
+    .setBackground('#0f766e')
+    .setFontColor('#ffffff')
+    .setFontWeight('bold');
+
+  sheet.getRange(2, 1, FUNNEL_MONTHS, 1).setNumberFormat('yyyy"年"m"月"');
+  sheet
+    .getRange(2, firstStageCol, FUNNEL_MONTHS, stageCount)
+    .setNumberFormat('#,##0');
+  sheet
+    .getRange(2, lastStageCol + 1, FUNNEL_MONTHS, 2)
+    .setNumberFormat('0.0%');
+
+  sheet.setColumnWidth(1, 110);
+  sheet.setColumnWidths(firstStageCol, headers.length - 1, 130);
+  sheet.setFrozenRows(1);
+  sheet.setFrozenColumns(1);
+  sheet.hideRows(eventNameRow);
+
+  sheet
+    .getRange(lastRow + 3, 1)
+    .setValue('※ 当月は途中経過です。前月までの行と単純比較しないでください。');
 }
 
 /**

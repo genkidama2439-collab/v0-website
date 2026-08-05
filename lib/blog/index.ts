@@ -94,10 +94,10 @@ export function getBlogPostCta(post: BlogPost): BlogCta {
       eyebrow: "この記事を読んだ方へ",
       title: "宮古島の夕日を海の上から楽しむなら",
       description:
-        "初めてでも乗りやすいボードを使い、1日1組限定でゆっくり案内します。記念日やカップル旅行にも合わせやすいサンセットSUPです。",
-      primaryHref: "/plans/S4",
+        "初めてでも乗りやすいボードを使い、夕日の海をゆっくり案内します。記念日やカップル旅行にも合わせやすいサンセットSUPです。通常プランと1組貸切から選べます。",
+      primaryHref: "/plans/S8",
       primaryLabel: "サンセットSUPを見る",
-      secondaryHref: "/book?plan=S4",
+      secondaryHref: "/book?plan=S8",
       secondaryLabel: "空き確認する",
     }
   }

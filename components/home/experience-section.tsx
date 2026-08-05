@@ -4,12 +4,12 @@ import { BLUR_DATA_URLS } from "@/lib/image-placeholders"
 import { PLAN_DETAILS } from "@/lib/plan-details"
 import { ComingSoonBadge } from "@/components/coming-soon"
 
-const experienceIds = ["S1", "S3", "S4", "S6", "slide-boat"] as const
+const experienceIds = ["S1", "S3", "S8", "S6", "slide-boat"] as const
 
 const titleOverrides: Partial<Record<(typeof experienceIds)[number], string>> = {
   S1: "ウミガメシュノーケル",
   S3: "ナイトツアー",
-  S4: "サンセットSUP",
+  S8: "サンセットSUP",
   S6: "ドローンSUP",
   "slide-boat": "スライダーボート",
 }
@@ -17,7 +17,7 @@ const titleOverrides: Partial<Record<(typeof experienceIds)[number], string>> = 
 const subtitleOverrides: Partial<Record<(typeof experienceIds)[number], string>> = {
   S1: "安全管理徹底の少人数制ツアー",
   S3: "夜の冒険へ出かけよう",
-  S4: "黄金の海に浮かぶひととき",
+  S8: "黄金の海に浮かぶひととき",
   S6: "宮古ブルーを空から撮る",
 }
 

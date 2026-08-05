@@ -190,6 +190,7 @@ function getPlanType(planId: string): "night-hunter" | "sunset-sup" | "day-sup" 
     case "S5":
       return "night-hunter"
     case "S4":
+    case "S8":
       return "sunset-sup"
     case "S6":
     case "S7":
@@ -215,7 +216,7 @@ const STAFF_LIST = [
 ]
 
 function getPlanTone(planId: string): "emerald" | "purple" | "cyan" {
-  if (planId === "S2" || planId === "S5" || planId === "C2" || planId === "S7" || planId === "C4" || planId === "C6") return "purple"
+  if (planId === "S2" || planId === "S4" || planId === "S5" || planId === "C2" || planId === "S7" || planId === "C4" || planId === "C6") return "purple"
   if (planId === "S6" || planId === "slide-boat" || planId === "C3") return "cyan"
   return "emerald"
 }
@@ -491,7 +492,7 @@ export function BookingForm() {
     }
   }, [bookingData.adultCount, bookingData.childCount, bookingData.under3Count, bookingData.participants, createParticipants])
 
-  const isNightHunterPlan = bookingData.selectedPlan === "S3" || bookingData.selectedPlan === "S4" || bookingData.selectedPlan === "S5" || bookingData.selectedPlan === "S6" || bookingData.selectedPlan === "S7" || bookingData.selectedPlan === "slide-boat"
+  const isNightHunterPlan = bookingData.selectedPlan === "S3" || bookingData.selectedPlan === "S4" || bookingData.selectedPlan === "S5" || bookingData.selectedPlan === "S6" || bookingData.selectedPlan === "S7" || bookingData.selectedPlan === "S8" || bookingData.selectedPlan === "slide-boat"
   const isUnder3FreePlan = bookingData.selectedPlan === "S3" || bookingData.selectedPlan === "S5"
   // 昼夜セットはスタッフ指名不可。夜系プランも従来どおり指名不可。
   const isComboPlan = isComboPlanId(bookingData.selectedPlan)
@@ -1434,31 +1435,42 @@ export function BookingForm() {
               )
             })()}
 
-            {/* サンセットSUP */}
+            {/* サンセットSUP（通常・貸切） */}
             {(() => {
-              const s4 = BOOKING_PLANS.find(p => p.id === "S4")!
+              const s8 = BOOKING_PLANS.find(p => p.id === "S8")
+              const s4 = BOOKING_PLANS.find(p => p.id === "S4")
+              if (!s8) return null
+              const isS8Selected = bookingData.selectedPlan === "S8"
               const isS4Selected = bookingData.selectedPlan === "S4"
+              const isSunsetSelected = isS8Selected || isS4Selected
               return (
-                <label className={`block cursor-pointer rounded-2xl border-2 transition-all ${isS4Selected ? "border-emerald-500 shadow-lg" : "border-gray-200 hover:border-emerald-300"}`}>
-                  <input type="radio" name="plan" value="S4" checked={isS4Selected} onChange={(e) => handleInputChange("selectedPlan", e.target.value)} className="sr-only" />
+                <div className={`rounded-2xl border-2 transition-all ${isSunsetSelected ? isS4Selected ? "border-purple-500 shadow-lg bg-purple-50/30" : "border-orange-500 shadow-lg bg-orange-50/40" : "border-gray-200 hover:border-orange-300"}`}>
                   <div className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-gray-900 text-base">サンセットSUP</h3>
-                          <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">1日1組限定</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-sm text-gray-500">
-                          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{s4.durationHours}時間</span>
-                          <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />{s4.rating}</span>
-                        </div>
-                      </div>
-                      <div className="w-40">
-                        <BookingPlanPrice planId="S4" />
-                      </div>
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <h3 className="font-bold text-gray-900 text-base">サンセットSUP</h3>
+                      <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">映え度No.1</span>
+                    </div>
+                    <p className="text-xs text-gray-600 mb-1">夕日を浴びながらの海上散歩</p>
+                    <div className="flex items-center gap-3 text-sm text-gray-500 mb-3">
+                      <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{s8.durationHours}時間</span>
+                      <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />{s8.rating}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className={`cursor-pointer p-2 sm:p-3 rounded-xl border-2 text-center transition-all ${isS8Selected ? "border-orange-500 bg-orange-50" : "border-gray-200 hover:border-orange-300"}`}>
+                        <input type="radio" name="plan" value="S8" checked={isS8Selected} onChange={(e) => handleInputChange("selectedPlan", e.target.value)} className="sr-only" />
+                        <p className="text-xs text-gray-500 mb-0.5">通常プラン</p>
+                        <BookingPlanPrice planId="S8" className="mt-1" />
+                      </label>
+                      {s4 && (
+                        <label className={`cursor-pointer p-2 sm:p-3 rounded-xl border-2 text-center transition-all ${isS4Selected ? "border-purple-500 bg-purple-50" : "border-gray-200 hover:border-purple-300"}`}>
+                          <input type="radio" name="plan" value="S4" checked={isS4Selected} onChange={(e) => handleInputChange("selectedPlan", e.target.value)} className="sr-only" />
+                          <p className="text-xs text-purple-600 font-semibold mb-0.5">貸切プラン</p>
+                          <BookingPlanPrice planId="S4" className="mt-1" />
+                        </label>
+                      )}
                     </div>
                   </div>
-                </label>
+                </div>
               )
             })()}
 

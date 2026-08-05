@@ -16,7 +16,8 @@ export const PLAN_PRICE_DATA: Record<string, { price: number; childPrice?: numbe
   S1: { price: 6500, childPrice: 6000 },
   S2: { price: 9000, childPrice: 9000 },
   S3: { price: 4000, childPrice: 4000 },
-  S4: { price: 8000, childPrice: 6000 },
+  S4: { price: 9500, childPrice: 8500 },
+  S8: { price: 6500, childPrice: 5500 },
   S5: { price: 8000, childPrice: 8000 },
   S6: { price: 7500, childPrice: 6500 },
   S7: { price: 9500, childPrice: 8500 },
@@ -63,6 +64,8 @@ export function getPlanPriceDisplay(planId: string): PlanPriceDisplay | null {
     caption = "3歳以下無料"
   } else if (planId === "S2") {
     caption = "1名あたり・最大10名まで"
+  } else if (planId === "S4") {
+    caption = "1名あたり・1組貸切・最大10名まで"
   } else if (planId === "S6") {
     caption = "ドローン撮影付き"
   } else if (planId === "S7") {

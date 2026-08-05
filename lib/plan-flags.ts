@@ -25,9 +25,10 @@ export const STAFF_UNAVAILABLE_PLAN_IDS = new Set([
 ])
 // 開始時刻が固定でない（確定時にLINEで案内する）プラン
 // ※ S6/S7（ドローンSUP単品）は 2026-07 から希望時間を選択制に変更（DAY_SUP_TIMES）
-export const TIME_OPTIONAL_PLAN_IDS = new Set(["S4"])
+export const TIME_OPTIONAL_PLAN_IDS = new Set(["S4", "S8"])
 // 60歳以上をお断りするプラン（通常/グループ版のみ）。60歳以上は対応する貸切版へ案内する。
-// ※ S4サンセットSUP・slide-boat はペアが無いため対象外。貸切版(S2/S5/S7/C2/C4/C6)は60歳以上OK。
+// ※ slide-boat はペアが無いため対象外。貸切版(S2/S4/S5/S7/C2/C4/C6)は60歳以上OK。
+// ※ S8サンセットSUPは従来60歳以上も受け入れていたため、貸切版(S4)ができた後も制限しない。
 export const SENIOR_RESTRICTED_PLAN_IDS = new Set(["S1", "S3", "S6", "C1", "C3", "C5"])
 
 // グループ版 → 貸切版の対応（60歳以上の案内先）
@@ -35,6 +36,7 @@ export const PRIVATE_COUNTERPART: Record<string, { id: string; name: string }> =
   S1: { id: "S2", name: "【貸切】ウミガメシュノーケルツアー" },
   S3: { id: "S5", name: "【貸切】本格ナイトツアー" },
   S6: { id: "S7", name: "【貸切】宮古島ドローンSUP体験" },
+  S8: { id: "S4", name: "【貸切】サンセットSUP" },
   C1: { id: "C2", name: "【貸切】ウミガメシュノーケル＆ヤシガニ探検 昼夜セット" },
   C3: { id: "C4", name: "【貸切】ウミガメシュノーケル＆ドローンSUP 海空セット" },
   C5: { id: "C6", name: "【貸切】ウミガメシュノーケル＆ドローンSUP＆ナイトツアー まるごと1日セット" },

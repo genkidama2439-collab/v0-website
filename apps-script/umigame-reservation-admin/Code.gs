@@ -1668,6 +1668,9 @@ function addToCalendar(data, headcount) {
   var prefix = 'WEB';
   var color = '2';
 
+  // 絵文字・色は「何のツアーか」、prefixは「貸切かどうか」で決める。
+  // 以前は else-if で繋がっていたため、貸切のSUPプラン（【貸切】ドローンSUP・
+  // 【貸切】サンセットSUP）がSUPの枝で止まり WEB VIP が付かなかった。
   if (
     planName.indexOf('ナイトツアー') !== -1 ||
     planName.indexOf('ヤシガニ探検') !== -1
@@ -1678,8 +1681,9 @@ function addToCalendar(data, headcount) {
   } else if (planName.indexOf('SUP') !== -1) {
     emoji = '🏄';
     color = '6';
+  }
 
-  } else if (
+  if (
     planName.indexOf('VIP') !== -1 ||
     planName.indexOf('貸切') !== -1
   ) {

@@ -41,19 +41,19 @@ const ZH_PLANS_ALL: IntlPlanContent[] = [
   },
   {
     id: "S4",
-    name: "夕陽SUP——每日限定一組",
+    name: "包場夕陽SUP",
     tagline: "在魔幻時刻的金色海面上，乘著穩定的立式划槳板悠然滑行。",
     description: [
-      "在島上最好的位置——開闊的海面上，欣賞宮古島著名的夕陽。當天空從橘色轉為粉紅再到紫色,您可以輕輕划槳、坐下休息，或乾脆躺在板子上聽海浪聲。我們每天只接待一組客人，魔幻時刻完全屬於你們。",
+      "在島上最好的位置——開闊的海面上，欣賞宮古島著名的夕陽。當天空從橘色轉為粉紅再到紫色,您可以輕輕划槳、坐下休息，或乾脆躺在板子上聽海浪聲。本行程為包場行程，魔幻時刻完全屬於你們。",
       "沒玩過SUP？沒問題。我們使用穩定性極高的板子，嚮導會挑選平靜的地點，先在岸上教學——先坐著划，準備好了再站起來。以夕陽為背景的剪影照片是客人的最愛，所有照片影片全部免費。",
     ],
     highlights: [
-      "每天只接待一組——完全獨享的夕陽",
+      "包場行程——完全獨享的夕陽",
       "高穩定性板子，適合初學者的教學",
       "魔幻時刻剪影美照免費贈送",
       "海上悠閒時光約2小時",
     ],
-    included: ["SUP板、划槳與救生衣", "岸上教學", "所有照片影片檔案（免費、不限張數）", "保險"],
+    included: ["SUP板、划槳與救生衣", "防寒衣與度數面鏡（僅限成人尺寸）", "岸上教學", "所有照片影片檔案（免費、不限張數）", "保險"],
     whatToBring: ["泳衣（請穿在衣服裡）", "換洗衣物與毛巾", "防曬乳", "飲料", "涼鞋"],
     precautions: [
       "孕婦無法參加",
@@ -180,11 +180,11 @@ const ZH_GUIDE: IntlSectionsContent = {
 
 const ZH_HOME = {
   metaTitle: "宮古島海龜浮潛 | 海龜兄弟 Sea Turtle Brothers",
-  metaDescription: "宮古島的包場行程與每日限定一組的夕陽SUP。照片影片免費，前一天之前取消免費。海龜兄弟 Sea Turtle Brothers。",
+  metaDescription: "宮古島的包場行程與包場夕陽SUP。照片影片免費，前一天之前取消免費。海龜兄弟 Sea Turtle Brothers。",
   hero: {
     badge: "宮古島親子友善海洋行程",
     title: "在宮古島與海龜同游",
-    subtitle: "為初學者與家庭設計的包場行程，以及每日限定一組的夕陽SUP——照片影片免費，行程前一天之前取消免費。",
+    subtitle: "為初學者與家庭設計的包場行程，以及包場夕陽SUP——照片影片免費，行程前一天之前取消免費。",
   },
   trustItems: [
     "包場制行程，保險完備",
@@ -210,7 +210,7 @@ const ZH_HOME = {
     text: "LINE是免費通訊軟體，在台灣和日本都是最普及的聯絡方式，我們的預約確認與行前聯繫全都透過LINE進行。送出預約申請需要LINE帳號，若還沒有請先從App Store或Google Play下載（只需一分鐘）。請記得：預約需待工作人員透過LINE回覆後才算確認。如有問題或無法使用LINE，歡迎寄信至 info@umigamekyoudaimiyakojima.com 或致電 +81-80-5344-2439。",
   },
   toursHeading: "行程介紹",
-  toursIntro: "包場海龜浮潛、包場叢林夜間探險、包場空拍SUP，以及每日限定一組的夕陽SUP——暢遊宮古島海洋與自然的4種體驗。",
+  toursIntro: "包場海龜浮潛、包場叢林夜間探險、包場空拍SUP，以及包場夕陽SUP——暢遊宮古島海洋與自然的4種體驗。",
   faqHeading: "常見問題",
   faqIntro: "正在計畫第一次的宮古島浮潛？這裡整理了旅客最常問的問題——游泳能力、兒童參加、取消、付款等。",
   contactHeading: "有任何問題嗎？我們很樂意協助",
@@ -337,7 +337,7 @@ const ZH_COMMON: IntlCommonCopy = {
   plansMetaTitle: "行程・價格 | 海龜兄弟 Sea Turtle Brothers 宮古島",
   plansMetaDescription: "比較宮古島Sea Turtle Brothers的行程：浮潛、包場行程、夜間探險與SUP。照片影片免費，前一天之前取消免費。",
   plansTitle: "宮古島行程・價格",
-  plansIntro: "包場海龜浮潛、包場叢林夜間探險、包場空拍SUP，以及每日限定一組的夕陽SUP。所有行程均含免費照片影片，行程前一天之前取消免費。",
+  plansIntro: "包場海龜浮潛、包場叢林夜間探險、包場空拍SUP，以及包場夕陽SUP。所有行程均含免費照片影片，行程前一天之前取消免費。",
   faqMetaTitle: "常見問題 | 海龜兄弟 Sea Turtle Brothers 宮古島",
   faqMetaDescription: "宮古島Sea Turtle Brothers行程的常見問題：游泳能力、兒童參加、攜帶物品、取消、天候、付款等。",
   faqTitle: "常見問題",

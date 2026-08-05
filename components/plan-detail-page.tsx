@@ -548,7 +548,7 @@ function InfoSection({ plan }: { plan: PlanDetail }) {
               <p className="text-xs text-gray-500">
                 <span className="font-semibold text-gray-700">集合時間:</span> {plan.meetingTime}
               </p>
-              {plan.id === "S4" && <SunsetMonthlyGuide locale="ja" />}
+              {(plan.id === "S4" || plan.id === "S8") && <SunsetMonthlyGuide locale="ja" />}
             </div>
           </motion.div>
 
@@ -824,7 +824,8 @@ const otherPlansMeta: Record<string, { name: string; tagline: string; price: str
   S1: { name: "ウミガメシュノーケル", tagline: "安全管理徹底の少人数制ツアー", price: "¥6,000〜", badge: "一番人気", badgeColor: "bg-yellow-400 text-yellow-900" },
   S2: { name: "【貸切】ウミガメシュノーケル", tagline: "ウミガメシュノーケルを完全貸切で", price: "¥9,000", badge: "貸切プラン", badgeColor: "bg-purple-500 text-white" },
   S3: { name: "本格ナイトツアー", tagline: "夜の大冒険へ出かけよう", price: "¥4,000", badge: "家族人気No.1", badgeColor: "bg-emerald-500 text-white" },
-  S4: { name: "サンセットSUP【1日1組限定】", tagline: "1日1組だけの特別な夕日体験", price: "¥6,000〜", badge: "映え度No.1", badgeColor: "bg-orange-500 text-white" },
+  S4: { name: "【貸切】サンセットSUP", tagline: "1組貸切だけの特別な夕日体験", price: "¥8,500〜", badge: "貸切", badgeColor: "bg-purple-600 text-white" },
+  S8: { name: "サンセットSUP", tagline: "夕日を浴びながらの海上散歩", price: "¥6,500〜", badge: "映え度No.1", badgeColor: "bg-orange-500 text-white" },
   S5: { name: "【貸切】本格ナイトツアー", tagline: "専属ガイドとプライベート冒険", price: "¥8,000", badge: "貸切プラン", badgeColor: "bg-violet-500 text-white" },
   S6: { name: "宮古島ドローンSUP体験", tagline: "日中の宮古ブルーを空撮で残す", price: "¥6,500〜", badge: "ドローン撮影付き", badgeColor: "bg-cyan-600 text-white" },
   S7: { name: "【貸切】宮古島ドローンSUP体験", tagline: "1組貸切で日中のドローンSUP", price: "¥8,500〜", badge: "完全貸切", badgeColor: "bg-violet-500 text-white" },
@@ -926,12 +927,13 @@ function FloatingPlanNav({ currentId }: { currentId: string }) {
     setVisible(latest > 600)
   })
 
-  const allIds = ["S1", "S2", "S3", "S4", "S6", "S7", "S5", "C1", "C2", "C3", "C4", "C5", "C6", "slide-boat"]
+  const allIds = ["S1", "S2", "S3", "S8", "S4", "S6", "S7", "S5", "C1", "C2", "C3", "C4", "C5", "C6", "slide-boat"]
   const shortNames: Record<string, string> = {
     S1: "シュノーケル",
     S2: "貸切シュノーケル",
     S3: "ナイト",
     S4: "SUP",
+    S8: "SUP",
     S6: "ドローンSUP",
     S7: "貸切ドローンSUP",
     S5: "貸切ナイト",

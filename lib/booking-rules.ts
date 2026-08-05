@@ -14,6 +14,7 @@ export type BookingRuleIssue =
 // フォームとAPIが同じ上限を使うため、ここを単一ソースにする。
 export const PLAN_MAX_PARTICIPANTS: Readonly<Record<string, number>> = {
   S2: 10,
+  S4: 10,
   S7: 10,
   C2: 10,
   C4: 10,

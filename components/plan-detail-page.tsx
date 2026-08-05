@@ -825,7 +825,7 @@ const otherPlansMeta: Record<string, { name: string; tagline: string; price: str
   S2: { name: "【貸切】ウミガメシュノーケル", tagline: "ウミガメシュノーケルを完全貸切で", price: "¥9,000", badge: "貸切プラン", badgeColor: "bg-purple-500 text-white" },
   S3: { name: "本格ナイトツアー", tagline: "夜の大冒険へ出かけよう", price: "¥4,000", badge: "家族人気No.1", badgeColor: "bg-emerald-500 text-white" },
   S4: { name: "【貸切】サンセットSUP", tagline: "1組貸切だけの特別な夕日体験", price: "¥8,500〜", badge: "貸切", badgeColor: "bg-purple-600 text-white" },
-  S8: { name: "サンセットSUP", tagline: "夕日を浴びながらの海上散歩", price: "¥5,500〜", badge: "映え度No.1", badgeColor: "bg-orange-500 text-white" },
+  S8: { name: "サンセットSUP", tagline: "夕日を浴びながらの海上散歩", price: "¥6,500〜", badge: "映え度No.1", badgeColor: "bg-orange-500 text-white" },
   S5: { name: "【貸切】本格ナイトツアー", tagline: "専属ガイドとプライベート冒険", price: "¥8,000", badge: "貸切プラン", badgeColor: "bg-violet-500 text-white" },
   S6: { name: "宮古島ドローンSUP体験", tagline: "日中の宮古ブルーを空撮で残す", price: "¥6,500〜", badge: "ドローン撮影付き", badgeColor: "bg-cyan-600 text-white" },
   S7: { name: "【貸切】宮古島ドローンSUP体験", tagline: "1組貸切で日中のドローンSUP", price: "¥8,500〜", badge: "完全貸切", badgeColor: "bg-violet-500 text-white" },

@@ -137,8 +137,8 @@ const tours: Tour[] = [
       {
         id: "S8",
         label: "通常プラン",
-        price: "¥6,500",
-        priceNote: "子供¥5,500",
+        price: "¥7,500",
+        priceNote: "子供¥6,500",
         highlights: ["マジックアワー体験", "シルエット写真撮影", "初心者OK", "少人数制"],
         included: ["SUPボード", "パドル", "ライフジャケット", "写真・動画データ", "保険"],
       },

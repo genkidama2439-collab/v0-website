@@ -42,6 +42,14 @@ export const PRIVATE_COUNTERPART: Record<string, { id: string; name: string }> =
 // 60歳以上の案内先（貸切版）の名前を返す。対象外は空文字。
 export const getPrivateCounterpartName = (planId: string): string =>
   PRIVATE_COUNTERPART[planId]?.name || ""
+
+// 貸切プランのID。PRIVATE_COUNTERPART から導出するので、貸切版を足したときに
+// ここへ書き足す必要がない（レンタル無料の設定漏れを繰り返さないための単一ソース）。
+export const PRIVATE_PLAN_IDS: ReadonlySet<string> = new Set(
+  Object.values(PRIVATE_COUNTERPART).map((counterpart) => counterpart.id),
+)
+
+export const isPrivatePlan = (planId: string): boolean => PRIVATE_PLAN_IDS.has(planId)
 // 3歳以下が無料で参加できるプラン（ナイトツアー）
 export const FREE_UNDER3_PLAN_IDS = new Set(["S3", "S5"])
 

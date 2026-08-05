@@ -1,11 +1,15 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronUp, MessageSquare, Phone } from "lucide-react"
+import { ArrowRight, ChevronDown, ChevronUp, MessageSquare, Phone } from "lucide-react"
 import type { FAQ } from "@/lib/data"
 import { trackEvent } from "@/lib/analytics"
+
+const faqLinkClassName =
+  "mt-3 inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
 
 export function FAQSection({ faqs }: { faqs: FAQ[] }) {
   const [openItems, setOpenItems] = useState<Set<number>>(new Set([0])) // First item open by default
@@ -52,6 +56,26 @@ export function FAQSection({ faqs }: { faqs: FAQ[] }) {
                   <div id={`faq-answer-${index}`} className="px-6 pb-6">
                     <div className="border-t border-emerald-100 pt-4">
                       <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
+                      {faq.link &&
+                        (faq.link.href.startsWith("http") ? (
+                          // 外部サイト（宮古レジン等）。別タブで開き、rel で参照元を渡さない。
+                          // 外部リンクのクリックは DetailedAnalytics が自動で計測する。
+                          <a
+                            href={faq.link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-analytics-location="faq"
+                            className={faqLinkClassName}
+                          >
+                            {faq.link.label}
+                            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                          </a>
+                        ) : (
+                          <Link href={faq.link.href} className={faqLinkClassName}>
+                            {faq.link.label}
+                            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                          </Link>
+                        ))}
                     </div>
                   </div>
                 )}

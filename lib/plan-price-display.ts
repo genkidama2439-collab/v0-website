@@ -65,8 +65,8 @@ export function getPlanPriceDisplay(planId: string): PlanPriceDisplay | null {
   } else if (planId === "S2") {
     caption = "1名あたり・最大10名まで"
   } else if (planId === "S4") {
-    caption = "1名あたり・1組貸切・最大10名まで"
-  } else if (planId === "S6") {
+    caption = "1組貸切・ドローン撮影付き"
+  } else if (planId === "S6" || planId === "S8") {
     caption = "ドローン撮影付き"
   } else if (planId === "S7") {
     caption = "1組貸切・ドローン撮影付き"

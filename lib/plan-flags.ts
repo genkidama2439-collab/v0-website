@@ -28,8 +28,7 @@ export const STAFF_UNAVAILABLE_PLAN_IDS = new Set([
 export const TIME_OPTIONAL_PLAN_IDS = new Set(["S4", "S8"])
 // 60歳以上をお断りするプラン（通常/グループ版のみ）。60歳以上は対応する貸切版へ案内する。
 // ※ slide-boat はペアが無いため対象外。貸切版(S2/S4/S5/S7/C2/C4/C6)は60歳以上OK。
-// ※ S8サンセットSUPは従来60歳以上も受け入れていたため、貸切版(S4)ができた後も制限しない。
-export const SENIOR_RESTRICTED_PLAN_IDS = new Set(["S1", "S3", "S6", "C1", "C3", "C5"])
+export const SENIOR_RESTRICTED_PLAN_IDS = new Set(["S1", "S3", "S6", "S8", "C1", "C3", "C5"])
 
 // グループ版 → 貸切版の対応（60歳以上の案内先）
 export const PRIVATE_COUNTERPART: Record<string, { id: string; name: string }> = {

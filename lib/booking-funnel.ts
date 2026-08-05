@@ -195,14 +195,25 @@ export type ValidationActionType = "submit" | "next_step" | "unknown"
 const firedOnce = new Set<string>()
 const lastSignature = new Map<string, string>()
 
-/** 同じキーで初回だけ true。React Strict Mode の二重呼び出しを吸収する。 */
+/**
+ * 同じキーで初回だけ true。React Strict Mode の二重呼び出しを吸収する。
+ *
+ * ファネルの各ステージはこれを使い「1回のページ表示につき1回まで」にする。
+ * 以前は値が変わるたびに再送していたため、人数を1回増やすたびに「料金表示」が
+ * 積み上がり、到達率が360%といった読めない値になっていた。
+ * ファネルは「何回起きたか」ではなく「何人が到達したか」を数える必要がある。
+ */
 export function claimOnce(key: string): boolean {
   if (firedOnce.has(key)) return false
   firedOnce.add(key)
   return true
 }
 
-/** 同じキーで「前回と違う内容のときだけ」true。値を戻した往復の再送信を防ぐ。 */
+/**
+ * 同じキーで「前回と違う内容のときだけ」true。値を戻した往復の再送信を防ぐ。
+ * ファネルのステージには使わない（上の claimOnce を使う）。
+ * 不足項目の組み合わせのように、内容が変わるたびに知りたいものだけに使う。
+ */
 export function claimChanged(key: string, signature: string): boolean {
   if (lastSignature.get(key) === signature) return false
   lastSignature.set(key, signature)
@@ -373,7 +384,7 @@ export function trackPlanSelected(params: {
   locale: string
   selectionSource: PlanSelectionSource
 }): void {
-  if (!claimChanged("booking_plan_selected", params.planId)) return
+  if (!claimOnce("booking_plan_selected")) return
   emit("booking_plan_selected", {
     plan: params.planId,
     locale: params.locale,
@@ -386,8 +397,7 @@ export function trackDateSelected(params: {
   locale: string
   bookingTiming: BookingTiming
 }): void {
-  // 日付そのものは署名に使わない。区分が変わったときだけ送る。
-  if (!claimChanged("booking_date_selected", `${params.planId}|${params.bookingTiming}`)) return
+  if (!claimOnce("booking_date_selected")) return
   emit("booking_date_selected", {
     plan: params.planId,
     locale: params.locale,
@@ -400,7 +410,7 @@ export function trackTimeSelected(params: {
   locale: string
   timeSlot: string
 }): void {
-  if (!claimChanged("booking_time_selected", `${params.planId}|${params.timeSlot}`)) return
+  if (!claimOnce("booking_time_selected")) return
   emit("booking_time_selected", {
     plan: params.planId,
     locale: params.locale,
@@ -415,8 +425,7 @@ export function trackParticipantsCompleted(params: {
   under3Count: number
 }): void {
   const participantCount = params.adultCount + params.childCount + params.under3Count
-  const signature = `${params.planId}|${params.adultCount}|${params.childCount}|${params.under3Count}`
-  if (!claimChanged("booking_participants_completed", signature)) return
+  if (!claimOnce("booking_participants_completed")) return
 
   emit("booking_participants_completed", {
     plan: params.planId,
@@ -435,8 +444,7 @@ export function trackPriceConfirmed(params: {
   staffRequestApplied: boolean
   participantCount: number
 }): void {
-  const signature = `${params.planId}|${params.participantCount}|${params.totalAmount}`
-  if (!claimChanged("booking_price_confirmed", signature)) return
+  if (!claimOnce("booking_price_confirmed")) return
 
   // クーポンコード・スタッフ名は送らない。適用の有無だけ。
   emit("booking_price_confirmed", {
@@ -454,8 +462,7 @@ export function trackRepresentativeCompleted(params: {
   lineAuthenticated: boolean
   contactRequirementsCompleted: boolean
 }): void {
-  const signature = `${params.planId}|${params.lineAuthenticated}|${params.contactRequirementsCompleted}`
-  if (!claimChanged("booking_representative_completed", signature)) return
+  if (!claimOnce("booking_representative_completed")) return
 
   // 氏名・電話番号・メールの実値は送らない。充足しているかどうかだけ。
   emit("booking_representative_completed", {
@@ -485,8 +492,7 @@ export function trackParticipantDetailsCompleted(params: {
   wetsuitRequested: number
   prescriptionMaskRequested: number
 }): void {
-  const signature = `${params.planId}|${params.participantCount}|${params.wetsuitRequested}|${params.prescriptionMaskRequested}`
-  if (!claimChanged("booking_participant_details_completed", signature)) return
+  if (!claimOnce("booking_participant_details_completed")) return
 
   // 参加者名・年齢・身長・体重・足サイズは送らない。レンタルは希望人数だけ。
   emit("booking_participant_details_completed", {
@@ -504,6 +510,7 @@ export function trackSubmitClicked(params: {
   lineAuthenticated: boolean
   locale: string
 }): void {
+  if (!claimOnce("booking_submit_clicked")) return
   emit("booking_submit_clicked", {
     plan: params.planId,
     headcount: params.participantCount,

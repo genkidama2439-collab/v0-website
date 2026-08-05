@@ -275,6 +275,15 @@ function emit(name: Parameters<typeof sendDetailedEvent>[0], props: AnalyticsEve
   safeSend(() => sendDetailedEvent(name, props))
 }
 
+// 送信直後にページを離れるイベント用。fetch(keepalive) だと遷移に負けて
+// 取りこぼすことが実データで確認できたため、sendBeacon を優先する。
+function emitBeforeNavigation(
+  name: Parameters<typeof sendDetailedEventBeacon>[0],
+  props: AnalyticsEventProperties,
+): void {
+  safeSend(() => sendDetailedEventBeacon(name, props))
+}
+
 // ---- LINEログイン --------------------------------------------------------
 
 /** 実際に認証URLへの遷移処理を開始できたときだけ呼ぶ。 */
@@ -282,7 +291,7 @@ export function trackLineLoginRedirectStarted(params: {
   redirectMethod: RedirectMethod
 }): void {
   markLineLoginRedirectInProgress()
-  emit("line_login_redirect_started", { redirect_method: params.redirectMethod })
+  emitBeforeNavigation("line_login_redirect_started", { redirect_method: params.redirectMethod })
 }
 
 /** LINE認証から戻ったと判定できたときに、成功・失敗にかかわらず呼ぶ。 */
@@ -341,7 +350,7 @@ export function trackBookingFormView(params: {
 }
 
 export function trackLineLoginClick(params: { location: string; locale: string }): void {
-  emit("line_login_click", { location: params.location, locale: params.locale })
+  emitBeforeNavigation("line_login_click", { location: params.location, locale: params.locale })
 }
 
 export function trackBookingStarted(params: {

@@ -703,6 +703,11 @@ const FUNNEL_STAGES = Object.freeze([
   ['参加者詳細完了', 'booking_participant_details_completed'],
   ['送信クリック', 'booking_submit_clicked'],
   ['予約完了', 'booking_submitted'],
+]);
+
+// 予約失敗は「予約完了の次の段階」ではないため、順番の流れには入れない。
+// 送信クリックに対する割合として別枠で出す。
+const FUNNEL_SIDE_STAGES = Object.freeze([
   ['予約失敗', 'booking_failed'],
 ]);
 
@@ -722,9 +727,16 @@ function configureFunnelSheet_(sheet) {
     ['プランID'],
     ['流入元(UTM Source)'],
   ]);
-  sheet.getRange('B2').setFormula('=TODAY()-29');
+  sheet.getRange('B2').setFormula('=MAX(TODAY()-29,DATE(2026,8,5))');
   sheet.getRange('B3').setFormula('=TODAY()');
   sheet.getRange('B2:B3').setNumberFormat('yyyy-mm-dd');
+
+  // ステージ別イベントは2026-08-05から記録開始。それ以前を含めると、
+  // 古くからある予約入力開始・予約完了だけ件数が多くなり率が壊れる。
+  sheet
+    .getRange('D2')
+    .setValue('※ ステージ別の計測は2026-08-05開始。開始日をそれ以前にすると到達率が正しく出ません。');
+  sheet.getRange('D2').setFontColor('#b45309');
 
   sheet.getRange('A10:E10').setValues([[
     'ステージ', '件数', '前ステージからの到達率', '前ステージからの離脱数', 'フォーム表示からの到達率',
@@ -771,23 +783,45 @@ function configureFunnelSheet_(sheet) {
 
   const lastRow = 10 + rows.length;
 
+  // 予約失敗は流れの途中ではないので、送信クリックに対する割合として別枠で出す。
+  const submitClickedRow = 11 + FUNNEL_STAGES.length - 2; // 送信クリック
+  sheet.getRange(lastRow + 1, 1).setValue('予約失敗（送信クリックのうち）');
+  sheet.getRange(lastRow + 1, 8).setValue(FUNNEL_SIDE_STAGES[0][1]);
+  sheet.getRange(lastRow + 1, 2).setFormula(
+    '=SUMPRODUCT(' +
+      "('イベントデータ'!$B$2:$B=$H" + (lastRow + 1) + ')*' +
+      "(('イベントデータ'!$A$2:$A>=$B$2)+($B$2=\"\")>0)*" +
+      "(('イベントデータ'!$A$2:$A<$B$3+1)+($B$3=\"\")>0)*" +
+      "(('イベントデータ'!$E$2:$E=$B$4)+($B$4=\"\")>0)*" +
+      "(('イベントデータ'!$O$2:$O=$B$5)+($B$5=\"\")>0)*" +
+      "(('イベントデータ'!$D$2:$D=$B$6)+($B$6=\"\")>0)*" +
+      "(('イベントデータ'!$U$2:$U=$B$7)+($B$7=\"\")>0)*" +
+      "(('イベントデータ'!$J$2:$J=$B$8)+($B$8=\"\")>0)" +
+    ')'
+  );
+  sheet
+    .getRange(lastRow + 1, 3)
+    .setFormula('=IFERROR(B' + (lastRow + 1) + '/B' + submitClickedRow + ',"")');
+  sheet.getRange(lastRow + 1, 2).setNumberFormat('#,##0');
+  sheet.getRange(lastRow + 1, 3).setNumberFormat('0.0%');
+
   // 離脱の内訳。どのステージで止まったか・何が足りなかったか。
-  sheet.getRange('A' + (lastRow + 2)).setValue('離脱したステージ');
-  sheet.getRange('A' + (lastRow + 3)).setFormula(
+  sheet.getRange('A' + (lastRow + 3)).setValue('離脱したステージ');
+  sheet.getRange('A' + (lastRow + 4)).setFormula(
     '=QUERY(\'イベントデータ\'!A:BK,"select AP,count(B) ' +
       'where B=\'booking_abandoned\' and AP is not null group by AP order by count(B) desc ' +
       'label AP \'ステージ\',count(B) \'件数\'",1)'
   );
 
-  sheet.getRange('D' + (lastRow + 2)).setValue('不足していた項目種別');
-  sheet.getRange('D' + (lastRow + 3)).setFormula(
+  sheet.getRange('D' + (lastRow + 3)).setValue('不足していた項目種別');
+  sheet.getRange('D' + (lastRow + 4)).setFormula(
     '=QUERY(\'イベントデータ\'!A:BK,"select BH,count(B) ' +
       'where B=\'booking_validation_error\' and BH is not null group by BH order by count(B) desc ' +
       'label BH \'不足項目種別\',count(B) \'件数\'",1)'
   );
 
-  sheet.getRange('G' + (lastRow + 2)).setValue('LINEログインの結果');
-  sheet.getRange('G' + (lastRow + 3)).setFormula(
+  sheet.getRange('G' + (lastRow + 3)).setValue('LINEログインの結果');
+  sheet.getRange('G' + (lastRow + 4)).setFormula(
     '=QUERY(\'イベントデータ\'!A:BK,"select AT,count(B) ' +
       'where B=\'line_login_returned\' and AT is not null group by AT order by count(B) desc ' +
       'label AT \'戻り結果\',count(B) \'件数\'",1)'
@@ -796,9 +830,10 @@ function configureFunnelSheet_(sheet) {
   sheet.getRangeList([
     'A1:B1',
     'A10:E10',
-    'A' + (lastRow + 2),
-    'D' + (lastRow + 2),
-    'G' + (lastRow + 2),
+    'A' + (lastRow + 1),
+    'A' + (lastRow + 3),
+    'D' + (lastRow + 3),
+    'G' + (lastRow + 3),
   ])
     .setBackground('#0f766e')
     .setFontColor('#ffffff')
@@ -837,7 +872,9 @@ function configureFunnelMonthlySheet_(sheet) {
   sheet.clear();
   sheet.setHiddenGridlines(true);
 
-  const stageCount = FUNNEL_STAGES.length;
+  // 月別は順番の流れではなく件数の比較なので、失敗も列に含める
+  const monthlyStages = FUNNEL_STAGES.concat(FUNNEL_SIDE_STAGES);
+  const stageCount = monthlyStages.length;
   const firstStageCol = 2;
   const lastStageCol = firstStageCol + stageCount - 1;
   const startedCol = columnLetter_(firstStageCol + 5); // 予約入力開始
@@ -846,7 +883,7 @@ function configureFunnelMonthlySheet_(sheet) {
 
   // 見出し（1行目）
   const headers = ['月'].concat(
-    FUNNEL_STAGES.map(function (stage) {
+    monthlyStages.map(function (stage) {
       return stage[0];
     })
   );
@@ -857,7 +894,7 @@ function configureFunnelMonthlySheet_(sheet) {
   // イベント名を最下部の隠し行に置き、各列の数式から参照する
   const eventNameRow = 2 + FUNNEL_MONTHS + 1;
   sheet.getRange(eventNameRow, firstStageCol, 1, stageCount).setValues([
-    FUNNEL_STAGES.map(function (stage) {
+    monthlyStages.map(function (stage) {
       return stage[1];
     }),
   ]);

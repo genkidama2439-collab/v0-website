@@ -92,15 +92,9 @@ export function buildDetailedEvent(
   }
 }
 
-export function sendDetailedEvent(
-  name: AnalyticsEventName,
-  properties: AnalyticsEventProperties = {},
-  utmOverride?: DetailedEventUtmOverride,
-): void {
-  const event = buildDetailedEvent(name, properties, utmOverride)
-  if (!event) return
-
-  trackEvent(name, {
+// GA4 / Vercel Analytics へ送る。転送方式（fetch / sendBeacon）に関係なく共通。
+function forwardToAnalyticsClients(event: DetailedAnalyticsEvent): void {
+  trackEvent(event.event_name, {
     ...event.properties,
     page_path: event.page_path,
     locale: event.locale,
@@ -120,39 +114,21 @@ export function sendDetailedEvent(
     screen_height: event.screen_height,
     connection_type: event.connection_type,
   })
-
-  void fetch("/api/analytics/events", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(event),
-    credentials: "same-origin",
-    keepalive: true,
-  }).catch(() => undefined)
 }
 
-/**
- * ページが閉じられる直前（pagehide）に送るイベント用。
- * sendBeacon はタブが破棄されても送信が保証されやすく、fetch(keepalive) より確実。
- * 使えない環境では keepalive 付き fetch へ落とす。
- *
- * 計測は予約操作を妨げてはいけないため、失敗しても例外を投げず何も表示しない。
- */
-export function sendDetailedEventBeacon(
-  name: AnalyticsEventName,
-  properties: AnalyticsEventProperties = {},
-): void {
-  const event = buildDetailedEvent(name, properties)
-  if (!event) return
-
+// スプレッドシートへ送る。計測は予約操作を妨げてはいけないため、失敗しても投げない。
+function deliverToSheet(event: DetailedAnalyticsEvent, preferBeacon: boolean): void {
   const body = JSON.stringify(event)
 
-  try {
-    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-      const blob = new Blob([body], { type: "application/json" })
-      if (navigator.sendBeacon("/api/analytics/events", blob)) return
+  if (preferBeacon) {
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        const blob = new Blob([body], { type: "application/json" })
+        if (navigator.sendBeacon("/api/analytics/events", blob)) return
+      }
+    } catch {
+      // sendBeacon が使えない・拒否された場合は下の fetch へフォールバックする
     }
-  } catch {
-    // sendBeacon が使えない・拒否された場合は下の fetch にフォールバックする
   }
 
   try {
@@ -164,6 +140,37 @@ export function sendDetailedEventBeacon(
       keepalive: true,
     }).catch(() => undefined)
   } catch {
-    // 離脱時の計測が落ちても、ユーザーの操作には一切影響させない
+    // 計測の失敗をユーザーの操作へ波及させない
   }
+}
+
+export function sendDetailedEvent(
+  name: AnalyticsEventName,
+  properties: AnalyticsEventProperties = {},
+  utmOverride?: DetailedEventUtmOverride,
+): void {
+  const event = buildDetailedEvent(name, properties, utmOverride)
+  if (!event) return
+
+  forwardToAnalyticsClients(event)
+  deliverToSheet(event, false)
+}
+
+/**
+ * 直後にページを離れるイベント用（pagehide、LINEログインのリダイレクト等）。
+ * sendBeacon はページが破棄されても送信が保証されやすく、fetch(keepalive) より確実。
+ *
+ * line_login_click が0件なのに line_login_redirect_started が記録されるという
+ * 取りこぼしが実データで出たため、遷移直前のイベントはこちらを使う。
+ */
+export function sendDetailedEventBeacon(
+  name: AnalyticsEventName,
+  properties: AnalyticsEventProperties = {},
+  utmOverride?: DetailedEventUtmOverride,
+): void {
+  const event = buildDetailedEvent(name, properties, utmOverride)
+  if (!event) return
+
+  forwardToAnalyticsClients(event)
+  deliverToSheet(event, true)
 }

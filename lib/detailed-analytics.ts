@@ -129,3 +129,41 @@ export function sendDetailedEvent(
     keepalive: true,
   }).catch(() => undefined)
 }
+
+/**
+ * ページが閉じられる直前（pagehide）に送るイベント用。
+ * sendBeacon はタブが破棄されても送信が保証されやすく、fetch(keepalive) より確実。
+ * 使えない環境では keepalive 付き fetch へ落とす。
+ *
+ * 計測は予約操作を妨げてはいけないため、失敗しても例外を投げず何も表示しない。
+ */
+export function sendDetailedEventBeacon(
+  name: AnalyticsEventName,
+  properties: AnalyticsEventProperties = {},
+): void {
+  const event = buildDetailedEvent(name, properties)
+  if (!event) return
+
+  const body = JSON.stringify(event)
+
+  try {
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      const blob = new Blob([body], { type: "application/json" })
+      if (navigator.sendBeacon("/api/analytics/events", blob)) return
+    }
+  } catch {
+    // sendBeacon が使えない・拒否された場合は下の fetch にフォールバックする
+  }
+
+  try {
+    void fetch("/api/analytics/events", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+      credentials: "same-origin",
+      keepalive: true,
+    }).catch(() => undefined)
+  } catch {
+    // 離脱時の計測が落ちても、ユーザーの操作には一切影響させない
+  }
+}

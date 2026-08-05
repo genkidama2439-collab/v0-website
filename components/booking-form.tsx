@@ -7,6 +7,32 @@ import { useLiff } from "./liff-provider"
 import { categorizeBookingFailure, trackEvent } from "@/lib/analytics"
 import { sendDetailedEvent } from "@/lib/detailed-analytics"
 import { getAttribution, getAttributionSourceLabel } from "@/lib/attribution"
+import {
+  claimOnce,
+  daysUntilDate,
+  isLineLoginRedirectInProgress,
+  toBookingFailureStage,
+  toBookingTiming,
+  trackBookingAbandoned,
+  trackBookingFormView,
+  trackBookingStarted as trackBookingStartedEvent,
+  trackDateSelected,
+  trackLineLoginClick,
+  trackLineLoginSucceeded,
+  trackParticipantDetailsCompleted,
+  trackParticipantDetailsStarted,
+  trackParticipantsCompleted,
+  trackPlanSelected,
+  trackPriceConfirmed,
+  trackRepresentativeCompleted,
+  trackSubmitClicked,
+  trackTimeSelected,
+  trackValidationError,
+  type BookingStage,
+  type FirstInteractionType,
+  type FormRestoreResult,
+  type MissingFieldCategory,
+} from "@/lib/booking-funnel"
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
@@ -109,6 +135,53 @@ function clearBookingDraft(): void {
   try {
     window.sessionStorage.removeItem(BOOKING_DRAFT_KEY)
   } catch {}
+}
+
+// LINEログインの往復で下書きが戻ったかを判定するための「埋まっていた項目数」。
+// 分析へ送るのは fully/partially/not_restored の区分だけで、入力値も項目名も保存しない。
+const RESTORE_PROBE_KEY = "booking-form-restore-probe"
+
+function countFilledFields(data: BookingData): number {
+  const flags = [
+    !!data.selectedPlan,
+    !!data.selectedDate,
+    !!data.selectedTime,
+    !!data.nightTime,
+    data.adultCount > 0,
+    data.childCount > 0,
+    data.under3Count > 0,
+    !!data.selectedStaff,
+    !!data.customerName,
+    !!data.customerPhone,
+    !!data.specialRequests,
+    data.agreedToTerms,
+    data.participants.some((participant) => typeof participant.age === "number"),
+    data.participants.some((participant) => typeof participant.footSize === "number"),
+  ]
+  return flags.filter(Boolean).length
+}
+
+function saveRestoreProbe(data: BookingData): void {
+  try {
+    window.sessionStorage.setItem(RESTORE_PROBE_KEY, String(countFilledFields(data)))
+  } catch {}
+}
+
+function readRestoreProbeResult(data: BookingData): FormRestoreResult {
+  let before = Number.NaN
+  try {
+    before = Number(window.sessionStorage.getItem(RESTORE_PROBE_KEY))
+  } catch {
+    return "unknown"
+  }
+
+  if (!Number.isFinite(before)) return "unknown"
+  if (before === 0) return "not_applicable"
+
+  const after = countFilledFields(data)
+  if (after >= before) return "fully_restored"
+  if (after > 0) return "partially_restored"
+  return "not_restored"
 }
 
 function getPlanType(planId: string): "night-hunter" | "sunset-sup" | "day-sup" | "slide-boat" | "other" {
@@ -238,6 +311,16 @@ export function BookingForm() {
         ...(canPreselectPlan && planParam ? { selectedPlan: planParam } : {}),
         ...(dateParam && { selectedDate: dateParam }),
       }))
+
+      // URLやCTA経由の初期選択も、フォーム表示後に1回だけ記録する（入力開始とは別扱い）
+      if (canPreselectPlan && planParam) {
+        trackPlanSelected({
+          planId: planParam,
+          locale: "ja",
+          selectionSource:
+            searchParams?.get("utm_medium") === "article_cta" ? "article_cta" : "url_parameter",
+        })
+      }
     }
   }, [searchParams])
 
@@ -245,10 +328,12 @@ export function BookingForm() {
   useEffect(() => {
     if (isSubmitted) return
     saveBookingDraft(bookingData)
+    // 復元判定用に「埋まっている項目数」も併せて控える（値は保存しない）
+    saveRestoreProbe(bookingData)
   }, [bookingData, isSubmitted])
 
   // プロフィールは表示専用。予約APIにはサーバー検証用のID tokenだけを送る。
-  const { lineUserId: liffUserId, lineDisplayName: liffDisplayName, lineIdToken, isLiffReady, isLiffLoggedIn, isInClient, liffError, loginLiff, retryLiff, closeWindow, getFreshLineIdToken, invalidateLineSession } = useLiff()
+  const { lineUserId: liffUserId, lineDisplayName: liffDisplayName, lineIdToken, isLiffReady, isLiffLoggedIn, isInClient, liffError, loginLiff, retryLiff, closeWindow, getFreshLineIdToken, invalidateLineSession, consumeLineLoginReturn } = useLiff()
   const hasFreshLineSession = isLiffLoggedIn && !!liffUserId && !!lineIdToken
 
   // フォーム表示を1回だけ計測（LIFF準備完了時点のログイン状態付き）。
@@ -257,8 +342,29 @@ export function BookingForm() {
   useEffect(() => {
     if (hasTrackedFormView.current || !isLiffReady) return
     hasTrackedFormView.current = true
-    trackEvent("booking_form_view", { locale: "ja", line_logged_in: hasFreshLineSession, source: getAttributionSourceLabel() })
+    trackBookingFormView({
+      locale: "ja",
+      lineAuthenticated: hasFreshLineSession,
+      source: getAttributionSourceLabel(),
+    })
   }, [isLiffReady, hasFreshLineSession])
+
+  // LINE認証から戻った直後に、セッションが有効かと下書きが戻ったかを1回だけ記録する。
+  // 復元の判定には「埋まっていた項目数」だけを使い、入力値そのものは一切参照しない。
+  useEffect(() => {
+    if (!isLiffReady) return
+    const lineReturn = consumeLineLoginReturn()
+    if (!lineReturn) return
+    if (!hasFreshLineSession) return
+
+    trackLineLoginSucceeded({
+      returnPath: lineReturn.returnPath,
+      sessionFresh: true,
+      formRestored: readRestoreProbeResult(bookingData),
+    })
+    // bookingData は復元直後の1回だけ読むため依存に入れない（毎回の再送信を避ける）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLiffReady, hasFreshLineSession, consumeLineLoginReturn])
 
   const selectedPlanData = BOOKING_PLANS.find((plan) => plan.id === bookingData.selectedPlan)
   const selectedPlanIsComingSoon = selectedPlanData?.status === "coming_soon"
@@ -441,6 +547,21 @@ export function BookingForm() {
   ])
 
   const handleInputChange = (field: keyof BookingData, value: any) => {
+    // 計測のみ。既存の状態更新ロジックには手を入れない。
+    if (field === "selectedPlan" && value) {
+      trackBookingStarted("plan")
+      trackPlanSelected({ planId: String(value), locale: "ja", selectionSource: "manual" })
+    } else if (field === "selectedDate" && value) {
+      trackBookingStarted("date")
+    } else if ((field === "selectedTime" || field === "nightTime") && value) {
+      trackBookingStarted("time")
+      trackTimeSelected({
+        planId: bookingData.selectedPlan,
+        locale: "ja",
+        timeSlot: field === "nightTime" ? `night:${value}` : String(value),
+      })
+    }
+
     setBookingData((prev) => {
       // プランごとに選べる時間枠が違うため、プラン切替時は選択済みの時間を破棄する
       // （残すと、切替後の枠に無い時刻のままサーバー検証で弾かれてしまう）
@@ -562,6 +683,13 @@ export function BookingForm() {
   }
 
   const handleParticipantChange = (participantId: string, field: keyof ParticipantDetails, value: any) => {
+    // フォーカスではなく実際の入力で1回だけ記録する
+    trackParticipantDetailsStarted({
+      planId: bookingData.selectedPlan,
+      participantCount: bookingData.participants.length,
+      locale: "ja",
+    })
+
     setBookingData((prev) => ({
       ...prev,
       participants: prev.participants.map((participant) =>
@@ -575,6 +703,7 @@ export function BookingForm() {
       toast.error(`Web予約は最大${maxParticipants}名までです。11名以上はLINEでご相談ください`)
       return
     }
+    trackBookingStarted("participants")
     setBookingData((prev) => ({
       ...prev,
       [field]: Math.max(0, prev[field] + (increment ? 1 : -1)),
@@ -583,22 +712,27 @@ export function BookingForm() {
     }))
   }
 
-  const trackBookingStarted = () => {
+  // 入力開始の起点。従来は input イベントだけだったため、プラン・時間・人数のような
+  // ボタン操作では発火しなかった。最初の操作が何であれ1回だけ記録する。
+  const trackBookingStarted = (firstInteractionType: FirstInteractionType = "text_input") => {
     if (bookingStartedTrackedRef.current) return
 
     bookingStartedTrackedRef.current = true
-    sendDetailedEvent("booking_started", {
+    trackBookingStartedEvent({
       locale: "ja",
-      plan: bookingData.selectedPlan,
-      planName: selectedPlanData?.name ?? "",
-      headcount: bookingData.adultCount + bookingData.childCount + bookingData.under3Count,
-      adultCount: bookingData.adultCount,
-      childCount: bookingData.childCount,
-      under3Count: bookingData.under3Count,
-      total: totalPrice,
-      currency: "JPY",
-      source: getAttributionSourceLabel(),
+      planId: bookingData.selectedPlan,
+      lineAuthenticated: hasFreshLineSession,
+      firstInteractionType,
     })
+  }
+
+  // input/checkbox 由来の開始。テキスト入力とチェックボックスを区別する。
+  const handleFormInputCapture = (event: React.FormEvent<HTMLFormElement>) => {
+    const target = event.target as HTMLElement | null
+    const isCheckbox =
+      target instanceof HTMLInputElement && (target.type === "checkbox" || target.type === "radio")
+    const isDate = target instanceof HTMLInputElement && target.type === "date"
+    trackBookingStarted(isCheckbox ? "checkbox" : isDate ? "date" : "text_input")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -619,6 +753,16 @@ export function BookingForm() {
     submissionInFlightRef.current = true
     setIsSubmitting(true)
     let failureCategory = categorizeBookingFailure()
+    let failureStage = toBookingFailureStage()
+
+    // API通信の直前。計測の完了を待たずに送信処理へ進む。
+    trackSubmitClicked({
+      planId: bookingData.selectedPlan,
+      participantCount: bookingData.adultCount + bookingData.childCount + bookingData.under3Count,
+      totalAmount: totalPrice,
+      lineAuthenticated: hasFreshLineSession,
+      locale: "ja",
+    })
 
     // 氏名が未入力の参加者は内部的に「参加者1」「参加者2」…として扱う
     const participantsForSubmit = bookingData.participants.map((p, index) => ({
@@ -673,6 +817,7 @@ export function BookingForm() {
         }),
       })
       failureCategory = categorizeBookingFailure(response.status)
+      failureStage = toBookingFailureStage(response.status)
 
       const responseData: {
         success?: boolean
@@ -735,6 +880,8 @@ export function BookingForm() {
         source: getAttributionSourceLabel(),
         outcome: "failed",
         errorCategory: failureCategory,
+        // どの段階で落ちたかを区別する（生のエラー内容は送らない）
+        stage: failureStage,
       })
       const errorMessage = error instanceof Error ? error.message : "予約の送信中にエラーが発生しました。もう一度お試しください。"
       toast.error(errorMessage)
@@ -813,6 +960,206 @@ export function BookingForm() {
   if (!bookingData.customerPhone) missingItems.push("電話番号の入力")
   if (!bookingData.agreedToTerms) missingItems.push("キャンセルポリシーへの同意チェック")
   if (!!process.env.NEXT_PUBLIC_LIFF_ID && isLiffReady && !hasFreshLineSession) missingItems.push("LINEログイン")
+
+  // ============================================================
+  // ファネル計測（表示・入力順序・必須条件には影響しない観測のみ）
+  // ============================================================
+
+  const participantCount = totalParticipantCount
+  const participantDetailsComplete =
+    bookingData.participants.length > 0 &&
+    bookingData.participants.every((p) => {
+      if (!isParticipantAgeValid(bookingData.selectedPlan, p.category, p.age)) return false
+      return isNightTourForDetails || (typeof p.footSize === "number" && p.footSize > 0)
+    })
+  const representativeComplete = !!bookingData.customerName && !!bookingData.customerPhone
+
+  // 到達済みの最終ステージ。画面の日本語ではなく BOOKING_STAGES の値だけを使う。
+  const completedStage: BookingStage = isSubmitted
+    ? "completed"
+    : participantDetailsComplete && representativeComplete
+      ? "participant_details"
+      : representativeComplete
+        ? "representative"
+        : totalPrice > 0 && participantCount > 0
+          ? "price"
+          : participantCount > 0
+            ? "participants"
+            : bookingData.selectedTime || bookingData.nightTime
+              ? "time"
+              : bookingData.selectedDate
+                ? "date"
+                : bookingData.selectedPlan
+                  ? "plan"
+                  : hasFreshLineSession
+                    ? "line_login"
+                    : "form_view"
+  const currentStage: BookingStage =
+    completedStage === "participant_details" && missingItems.length > 0
+      ? "submission"
+      : completedStage
+
+  const funnelStateRef = useRef({ completedStage, currentStage, participantCount, planId: "" })
+  funnelStateRef.current = {
+    completedStage,
+    currentStage,
+    participantCount,
+    planId: bookingData.selectedPlan,
+  }
+
+  const formOpenedAtRef = useRef(Date.now())
+
+  // 参加日 → 何日後かの「区分」だけを記録する（実際の日付は送らない）
+  useEffect(() => {
+    if (!bookingData.selectedDate || !bookingData.selectedPlan) return
+    trackDateSelected({
+      planId: bookingData.selectedPlan,
+      locale: "ja",
+      bookingTiming: toBookingTiming(daysUntilDate(bookingData.selectedDate, todayStr())),
+    })
+  }, [bookingData.selectedDate, bookingData.selectedPlan])
+
+  // 予約ルール上、有効な人数になった時点
+  useEffect(() => {
+    if (!bookingData.selectedPlan) return
+    if (bookingData.adultCount <= 0 || isOverParticipantLimit) return
+    trackParticipantsCompleted({
+      planId: bookingData.selectedPlan,
+      adultCount: bookingData.adultCount,
+      childCount: bookingData.childCount,
+      under3Count: bookingData.under3Count,
+    })
+  }, [
+    bookingData.selectedPlan,
+    bookingData.adultCount,
+    bookingData.childCount,
+    bookingData.under3Count,
+    isOverParticipantLimit,
+  ])
+
+  // 合計金額が画面に出た時点。クーポンコード・スタッフ名は送らず適用有無だけ。
+  useEffect(() => {
+    if (!bookingData.selectedPlan || participantCount <= 0 || totalPrice <= 0) return
+    trackPriceConfirmed({
+      planId: bookingData.selectedPlan,
+      totalAmount: totalPrice,
+      couponApplied: bookingData.couponDiscount > 0,
+      staffRequestApplied: !!bookingData.selectedStaff,
+      participantCount,
+    })
+  }, [
+    bookingData.selectedPlan,
+    bookingData.couponDiscount,
+    bookingData.selectedStaff,
+    participantCount,
+    totalPrice,
+  ])
+
+  // 代表者情報の必須が揃った時点。氏名・電話の実値は送らない。
+  useEffect(() => {
+    if (!representativeComplete || !bookingData.selectedPlan) return
+    trackRepresentativeCompleted({
+      planId: bookingData.selectedPlan,
+      locale: "ja",
+      lineAuthenticated: hasFreshLineSession,
+      contactRequirementsCompleted: representativeComplete,
+    })
+  }, [representativeComplete, bookingData.selectedPlan, hasFreshLineSession])
+
+  // 全参加者の必須が揃った時点。年齢・身長・体重・足サイズの実値は送らない。
+  useEffect(() => {
+    if (!participantDetailsComplete || !bookingData.selectedPlan) return
+    trackParticipantDetailsCompleted({
+      planId: bookingData.selectedPlan,
+      participantCount: bookingData.participants.length,
+      wetsuitRequested: rentalCounts.wetsuit,
+      prescriptionMaskRequested: rentalCounts.prescriptionMask,
+    })
+  }, [
+    participantDetailsComplete,
+    bookingData.selectedPlan,
+    bookingData.participants.length,
+    rentalCounts.wetsuit,
+    rentalCounts.prescriptionMask,
+  ])
+
+  // 離脱計測。LINE認証への遷移中は離脱として数えない。
+  // pagehide を主、visibilitychange を補助にし、二重送信は claimOnce が吸収する。
+  useEffect(() => {
+    const reportAbandon = () => {
+      if (!bookingStartedTrackedRef.current) return
+      if (isSubmitted || submissionInFlightRef.current) return
+      if (isLineLoginRedirectInProgress()) return
+
+      const state = funnelStateRef.current
+      trackBookingAbandoned({
+        lastCompletedStage: state.completedStage,
+        currentStage: state.currentStage,
+        planId: state.planId,
+        elapsedSeconds: Math.round((Date.now() - formOpenedAtRef.current) / 1000),
+        participantCount: state.participantCount,
+        lineAuthenticated: hasFreshLineSession,
+        locale: "ja",
+      })
+    }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") reportAbandon()
+    }
+
+    window.addEventListener("pagehide", reportAbandon)
+    document.addEventListener("visibilitychange", onVisibilityChange)
+    return () => {
+      window.removeEventListener("pagehide", reportAbandon)
+      document.removeEventListener("visibilitychange", onVisibilityChange)
+    }
+  }, [hasFreshLineSession, isSubmitted])
+
+  // 送信できない状態でユーザーが送信領域を押したときだけ、不足項目の「種別」を記録する
+  const handleFormClickCapture = (event: React.MouseEvent<HTMLFormElement>) => {
+    if (missingItems.length === 0) return
+    const target = event.target as HTMLElement | null
+    if (!target?.closest("[data-booking-submit-area]")) return
+
+    trackValidationError({
+      currentSection: currentStage,
+      actionType: "submit",
+      missingFieldCategories: toMissingFieldCategories(),
+      planId: bookingData.selectedPlan,
+    })
+  }
+
+  // 画面の日本語文言ではなく、決められた種別だけを組み立てる
+  const toMissingFieldCategories = (): MissingFieldCategory[] => {
+    const categories: MissingFieldCategory[] = []
+    if (!bookingData.selectedPlan || selectedPlanIsComingSoon) categories.push("plan")
+    if (!bookingData.selectedDate) categories.push("date")
+    if (
+      (bookingData.selectedPlan &&
+        getPlanType(bookingData.selectedPlan) !== "sunset-sup" &&
+        !bookingData.selectedTime) ||
+      (isComboPlan && planHasNight(bookingData.selectedPlan) && !bookingData.nightTime)
+    ) {
+      categories.push("time")
+    }
+    if (participantCount === 0 || bookingData.adultCount === 0 || isOverParticipantLimit) {
+      categories.push("participant_count")
+    }
+    bookingData.participants.forEach((p) => {
+      if (!isParticipantAgeValid(bookingData.selectedPlan, p.category, p.age)) categories.push("age")
+      if (!isNightTourForDetails && !(typeof p.footSize === "number" && p.footSize > 0)) {
+        categories.push("foot_size")
+      }
+    })
+    if (!bookingData.customerName) categories.push("representative_name")
+    if (!bookingData.customerPhone) categories.push("phone")
+    if (!bookingData.agreedToTerms) categories.push("agreement")
+    if (!!process.env.NEXT_PUBLIC_LIFF_ID && isLiffReady && !hasFreshLineSession) {
+      categories.push("line_authentication")
+    }
+    if (categories.length === 0 && missingItems.length > 0) categories.push("other")
+    return categories
+  }
 
   if (isSubmitted) {
     return (
@@ -935,7 +1282,12 @@ export function BookingForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} onInputCapture={trackBookingStarted} className="space-y-8">
+    <form
+      onSubmit={handleSubmit}
+      onInputCapture={handleFormInputCapture}
+      onClickCapture={handleFormClickCapture}
+      className="space-y-8"
+    >
       <div className="rounded-2xl border border-emerald-100 bg-white/80 p-4 sm:p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -994,7 +1346,7 @@ export function BookingForm() {
             <button
               type="button"
               onClick={() => {
-                trackEvent("line_login_click", { location: "booking_top" })
+                trackLineLoginClick({ location: "booking_top", locale: "ja" })
                 loginLiff()
               }}
               className="mt-3 px-5 py-2.5 bg-[#06C755] hover:bg-[#05b34c] text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
@@ -1909,7 +2261,8 @@ export function BookingForm() {
 
       {/* Terms and Submit */}
       <Card className="glass-card bg-white/70 backdrop-blur-xl rounded-3xl ring-1 ring-emerald-100 shadow-lg">
-        <CardContent className="p-6">
+        {/* data属性は計測専用。送信できない状態でこの領域が押されたことの判定にだけ使う */}
+        <CardContent className="p-6" data-booking-submit-area="">
           <div className="flex items-start space-x-3 mb-6">
             <Checkbox
               id="terms"
@@ -1968,7 +2321,7 @@ export function BookingForm() {
               <button
                 type="button"
                 onClick={() => {
-                  trackEvent("line_login_click", { location: "booking_bottom" })
+                  trackLineLoginClick({ location: "booking_bottom", locale: "ja" })
                   loginLiff()
                 }}
                 className="mt-3 w-full px-5 py-3 bg-[#06C755] hover:bg-[#05b34c] text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2"

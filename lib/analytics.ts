@@ -1,5 +1,6 @@
 import { track } from "@vercel/analytics"
 
+import { ANALYTICS_PROPERTY_KEYS } from "./analytics-schema"
 import type { AnalyticsEventName, AnalyticsEventProperties } from "./analytics-schema"
 
 export type TrackEventName = AnalyticsEventName
@@ -12,30 +13,11 @@ export interface GAEvent {
   params: GAEventParams
 }
 
-const ALLOWED_PROPERTY_KEYS = new Set([
+// sendDetailedEvent が trackEvent へ渡す「イベント共通の文脈」。
+// プロパティ本体は ANALYTICS_PROPERTY_KEYS を単一ソースにして下で合成する
+// （片方だけ更新して値が黙って捨てられる事故を防ぐため、2つの一覧を持たない）。
+const CONTEXT_PROPERTY_KEYS = [
   "locale",
-  "location",
-  "plan",
-  "planName",
-  "ctaType",
-  "ctaLabel",
-  "headcount",
-  "adultCount",
-  "childCount",
-  "under3Count",
-  "total",
-  "currency",
-  "line_logged_in",
-  "source",
-  "outcome",
-  "errorCategory",
-  "linkHost",
-  "linkType",
-  "vitalName",
-  "vitalValue",
-  "vitalRating",
-  "engagedSeconds",
-  "maxScrollPercent",
   "page_path",
   "device_type",
   "referrer_host",
@@ -52,6 +34,11 @@ const ALLOWED_PROPERTY_KEYS = new Set([
   "viewport_height",
   "screen_width",
   "screen_height",
+] as const
+
+const ALLOWED_PROPERTY_KEYS = new Set<string>([
+  ...ANALYTICS_PROPERTY_KEYS,
+  ...CONTEXT_PROPERTY_KEYS,
 ])
 
 const GA_EVENT_NAME: Partial<Record<TrackEventName, string>> = {

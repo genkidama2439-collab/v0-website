@@ -73,7 +73,7 @@ const EN_PLANS_ALL: EnPlanContent[] = [
   {
     id: "S4",
     name: "Private Sunset SUP",
-    tagline: "Glide across golden water at magic hour on a stable stand-up paddleboard.",
+    tagline: "Glide across golden water at magic hour, with drone photos from above.",
     description: [
       "Watch Miyakojima's famous sunset from the best seat on the island: the open sea. As the sky shifts from orange to pink to violet, you can paddle gently, sit back, or simply lie on your board and listen to the waves. This is a private tour for your group only, so the magic hour is yours alone.",
       "Never tried SUP? No problem. We use extra-stable boards and your guide picks a calm spot and teaches you on land first — start seated, then stand up whenever you feel ready. The silhouette photos against the sunset are a guest favorite, and every photo and video is included free.",
@@ -81,10 +81,10 @@ const EN_PLANS_ALL: EnPlanContent[] = [
     highlights: [
       "Private for your group — a truly private sunset",
       "Extra-stable boards, beginner-friendly coaching",
-      "Spectacular magic-hour silhouette photos, free of charge",
+      "Drone shots from above plus magic-hour silhouettes, free of charge",
       "About 2 relaxing hours on the water",
     ],
-    included: ["SUP board, paddle and life jacket", "Wetsuit and prescription mask (adult sizes only)", "On-land lesson", "All photo & video files (free, unlimited)", "Insurance"],
+    included: ["SUP board, paddle and life jacket", "Wetsuit and prescription mask (adult sizes only)", "Drone photography", "On-land lesson", "All photo & video files (free, unlimited)", "Insurance"],
     whatToBring: ["Swimsuit (worn under your clothes)", "Change of clothes & towel", "Sunscreen", "Drinks", "Sandals"],
     precautions: [
       "Guests who are pregnant cannot participate",

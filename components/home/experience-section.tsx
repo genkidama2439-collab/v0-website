@@ -17,7 +17,7 @@ const titleOverrides: Partial<Record<(typeof experienceIds)[number], string>> = 
 const subtitleOverrides: Partial<Record<(typeof experienceIds)[number], string>> = {
   S1: "安全管理徹底の少人数制ツアー",
   S3: "夜の冒険へ出かけよう",
-  S8: "黄金の海に浮かぶひととき",
+  S8: "黄金の海に浮かぶひととき（空撮付き）",
   S6: "宮古ブルーを空から撮る",
 }
 

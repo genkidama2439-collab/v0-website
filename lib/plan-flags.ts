@@ -54,8 +54,11 @@ export const isPrivatePlan = (planId: string): boolean => PRIVATE_PLAN_IDS.has(p
 // 3歳以下が無料で参加できるプラン（ナイトツアー）
 export const FREE_UNDER3_PLAN_IDS = new Set(["S3", "S5"])
 
-// セットの夜（ヤシガニ探検）開始時刻の候補
-export const COMBO_NIGHT_TIMES = ["19:20", "21:10"]
+// ナイトツアー（単品・セット共通）の開始時刻。
+// 第3便は23:20開始、翌0:50頃終了の日付またぎとなる。
+export const NIGHT_TOUR_TIMES = ["19:20", "21:10", "23:20"]
+// 既存のセットプラン用参照名は互換性のため維持する。
+export const COMBO_NIGHT_TIMES = NIGHT_TOUR_TIMES
 // セットの海亀（シュノーケル）開始時刻の候補
 export const COMBO_TURTLE_TIMES = ["09:00", "11:00", "14:00", "16:00"]
 // ドローンSUP単品（S6/S7）の開始時刻の候補（7:00〜16:00の1時間おき）

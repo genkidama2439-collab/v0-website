@@ -6,7 +6,7 @@ import { format } from "date-fns"
 import { ja } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { Clock, Info } from "lucide-react"
-import { DAY_SUP_TIMES } from "@/lib/plan-flags"
+import { DAY_SUP_TIMES, NIGHT_TOUR_TIMES } from "@/lib/plan-flags"
 import { getSunsetSupGuide } from "@/lib/beach-info"
 
 type PlanId = "night-hunter" | "sunset-sup" | "day-sup" | "slide-boat" | "other"
@@ -57,7 +57,7 @@ function getSunsetSlots(date: Date) {
 function getTimeSlots(plan: PlanId, date: Date): string[] {
   switch (plan) {
     case "night-hunter":
-      return ["19:20", "21:10"]
+      return NIGHT_TOUR_TIMES
     case "sunset-sup":
       return getSunsetSlots(date)
     case "day-sup":
@@ -143,6 +143,11 @@ export default function BookingTimeSlots({ selectedPlan, selectedDate, selectedT
       {selectedPlan === "day-sup" && (
         <p className="text-xs text-gray-500 mt-2">
           ※開始時間は当日の海況・水位により前後する場合があります（確定時間はLINEでご案内します）
+        </p>
+      )}
+      {selectedPlan === "night-hunter" && (
+        <p className="text-xs text-gray-500 mt-2">
+          ※23:20便は翌日0:50頃の解散予定です。予約日は23:20に開始する日をお選びください。
         </p>
       )}
     </div>

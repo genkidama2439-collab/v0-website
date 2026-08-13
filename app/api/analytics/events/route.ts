@@ -11,6 +11,8 @@ export const runtime = "nodejs"
 const MAX_BODY_BYTES = 16_384
 const eventNames = new Set<string>(ANALYTICS_EVENT_NAMES)
 const propertyKeys = new Set<string>(ANALYTICS_PROPERTY_KEYS)
+const CURRENT_TRACKING_CONSENT_VERSION = "2026-08-13"
+const TRACKING_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function text(value: unknown, max = 200): string {
   return typeof value === "string" ? value.slice(0, max) : ""
@@ -24,6 +26,17 @@ function number(value: unknown, min: number, max: number): number {
 function safePath(value: unknown): string {
   const path = text(value, 300)
   return path.startsWith("/") && !path.includes("?") ? path : "/"
+}
+
+function trackingId(value: unknown): string {
+  const id = text(value, 36)
+  return TRACKING_ID_PATTERN.test(id) ? id : ""
+}
+
+function isoDate(value: unknown): string {
+  const raw = text(value, 40)
+  const parsed = new Date(raw)
+  return raw && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : ""
 }
 
 function safeProperties(value: unknown): AnalyticsEventProperties {
@@ -61,6 +74,11 @@ export async function POST(request: Request) {
   const event = {
     occurred_at: new Date().toISOString(),
     event_name: eventName as AnalyticsEventName,
+    visitor_id: trackingId(raw.visitor_id),
+    visit_id: trackingId(raw.visit_id),
+    booking_funnel_id: trackingId(raw.booking_funnel_id),
+    consent_version: text(raw.consent_version, 30),
+    consented_at: isoDate(raw.consented_at),
     page_path: safePath(raw.page_path),
     locale: text(raw.locale, 10),
     device_type: text(raw.device_type, 20),
@@ -79,6 +97,15 @@ export async function POST(request: Request) {
     screen_height: number(raw.screen_height, 0, 10_000),
     connection_type: text(raw.connection_type, 30),
     properties: safeProperties(raw.properties),
+  }
+
+  if (
+    !event.visitor_id ||
+    !event.visit_id ||
+    event.consent_version !== CURRENT_TRACKING_CONSENT_VERSION ||
+    !event.consented_at
+  ) {
+    return NextResponse.json({ accepted: false, reason: "tracking_consent_required" }, { status: 400 })
   }
 
   const webhookUrl = process.env.ANALYTICS_SHEETS_WEBHOOK_URL

@@ -2,7 +2,7 @@ const ANALYTICS_CONFIG = Object.freeze({
   timezone: 'Asia/Tokyo',
   spreadsheetProperty: 'ANALYTICS_SPREADSHEET_ID',
   secretProperty: 'ANALYTICS_SHARED_SECRET',
-  spreadsheetName: '海亀兄弟 匿名分析レポート',
+  spreadsheetName: '海亀兄弟 顧客・行動分析レポート',
   dashboardSheet: 'ダッシュボード',
   dailySheet: '日別分析',
   eventsSheet: 'イベントデータ',
@@ -13,6 +13,7 @@ const ANALYTICS_CONFIG = Object.freeze({
   funnelSheet: '予約ファネル分析',
   funnelMonthlySheet: '予約ファネル月別',
   ctaSheet: '記事CTA分析',
+  retentionDays: 395,
 });
 
 // WEEKDAY(date,2): 1=月...7=日
@@ -125,10 +126,19 @@ const EVENT_HEADERS = Object.freeze([
   '不足項目数',
   '経過時間区分',
   '人数区分(離脱)',
+  // 同意後の閲覧履歴と予約情報を結合する識別子。
+  // 既存のQUERY列を壊さないよう必ず末尾へ追加する。
+  'Visitor ID',
+  'Visit ID',
+  '予約ファネルID',
+  '同意バージョン',
+  '同意日時',
+  '予約番号',
+  'LINE準備完了',
 ]);
 
 const EVENT_DEFINITIONS = Object.freeze([
-  ['page_view', 'ページ表示', 'ページ・言語・端末・匿名の流入情報'],
+  ['page_view', 'ページ表示', 'ページ・言語・端末・Visitor ID・流入情報'],
   ['page_engagement', 'ページ離脱時の利用状況', '滞在秒・最大スクロール率'],
   ['scroll_depth', 'スクロール到達', '最大スクロール率'],
   ['external_link_click', '外部リンククリック', 'リンク先ホスト・リンク種別'],
@@ -161,7 +171,7 @@ const EVENT_DEFINITIONS = Object.freeze([
 ]);
 
 /**
- * 初回だけ手動実行します。匿名分析用スプレッドシートと集計画面を作成します。
+ * 初回だけ手動実行します。顧客・行動分析用スプレッドシートと集計画面を作成します。
  * @return {{spreadsheetId: string, spreadsheetUrl: string}}
  */
 function setupAnalyticsWorkbook() {
@@ -211,6 +221,7 @@ function setupAnalyticsWorkbook() {
   configureFunnelSheet_(funnel);
   configureFunnelMonthlySheet_(funnelMonthly);
   configureCtaSheet_(cta);
+  ensureAnalyticsRetentionTrigger_();
   removeUnusedDefaultSheets_(spreadsheet);
 
   spreadsheet.setActiveSheet(dashboard);
@@ -220,6 +231,47 @@ function setupAnalyticsWorkbook() {
     spreadsheetId: spreadsheet.getId(),
     spreadsheetUrl: spreadsheet.getUrl(),
   };
+}
+
+/** 395日を超えた行動イベントを日次で削除します。 */
+function purgeExpiredAnalyticsEvents() {
+  const spreadsheet = openRequiredSpreadsheet_();
+  const sheet = ensureSheet_(spreadsheet, ANALYTICS_CONFIG.eventsSheet);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - ANALYTICS_CONFIG.retentionDays);
+  const dates = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+
+  // 下から削除し、行番号のずれを防ぐ。通常は古い行が連続するためブロック単位で削除する。
+  let blockEnd = -1;
+  let blockStart = -1;
+  for (let index = dates.length - 1; index >= 0; index--) {
+    const value = dates[index][0];
+    const date = value instanceof Date ? value : new Date(value);
+    const expired = String(date) !== 'Invalid Date' && date < cutoff;
+    const row = index + 2;
+    if (expired) {
+      if (blockEnd === -1) blockEnd = row;
+      blockStart = row;
+    } else if (blockEnd !== -1) {
+      sheet.deleteRows(blockStart, blockEnd - blockStart + 1);
+      blockEnd = -1;
+      blockStart = -1;
+    }
+  }
+  if (blockEnd !== -1) sheet.deleteRows(blockStart, blockEnd - blockStart + 1);
+}
+
+function ensureAnalyticsRetentionTrigger_() {
+  const handler = 'purgeExpiredAnalyticsEvents';
+  const exists = ScriptApp.getProjectTriggers().some(function(trigger) {
+    return trigger.getHandlerFunction() === handler;
+  });
+  if (!exists) {
+    ScriptApp.newTrigger(handler).timeBased().everyDays(1).atHour(3).create();
+  }
 }
 
 /**
@@ -340,6 +392,11 @@ function removeUnusedDefaultSheets_(spreadsheet) {
 }
 
 function configureEventsSheet_(sheet) {
+  const missingColumns = EVENT_HEADERS.length - sheet.getMaxColumns();
+  if (missingColumns > 0) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), missingColumns);
+  }
+
   const headerRange = sheet.getRange(1, 1, 1, EVENT_HEADERS.length);
   const currentHeaders = headerRange.getDisplayValues()[0];
   const headersMatch = EVENT_HEADERS.every(function (header, index) {
@@ -426,14 +483,14 @@ function configureDashboardSheet_(sheet, dailySheet) {
   sheet.setFrozenRows(2);
   sheet.setColumnWidths(1, 8, 120);
   sheet.getRange('A1:H1').merge()
-    .setValue('海亀兄弟 匿名分析ダッシュボード')
+    .setValue('海亀兄弟 顧客・行動分析ダッシュボード')
     .setBackground('#064e3b')
     .setFontColor('#ffffff')
     .setFontSize(18)
     .setFontWeight('bold')
     .setHorizontalAlignment('left');
   sheet.getRange('A2:H2').merge()
-    .setValue('直近30日｜氏名・メール・電話番号・住所・IP・Cookie・恒久IDは保存しません')
+    .setValue('直近30日｜同意済みVisitor IDで閲覧履歴と予約を結合できます')
     .setBackground('#d1fae5')
     .setFontColor('#065f46');
 
@@ -526,20 +583,21 @@ function configureDefinitionsSheet_(sheet) {
   sheet.clear();
   sheet.setHiddenGridlines(true);
   sheet.getRange('A1:C1').merge()
-    .setValue('匿名分析の設定・定義')
+    .setValue('顧客・行動分析の設定・定義')
     .setBackground('#064e3b')
     .setFontColor('#ffffff')
     .setFontSize(16)
     .setFontWeight('bold');
-  sheet.getRange('A3:B7').setValues([
-    ['保存しない情報', '氏名、メール、電話番号、住所、自由記述、IP、Cookie、ユーザーエージェント全文、恒久ID'],
-    ['集計単位', '個人ではなく、ページ・日・プラン・流入元・端末などの匿名集計'],
+  sheet.getRange('A3:B8').setValues([
+    ['保存する識別子', 'Visitor ID（395日）、Visit ID、予約ファネルID、予約番号'],
+    ['利用目的', '同意済みの閲覧履歴と予約情報を結合し、サービス改善・集客・予約導線を分析'],
+    ['行動イベント保存期間', ANALYTICS_CONFIG.retentionDays + '日（日次削除）'],
     ['予約成功', 'booking_submitted（人数内訳、プラン、金額、通貨を含む）'],
     ['予約失敗', 'booking_failed（個人情報を含まない失敗分類を含む）'],
     ['重複防止', '送信中ロック、開始イベントの1回制御、ページ離脱イベントの1回制御'],
   ]);
-  sheet.getRange('A3:A7').setBackground('#d1fae5').setFontWeight('bold');
-  sheet.getRange('A10:C10').setValues([['イベント名', '意味', '主な匿名項目']]);
+  sheet.getRange('A3:A8').setBackground('#d1fae5').setFontWeight('bold');
+  sheet.getRange('A10:C10').setValues([['イベント名', '意味', '主な取得項目']]);
   sheet.getRange(11, 1, EVENT_DEFINITIONS.length, 3).setValues(EVENT_DEFINITIONS);
   sheet.getRange('A10:C10')
     .setBackground('#0f766e')
@@ -1130,6 +1188,11 @@ function normalizeEvent_(input) {
   return {
     occurred_at: parseOccurredAt_(input.occurred_at),
     event_name: eventName,
+    visitor_id: safeTrackingId_(input.visitor_id),
+    visit_id: safeTrackingId_(input.visit_id),
+    booking_funnel_id: safeTrackingId_(input.booking_funnel_id),
+    consent_version: safeText_(input.consent_version, 30),
+    consented_at: safeText_(input.consented_at, 40),
     page_path: safeText_(input.page_path, 300),
     locale: safeText_(input.locale, 20),
     device_type: safeText_(input.device_type, 30),
@@ -1178,6 +1241,8 @@ function normalizeProperties_(input) {
     maxScrollPercent: safeNumber_(properties.maxScrollPercent),
     ctaType: safeText_(properties.ctaType, 40),
     ctaLabel: safeText_(properties.ctaLabel, 120),
+    booking_id: safeText_(properties.booking_id, 80),
+    line_ready: safeBoolean_(properties.line_ready),
     stage: safeText_(properties.stage, 40),
     last_stage: safeText_(properties.last_stage, 40),
     redirect_method: safeText_(properties.redirect_method, 40),
@@ -1269,7 +1334,21 @@ function eventToRow_(event) {
     properties.error_count,
     properties.elapsed_seconds_bucket,
     properties.participant_count_bucket,
+    event.visitor_id,
+    event.visit_id,
+    event.booking_funnel_id,
+    event.consent_version,
+    event.consented_at,
+    properties.booking_id,
+    properties.line_ready,
   ];
+}
+
+function safeTrackingId_(input) {
+  const value = safeText_(input, 36);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+    ? value
+    : '';
 }
 
 function parseOccurredAt_(input) {

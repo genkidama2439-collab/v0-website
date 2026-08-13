@@ -7,6 +7,7 @@ import type {
 } from "@/lib/analytics-schema"
 import { trackEvent } from "@/lib/analytics"
 import { getAttribution } from "@/lib/attribution"
+import { getCustomerTrackingIdentity, hasTrackingConsent } from "@/lib/customer-tracking"
 
 function getBrowser(): string {
   const ua = navigator.userAgent
@@ -63,12 +64,20 @@ export function buildDetailedEvent(
   utmOverride?: DetailedEventUtmOverride,
 ): DetailedAnalyticsEvent | null {
   if (typeof window === "undefined") return null
+  if (!hasTrackingConsent()) return null
 
   const attribution = getAttribution()
+  const identity = getCustomerTrackingIdentity()
+  if (!identity) return null
   const pathname = window.location.pathname || "/"
 
   return {
     event_name: name,
+    visitor_id: identity.visitorId,
+    visit_id: identity.visitId,
+    booking_funnel_id: identity.bookingFunnelId,
+    consent_version: identity.consentVersion,
+    consented_at: identity.consentedAt,
     page_path: pathname,
     locale: getLocaleFromPath(pathname),
     device_type: getDeviceType(),

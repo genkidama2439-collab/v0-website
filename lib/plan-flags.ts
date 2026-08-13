@@ -21,7 +21,7 @@ export const TRIPLE_COMBO_PLAN_IDS = new Set(["C5", "C6"])
 
 // スタッフ指名を利用できないプラン
 export const STAFF_UNAVAILABLE_PLAN_IDS = new Set([
-  "S3", "S4", "S5", "S6", "S7", "slide-boat", "C1", "C2", "C3", "C4", "C5", "C6",
+  "S3", "S4", "S5", "S6", "S7", "S8", "slide-boat", "C1", "C2", "C3", "C4", "C5", "C6",
 ])
 // 開始時刻が固定でない（確定時にLINEで案内する）プラン
 // ※ S6/S7（ドローンSUP単品）は 2026-07 から希望時間を選択制に変更（DAY_SUP_TIMES）

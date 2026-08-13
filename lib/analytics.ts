@@ -2,6 +2,7 @@ import { track } from "@vercel/analytics"
 
 import { ANALYTICS_PROPERTY_KEYS } from "./analytics-schema"
 import type { AnalyticsEventName, AnalyticsEventProperties } from "./analytics-schema"
+import { hasTrackingConsent } from "./customer-tracking"
 
 export type TrackEventName = AnalyticsEventName
 export type TrackEventProps = AnalyticsEventProperties
@@ -145,6 +146,7 @@ declare global {
 }
 
 export function trackEvent(name: TrackEventName, props?: TrackEventProps): void {
+  if (typeof window === "undefined" || !hasTrackingConsent()) return
   const safeProps = sanitizeAnalyticsProperties(props)
 
   try {

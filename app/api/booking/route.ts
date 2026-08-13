@@ -66,6 +66,19 @@ interface BookingRequest {
     referrer?: string
     landingPage?: string
   } | null
+  customerAnalytics?: {
+    visitorId?: string
+    visitorCreatedAt?: string
+    visitId?: string
+    visitStartedAt?: string
+    bookingFunnelId?: string
+    consentVersion?: string
+    consentedAt?: string
+    currentPage?: string
+    deviceType?: string
+    browser?: string
+    os?: string
+  } | null
 }
 
 // プラン分類は lib/plan-flags.ts を単一ソースとして参照する（予約フォーム等と共通）
@@ -116,6 +129,41 @@ const isPositiveNumber = (value: unknown): value is number =>
 // 任意項目用: 未入力（undefined/null/空文字）は許容し、入力があれば正の数を要求
 const isEmptyOrPositiveNumber = (value: unknown): boolean =>
   value === undefined || value === null || value === '' || isPositiveNumber(value)
+
+const TRACKING_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const CURRENT_TRACKING_CONSENT_VERSION = '2026-08-13'
+const safeTrackingText = (value: unknown, maxLength: number): string =>
+  typeof value === 'string' ? value.replace(/[\u0000-\u001F\u007F]/g, '').trim().slice(0, maxLength) : ''
+const safeTrackingId = (value: unknown): string => {
+  const id = safeTrackingText(value, 36)
+  return TRACKING_ID_PATTERN.test(id) ? id : ''
+}
+const safeTrackingDate = (value: unknown): string => {
+  const raw = safeTrackingText(value, 40)
+  const date = new Date(raw)
+  return raw && !Number.isNaN(date.getTime()) ? date.toISOString() : ''
+}
+const normalizeCustomerAnalytics = (input: BookingRequest['customerAnalytics']) => {
+  if (!input || typeof input !== 'object') return null
+  const visitorId = safeTrackingId(input.visitorId)
+  const visitId = safeTrackingId(input.visitId)
+  const consentVersion = safeTrackingText(input.consentVersion, 30)
+  const consentedAt = safeTrackingDate(input.consentedAt)
+  if (!visitorId || !visitId || consentVersion !== CURRENT_TRACKING_CONSENT_VERSION || !consentedAt) return null
+  return {
+    visitorId,
+    visitorCreatedAt: safeTrackingDate(input.visitorCreatedAt),
+    visitId,
+    visitStartedAt: safeTrackingDate(input.visitStartedAt),
+    bookingFunnelId: safeTrackingId(input.bookingFunnelId),
+    consentVersion,
+    consentedAt,
+    currentPage: safeTrackingText(input.currentPage, 160),
+    deviceType: safeTrackingText(input.deviceType, 30),
+    browser: safeTrackingText(input.browser, 40),
+    os: safeTrackingText(input.os, 40),
+  }
+}
 
 const getTodayInJapan = (): string =>
   new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date())
@@ -241,7 +289,8 @@ const validateBookingRequest = (data: BookingRequest): { valid: boolean; error?:
   if (!validateRequired(customerName).valid) return { valid: false, error: '氏名が必須です' }
   const phoneValidation = validatePhoneNumber(customerPhone || '')
   if (!phoneValidation.valid) return { valid: false, error: phoneValidation.error || '電話番号が無効です' }
-  if (customerEmail && !validateEmail(customerEmail).valid) {
+  if (!validateRequired(customerEmail || '').valid) return { valid: false, error: 'メールアドレスが必須です' }
+  if (!validateEmail(customerEmail || '').valid) {
     return { valid: false, error: 'メールアドレスが無効です' }
   }
 
@@ -381,8 +430,9 @@ const buildGASPayload = (
     customerEmail: bookingData.customerEmail || '',
     customerPhone: bookingData.customerPhone || '',
     planName: plan.name,
+    locale: bookingData.locale || 'ja',
     selectedDate: bookingData.selectedDate,
-    selectedTime: plan.id === 'S4'
+    selectedTime: TIME_OPTIONAL_PLAN_IDS.has(plan.id)
       ? SUNSET_SUP_TIME_NOTE
       : bookingData.selectedTime || '',
     participants: bookingData.participants,
@@ -398,6 +448,8 @@ const buildGASPayload = (
     lineDisplayName: lineProfile.displayName,
     couponCode: validatedCoupon.code,
     couponDiscount: validatedCoupon.discount,
+    customerAnalytics: normalizeCustomerAnalytics(bookingData.customerAnalytics),
+    attribution: bookingData.attribution || null,
   }
 }
 

@@ -1,11 +1,9 @@
 import type { ReactNode } from "react"
 import { Suspense } from "react"
 import { Inter } from "next/font/google"
-import { GoogleAnalytics } from "@next/third-parties/google"
-import { Analytics } from "@vercel/analytics/next"
-import { AttributionTracker } from "@/components/attribution-tracker"
-import { DetailedAnalytics } from "@/components/detailed-analytics"
+import { ConsentAwareAnalytics } from "@/components/consent-aware-analytics"
 import { LiffLoginRelay } from "@/components/liff-login-relay"
+import { PrivacyConsent } from "@/components/privacy-consent"
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/json-ld"
 import { RouteScrollManager } from "@/components/route-scroll-manager"
 
@@ -48,13 +46,11 @@ export function SiteRootLayout({
         <Suspense fallback={null}>
           <RouteScrollManager />
         </Suspense>
-        <AttributionTracker />
-        <DetailedAnalytics />
         <LiffLoginRelay />
         {children}
-        <Analytics />
+        <PrivacyConsent />
+        <ConsentAwareAnalytics gaId={enableGa ? gaId : undefined} />
       </body>
-      {enableGa && <GoogleAnalytics gaId={gaId!} />}
     </html>
   )
 }

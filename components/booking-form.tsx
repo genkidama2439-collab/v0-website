@@ -14,6 +14,7 @@ import {
   toBookingFailureStage,
   toBookingTiming,
   trackBookingAbandoned,
+  beginBookingFunnelSession,
   trackBookingFormView,
   trackBookingStarted as trackBookingStartedEvent,
   trackDateSelected,
@@ -337,18 +338,30 @@ export function BookingForm() {
   const { lineUserId: liffUserId, lineDisplayName: liffDisplayName, lineIdToken, isLiffReady, isLiffLoggedIn, isInClient, liffError, loginLiff, retryLiff, closeWindow, getFreshLineIdToken, invalidateLineSession, consumeLineLoginReturn } = useLiff()
   const hasFreshLineSession = isLiffLoggedIn && !!liffUserId && !!lineIdToken
 
-  // フォーム表示を1回だけ計測（LIFF準備完了時点のログイン状態付き）。
+  // フォーム表示を1回だけ計測。
   // book_cta_click → booking_form_view → line_login_click → booking_submitted のファネルを見る。
+  //
+  // 以前は isLiffReady を待って発火していたが、これは LINE の SDK を外部から読み込み
+  // liff.init() の通信が終わるまで true にならない。回線が細い・SDKが読めない・
+  // 初期化が返ってこない場合に永久に発火せず、一方でフォームの操作はできるため
+  // 「フォーム表示48 < 入力開始61」というありえない数字になっていた。
+  // フォームが表示された事実は LIFF と無関係なので、マウント時点で記録する。
+  // LINEログイン状態はこの時点では未確定なため、line_ready で判別できるようにする。
   const hasTrackedFormView = useRef(false)
   useEffect(() => {
-    if (hasTrackedFormView.current || !isLiffReady) return
+    if (hasTrackedFormView.current) return
     hasTrackedFormView.current = true
+    // このフォーム1回分のファネル計測を開始する（2回目の予約が消えないように）
+    beginBookingFunnelSession()
     trackBookingFormView({
       locale: "ja",
       lineAuthenticated: hasFreshLineSession,
+      lineReady: isLiffReady,
       source: getAttributionSourceLabel(),
     })
-  }, [isLiffReady, hasFreshLineSession])
+    // 表示の記録はマウント時の1回だけ。LIFFの準備完了を待たない。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // LINE認証から戻った直後に、セッションが有効かと下書きが戻ったかを1回だけ記録する。
   // 復元の判定には「埋まっていた項目数」だけを使い、入力値そのものは一切参照しない。

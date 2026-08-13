@@ -193,15 +193,15 @@ export type ValidationActionType = "submit" | "next_step" | "unknown"
 // モジュールスコープに置くことで、React Strict Mode の二重実行・再レンダリング・
 // コンポーネント再マウントを跨いで1回だけに保てる。
 const firedOnce = new Set<string>()
+const firedOncePerBooking = new Set<string>()
 const lastSignature = new Map<string, string>()
 
 /**
  * 同じキーで初回だけ true。React Strict Mode の二重呼び出しを吸収する。
  *
- * ファネルの各ステージはこれを使い「1回のページ表示につき1回まで」にする。
- * 以前は値が変わるたびに再送していたため、人数を1回増やすたびに「料金表示」が
- * 積み上がり、到達率が360%といった読めない値になっていた。
- * ファネルは「何回起きたか」ではなく「何人が到達したか」を数える必要がある。
+ * こちらは「1回のページ表示につき1回」。LINEログインの往復のように、
+ * ページ表示ごとに高々1回しか起こらない事象に使う。
+ * 予約ファネルのステージには claimOncePerBooking を使うこと。
  */
 export function claimOnce(key: string): boolean {
   if (firedOnce.has(key)) return false
@@ -210,8 +210,36 @@ export function claimOnce(key: string): boolean {
 }
 
 /**
+ * 予約フォーム1回分の範囲で初回だけ true。ファネルの各ステージはこれを使う。
+ *
+ * 値が変わるたびに再送していた頃は、人数を1回増やすたびに「料金表示」が積み上がり
+ * 到達率が360%になった。そこで1回きりにしたが、今度はモジュール読み込み単位で
+ * 数えていたため逆の穴が空いた：同じタブで2回目の予約に進むと（画面遷移で戻る、
+ * 続けてもう1つのツアーを申し込む等）ステージ側は1件も記録されないのに、
+ * 1回きり制御を持たない booking_submitted だけが記録され、
+ * 「送信クリック13 < 予約完了17」のような到達率100%超が発生していた。
+ *
+ * ファネルは「何回起きたか」ではなく「何人が到達したか」を数える。
+ * その単位は“モジュールが読み込まれてから”ではなく“予約フォーム1回分”。
+ */
+export function claimOncePerBooking(key: string): boolean {
+  if (firedOncePerBooking.has(key)) return false
+  firedOncePerBooking.add(key)
+  return true
+}
+
+/**
+ * 予約フォーム1回分の計測スコープを開始する。フォームのマウント時に呼ぶ。
+ * これを呼ばないと、同じタブでの2回目以降の予約がファネルから丸ごと消える。
+ */
+export function beginBookingFunnelSession(): void {
+  firedOncePerBooking.clear()
+  lastSignature.clear()
+}
+
+/**
  * 同じキーで「前回と違う内容のときだけ」true。値を戻した往復の再送信を防ぐ。
- * ファネルのステージには使わない（上の claimOnce を使う）。
+ * ファネルのステージには使わない（上の claimOncePerBooking を使う）。
  * 不足項目の組み合わせのように、内容が変わるたびに知りたいものだけに使う。
  */
 export function claimChanged(key: string, signature: string): boolean {
@@ -223,6 +251,7 @@ export function claimChanged(key: string, signature: string): boolean {
 /** テスト用。実行時には呼ばない。 */
 export function resetFunnelDedupeForTest(): void {
   firedOnce.clear()
+  firedOncePerBooking.clear()
   lastSignature.clear()
 }
 
@@ -305,14 +334,21 @@ export function trackLineLoginRedirectStarted(params: {
   emitBeforeNavigation("line_login_redirect_started", { redirect_method: params.redirectMethod })
 }
 
-/** LINE認証から戻ったと判定できたときに、成功・失敗にかかわらず呼ぶ。 */
+/**
+ * LINE認証から戻ったと判定できたときに、成功・失敗にかかわらず呼ぶ。
+ *
+ * LIFF初期化の途中で発火する＝認証コールバックのURL整理（history 書き換え・
+ * liff.state への再遷移）がまだ動きうる不安定な瞬間なので、遷移に負けない
+ * sendBeacon 経路を使う。fetch のままでは「遷移開始15件・復帰1件・成功3件」という
+ * 復帰だけが欠ける取りこぼしが実データで出た（復帰せずに成功はありえない）。
+ */
 export function trackLineLoginReturned(params: {
   returnPath: string
   returnResult: LineReturnResult
   hasLineSession: boolean
 }): void {
   if (!claimOnce("line_login_returned")) return
-  emit("line_login_returned", {
+  emitBeforeNavigation("line_login_returned", {
     return_path: params.returnPath,
     return_result: params.returnResult,
     line_logged_in: params.hasLineSession,
@@ -347,15 +383,26 @@ export function trackLineLoginFailed(params: {
 
 // ---- 予約フォーム --------------------------------------------------------
 
+/**
+ * フォームが表示された時点で1回。LIFF（LINE SDK）の準備完了は待たない。
+ * 待つと、SDKが読めない・初期化が返らない回線で永久に発火せず、
+ * 後続ステージだけが記録されて到達率が100%を超える。
+ *
+ * 代わりに、表示時点ではLINEのログイン有無が確定していない。false を送ると
+ * 「未ログイン」と誤読されるため、確定していない場合は line_logged_in を送らない
+ * （シート上は空欄＝不明）。ログイン状態は代表者情報・送信クリックの各イベントで
+ * 確定値を持っているので、ファネルの解釈には影響しない。
+ */
 export function trackBookingFormView(params: {
   locale: string
   lineAuthenticated: boolean
+  lineReady: boolean
   source: string
 }): void {
-  if (!claimOnce("booking_form_view")) return
+  if (!claimOncePerBooking("booking_form_view")) return
   emit("booking_form_view", {
     locale: params.locale,
-    line_logged_in: params.lineAuthenticated,
+    ...(params.lineReady ? { line_logged_in: params.lineAuthenticated } : {}),
     source: params.source,
   })
 }
@@ -370,7 +417,7 @@ export function trackBookingStarted(params: {
   lineAuthenticated: boolean
   firstInteractionType: FirstInteractionType
 }): void {
-  if (!claimOnce("booking_started")) return
+  if (!claimOncePerBooking("booking_started")) return
   emit("booking_started", {
     locale: params.locale,
     plan: params.planId,
@@ -384,7 +431,7 @@ export function trackPlanSelected(params: {
   locale: string
   selectionSource: PlanSelectionSource
 }): void {
-  if (!claimOnce("booking_plan_selected")) return
+  if (!claimOncePerBooking("booking_plan_selected")) return
   emit("booking_plan_selected", {
     plan: params.planId,
     locale: params.locale,
@@ -397,7 +444,7 @@ export function trackDateSelected(params: {
   locale: string
   bookingTiming: BookingTiming
 }): void {
-  if (!claimOnce("booking_date_selected")) return
+  if (!claimOncePerBooking("booking_date_selected")) return
   emit("booking_date_selected", {
     plan: params.planId,
     locale: params.locale,
@@ -410,7 +457,7 @@ export function trackTimeSelected(params: {
   locale: string
   timeSlot: string
 }): void {
-  if (!claimOnce("booking_time_selected")) return
+  if (!claimOncePerBooking("booking_time_selected")) return
   emit("booking_time_selected", {
     plan: params.planId,
     locale: params.locale,
@@ -425,7 +472,7 @@ export function trackParticipantsCompleted(params: {
   under3Count: number
 }): void {
   const participantCount = params.adultCount + params.childCount + params.under3Count
-  if (!claimOnce("booking_participants_completed")) return
+  if (!claimOncePerBooking("booking_participants_completed")) return
 
   emit("booking_participants_completed", {
     plan: params.planId,
@@ -444,7 +491,7 @@ export function trackPriceConfirmed(params: {
   staffRequestApplied: boolean
   participantCount: number
 }): void {
-  if (!claimOnce("booking_price_confirmed")) return
+  if (!claimOncePerBooking("booking_price_confirmed")) return
 
   // クーポンコード・スタッフ名は送らない。適用の有無だけ。
   emit("booking_price_confirmed", {
@@ -462,7 +509,7 @@ export function trackRepresentativeCompleted(params: {
   lineAuthenticated: boolean
   contactRequirementsCompleted: boolean
 }): void {
-  if (!claimOnce("booking_representative_completed")) return
+  if (!claimOncePerBooking("booking_representative_completed")) return
 
   // 氏名・電話番号・メールの実値は送らない。充足しているかどうかだけ。
   emit("booking_representative_completed", {
@@ -478,7 +525,7 @@ export function trackParticipantDetailsStarted(params: {
   participantCount: number
   locale: string
 }): void {
-  if (!claimOnce("booking_participant_details_started")) return
+  if (!claimOncePerBooking("booking_participant_details_started")) return
   emit("booking_participant_details_started", {
     plan: params.planId,
     headcount: params.participantCount,
@@ -492,7 +539,7 @@ export function trackParticipantDetailsCompleted(params: {
   wetsuitRequested: number
   prescriptionMaskRequested: number
 }): void {
-  if (!claimOnce("booking_participant_details_completed")) return
+  if (!claimOncePerBooking("booking_participant_details_completed")) return
 
   // 参加者名・年齢・身長・体重・足サイズは送らない。レンタルは希望人数だけ。
   emit("booking_participant_details_completed", {
@@ -510,7 +557,7 @@ export function trackSubmitClicked(params: {
   lineAuthenticated: boolean
   locale: string
 }): void {
-  if (!claimOnce("booking_submit_clicked")) return
+  if (!claimOncePerBooking("booking_submit_clicked")) return
   emit("booking_submit_clicked", {
     plan: params.planId,
     headcount: params.participantCount,
@@ -556,7 +603,7 @@ export function trackBookingAbandoned(params: {
   locale: string
 }): void {
   if (isLineLoginRedirectInProgress()) return
-  if (!claimOnce("booking_abandoned")) return
+  if (!claimOncePerBooking("booking_abandoned")) return
 
   safeSend(() =>
     sendDetailedEventBeacon("booking_abandoned", {

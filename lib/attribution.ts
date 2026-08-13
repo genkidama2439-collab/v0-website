@@ -24,6 +24,19 @@ const sanitize = (value: string | null | undefined, maxLen: number): string =>
     .trim()
     .slice(0, maxLen)
 
+// LINEログインの認証画面。ここからの遷移は「新しい流入」ではなく認証の戻りなので、
+// 参照元として扱わない。扱ってしまうと、google や instagram から来て予約フォームで
+// LINEログインした人の流入元が ref:access.line.me に化け、本来の獲得元が消える。
+const isLineAuthHost = (host: string): boolean =>
+  host === "access.line.me" || host === "auth.line.me" || host === "liff.line.me"
+
+// LINEアプリの内蔵ブラウザから来たときの参照元。リッチメニュー経由の本物の流入と、
+// LINEログインの戻りが同じホストになって区別できない。リッチメニューのリンクには
+// utm_source=line を付けて運用しているので、UTMが無いこのケースでは
+// 既存の記録を優先し、上書きしない。
+const isLineAppHost = (host: string): boolean =>
+  host === "line.me" || host.startsWith("jp.naver.line") || host.startsWith("com.linecorp.line")
+
 // 着地時に1回呼ぶ（AttributionTracker がマウント時に実行）
 export function captureAttribution(): void {
   try {
@@ -44,10 +57,17 @@ export function captureAttribution(): void {
       }
     }
 
+    // LINEの認証画面からの戻りは流入ではない。参照元として記録しない。
+    if (referrerHost && isLineAuthHost(referrerHost)) referrerHost = ""
+
     // ブログ記事内CTAなど、サイト内リンクにも utm_* を付けている。
     // これを流入元として保存すると本来の獲得元（例: google / instagram）を潰してしまうため、
     // 同一ホストからの遷移では既存の記録を維持する。CTA自体の計測は book_cta_click 側で行う。
     if (isInternalNavigation && getAttribution()) return
+
+    // LINEアプリ内ブラウザからの遷移でUTMが無い場合は、LINEログインの戻りの可能性が高い。
+    // 既に流入元を掴んでいるなら上書きしない（初回訪問なら下で通常どおり記録される）。
+    if (!source && referrerHost && isLineAppHost(referrerHost) && getAttribution()) return
 
     // 直接アクセス（UTMも外部参照元もなし）は上書きしない＝直前の流入元を保持
     if (!source && !referrerHost) return

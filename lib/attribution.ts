@@ -1,3 +1,5 @@
+import { hasTrackingConsent } from "@/lib/customer-tracking"
+
 // 流入元計測：お客さんが「どのリンクを経由で来たか」を記録する。
 // 着地時に UTMパラメータ（?utm_source=... 等）と外部参照元を localStorage に保存し、
 // 予約送信時に /api/booking へ添付 → 管理者メール・カレンダーの備考に [流入元] として載る。
@@ -39,6 +41,7 @@ const isLineAppHost = (host: string): boolean =>
 
 // 着地時に1回呼ぶ（AttributionTracker がマウント時に実行）
 export function captureAttribution(): void {
+  if (!hasTrackingConsent()) return
   try {
     const params = new URLSearchParams(window.location.search)
     const source = sanitize(params.get("utm_source"), 80)
@@ -87,6 +90,7 @@ export function captureAttribution(): void {
 }
 
 export function getAttribution(): Attribution | null {
+  if (!hasTrackingConsent()) return null
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
@@ -95,6 +99,15 @@ export function getAttribution(): Attribution | null {
     return parsed
   } catch {
     return null
+  }
+}
+
+export function clearAttribution(): void {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // ストレージ制限中は何もしない。
   }
 }
 

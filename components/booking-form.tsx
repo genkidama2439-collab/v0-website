@@ -8,6 +8,12 @@ import { categorizeBookingFailure, trackEvent } from "@/lib/analytics"
 import { sendDetailedEvent } from "@/lib/detailed-analytics"
 import { getAttribution, getAttributionSourceLabel } from "@/lib/attribution"
 import {
+  TRACKING_CONSENT_EVENT,
+  completeCustomerBookingFunnel,
+  getBookingCustomerAnalytics,
+  hasTrackingConsent,
+} from "@/lib/customer-tracking"
+import {
   claimOnce,
   daysUntilDate,
   isLineLoginRedirectInProgress,
@@ -153,6 +159,7 @@ function countFilledFields(data: BookingData): number {
     data.under3Count > 0,
     !!data.selectedStaff,
     !!data.customerName,
+    !!data.customerEmail,
     !!data.customerPhone,
     !!data.specialRequests,
     data.agreedToTerms,
@@ -292,6 +299,17 @@ export function BookingForm() {
   const submissionInFlightRef = useRef(false)
   const bookingStartedTrackedRef = useRef(false)
 
+  // 同意済みならURL由来の初期選択イベントより先に予約ファネルIDを用意する。
+  // 予約画面を開いてから同意した場合も、同じ画面の以後の操作へIDを付与する。
+  useEffect(() => {
+    const beginIfConsented = () => {
+      if (hasTrackingConsent()) beginBookingFunnelSession()
+    }
+    beginIfConsented()
+    window.addEventListener(TRACKING_CONSENT_EVENT, beginIfConsented)
+    return () => window.removeEventListener(TRACKING_CONSENT_EVENT, beginIfConsented)
+  }, [])
+
   // 送信完了画面が出たら見出しへフォーカスを移す（読み上げ・キーボード利用者に完了を確実に伝える）
   const successHeadingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
@@ -349,16 +367,19 @@ export function BookingForm() {
   // LINEログイン状態はこの時点では未確定なため、line_ready で判別できるようにする。
   const hasTrackedFormView = useRef(false)
   useEffect(() => {
-    if (hasTrackedFormView.current) return
-    hasTrackedFormView.current = true
-    // このフォーム1回分のファネル計測を開始する（2回目の予約が消えないように）
-    beginBookingFunnelSession()
-    trackBookingFormView({
-      locale: "ja",
-      lineAuthenticated: hasFreshLineSession,
-      lineReady: isLiffReady,
-      source: getAttributionSourceLabel(),
-    })
+    const trackIfConsented = () => {
+      if (!hasTrackingConsent() || hasTrackedFormView.current) return
+      hasTrackedFormView.current = true
+      trackBookingFormView({
+        locale: "ja",
+        lineAuthenticated: hasFreshLineSession,
+        lineReady: isLiffReady,
+        source: getAttributionSourceLabel(),
+      })
+    }
+    trackIfConsented()
+    window.addEventListener(TRACKING_CONSENT_EVENT, trackIfConsented)
+    return () => window.removeEventListener(TRACKING_CONSENT_EVENT, trackIfConsented)
     // 表示の記録はマウント時の1回だけ。LIFFの準備完了を待たない。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -828,6 +849,8 @@ export function BookingForm() {
           couponDiscount: bookingData.couponDiscount,
           // 流入元（どのリンク経由か）。管理者メール・カレンダーの備考に [流入元] として載る
           attribution: getAttribution(),
+          // 同意済みの場合だけ、予約前の閲覧履歴と予約を結合する識別子を送る。
+          customerAnalytics: getBookingCustomerAnalytics(),
         }),
       })
       failureCategory = categorizeBookingFailure(response.status)
@@ -836,7 +859,7 @@ export function BookingForm() {
       const responseData: {
         success?: boolean
         error?: string
-        data?: { totalPrice?: unknown; couponDiscount?: unknown }
+        data?: { bookingNumber?: unknown; totalPrice?: unknown; couponDiscount?: unknown }
       } | null = await response.json().catch(() => null)
       if (!response.ok || responseData?.success !== true) {
         if (response.status === 401) {
@@ -877,7 +900,9 @@ export function BookingForm() {
         currency: "JPY",
         source: getAttributionSourceLabel(),
         outcome: "success",
+        booking_id: typeof responseData.data?.bookingNumber === "string" ? responseData.data.bookingNumber : "",
       })
+      completeCustomerBookingFunnel()
       clearBookingDraft()
       setIsSubmitted(true)
     } catch (error) {
@@ -926,6 +951,7 @@ export function BookingForm() {
     bookingData.adultCount > 0 &&
     !isOverParticipantLimit &&
     bookingData.customerName &&
+    bookingData.customerEmail &&
     bookingData.customerPhone &&
     bookingData.agreedToTerms &&
     !selectedPlanIsComingSoon &&
@@ -971,6 +997,7 @@ export function BookingForm() {
     }
   })
   if (!bookingData.customerName) missingItems.push("代表者氏名の入力")
+  if (!bookingData.customerEmail) missingItems.push("メールアドレスの入力")
   if (!bookingData.customerPhone) missingItems.push("電話番号の入力")
   if (!bookingData.agreedToTerms) missingItems.push("キャンセルポリシーへの同意チェック")
   if (!!process.env.NEXT_PUBLIC_LIFF_ID && isLiffReady && !hasFreshLineSession) missingItems.push("LINEログイン")
@@ -986,7 +1013,8 @@ export function BookingForm() {
       if (!isParticipantAgeValid(bookingData.selectedPlan, p.category, p.age)) return false
       return isNightTourForDetails || (typeof p.footSize === "number" && p.footSize > 0)
     })
-  const representativeComplete = !!bookingData.customerName && !!bookingData.customerPhone
+  const representativeComplete =
+    !!bookingData.customerName && !!bookingData.customerEmail && !!bookingData.customerPhone
 
   // 到達済みの最終ステージ。画面の日本語ではなく BOOKING_STAGES の値だけを使う。
   const completedStage: BookingStage = isSubmitted
@@ -1098,7 +1126,7 @@ export function BookingForm() {
   ])
 
   // 離脱計測。LINE認証への遷移中は離脱として数えない。
-  // pagehide を主、visibilitychange を補助にし、二重送信は claimOnce が吸収する。
+  // タブ切替だけでは離脱扱いにせず、実際にページを破棄する pagehide だけを見る。
   useEffect(() => {
     const reportAbandon = () => {
       if (!bookingStartedTrackedRef.current) return
@@ -1117,15 +1145,9 @@ export function BookingForm() {
       })
     }
 
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") reportAbandon()
-    }
-
     window.addEventListener("pagehide", reportAbandon)
-    document.addEventListener("visibilitychange", onVisibilityChange)
     return () => {
       window.removeEventListener("pagehide", reportAbandon)
-      document.removeEventListener("visibilitychange", onVisibilityChange)
     }
   }, [hasFreshLineSession, isSubmitted])
 
@@ -2212,6 +2234,22 @@ export function BookingForm() {
               onChange={(e) => handleInputChange("customerPhone", e.target.value)}
               placeholder="090-1234-5678"
               autoComplete="tel"
+              className="rounded-xl border-emerald-200 focus:border-emerald-500"
+              required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="email" className="text-sm font-medium text-gray-700 mb-2 block">
+              メールアドレス *
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              value={bookingData.customerEmail}
+              onChange={(e) => handleInputChange("customerEmail", e.target.value)}
+              placeholder="example@email.com"
+              autoComplete="email"
               className="rounded-xl border-emerald-200 focus:border-emerald-500"
               required
             />

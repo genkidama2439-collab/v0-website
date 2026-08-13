@@ -18,6 +18,7 @@ export interface BookingPayload {
   customerEmail: string;
   customerPhone?: string;
   planName: string;
+  locale?: string;
   selectedDate: string;
   selectedTime?: string;
   participants: Array<{ category: string }>;
@@ -31,6 +32,26 @@ export interface BookingPayload {
   lineDisplayName?: string;
   couponCode?: string;
   couponDiscount?: number;
+  customerAnalytics?: {
+    visitorId: string;
+    visitorCreatedAt: string;
+    visitId: string;
+    visitStartedAt: string;
+    bookingFunnelId: string;
+    consentVersion: string;
+    consentedAt: string;
+    currentPage: string;
+    deviceType: string;
+    browser: string;
+    os: string;
+  } | null;
+  attribution?: {
+    source?: string;
+    medium?: string;
+    campaign?: string;
+    referrer?: string;
+    landingPage?: string;
+  } | null;
 }
 
 // GAS URLを取得

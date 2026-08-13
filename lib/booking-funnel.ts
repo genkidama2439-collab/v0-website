@@ -1,4 +1,4 @@
-// 予約ファネルの離脱地点を特定するための匿名計測。
+// 予約ファネルの離脱地点を特定するための同意ベースの顧客行動計測。
 //
 // 設計方針
 //  1. 予約機能には一切触らない。フォームの入力順序・必須条件・送信処理・料金計算は
@@ -11,6 +11,7 @@
 
 import type { AnalyticsEventProperties } from "@/lib/analytics-schema"
 import { sendDetailedEvent, sendDetailedEventBeacon } from "@/lib/detailed-analytics"
+import { beginCustomerBookingFunnel, hasTrackingConsent } from "@/lib/customer-tracking"
 
 // ============================================================
 // ステージ
@@ -204,6 +205,7 @@ const lastSignature = new Map<string, string>()
  * 予約ファネルのステージには claimOncePerBooking を使うこと。
  */
 export function claimOnce(key: string): boolean {
+  if (!hasTrackingConsent()) return false
   if (firedOnce.has(key)) return false
   firedOnce.add(key)
   return true
@@ -223,6 +225,7 @@ export function claimOnce(key: string): boolean {
  * その単位は“モジュールが読み込まれてから”ではなく“予約フォーム1回分”。
  */
 export function claimOncePerBooking(key: string): boolean {
+  if (!hasTrackingConsent()) return false
   if (firedOncePerBooking.has(key)) return false
   firedOncePerBooking.add(key)
   return true
@@ -233,6 +236,7 @@ export function claimOncePerBooking(key: string): boolean {
  * これを呼ばないと、同じタブでの2回目以降の予約がファネルから丸ごと消える。
  */
 export function beginBookingFunnelSession(): void {
+  beginCustomerBookingFunnel()
   firedOncePerBooking.clear()
   lastSignature.clear()
 }
@@ -243,6 +247,7 @@ export function beginBookingFunnelSession(): void {
  * 不足項目の組み合わせのように、内容が変わるたびに知りたいものだけに使う。
  */
 export function claimChanged(key: string, signature: string): boolean {
+  if (!hasTrackingConsent()) return false
   if (lastSignature.get(key) === signature) return false
   lastSignature.set(key, signature)
   return true
@@ -402,6 +407,7 @@ export function trackBookingFormView(params: {
   if (!claimOncePerBooking("booking_form_view")) return
   emit("booking_form_view", {
     locale: params.locale,
+    line_ready: params.lineReady,
     ...(params.lineReady ? { line_logged_in: params.lineAuthenticated } : {}),
     source: params.source,
   })

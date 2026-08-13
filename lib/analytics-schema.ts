@@ -41,6 +41,11 @@ export type AnalyticsEventProperties = Record<string, AnalyticsValue>
 
 export interface DetailedAnalyticsEvent {
   event_name: AnalyticsEventName
+  visitor_id: string
+  visit_id: string
+  booking_funnel_id: string
+  consent_version: string
+  consented_at: string
   page_path: string
   locale: string
   device_type: string
@@ -70,6 +75,10 @@ export const ANALYTICS_PROPERTY_KEYS = [
   // 記事URLは event.page_path、キャンペーンは utm_campaign / utm_content で判別する。
   "ctaType",
   "ctaLabel",
+  // 予約完了イベントと予約シートを正確に結合する。
+  // visitor_id 等の識別子は DetailedAnalyticsEvent 直下の共通項目に持つ。
+  "booking_id",
+  "line_ready",
   // ---- 予約ファネル計測 ----------------------------------------------------
   // すべて値そのものではなく「区分」だけを持つ。氏名・電話・日付・年齢・体格・
   // LINEの識別子やトークンは絶対に入れない（lib/booking-funnel.ts で組み立てる）。

@@ -42,6 +42,12 @@ import {
 } from "@/lib/booking-funnel"
 import { sendDetailedEvent } from "@/lib/detailed-analytics"
 import { getAttribution, getAttributionSourceLabel } from "@/lib/attribution"
+import {
+  TRACKING_CONSENT_EVENT,
+  completeCustomerBookingFunnel,
+  getBookingCustomerAnalytics,
+  hasTrackingConsent,
+} from "@/lib/customer-tracking"
 import { getPlanMaxParticipants } from "@/lib/booking-rules"
 import {
   calculateRentalTotal,
@@ -161,6 +167,15 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
   const submissionInFlightRef = useRef(false)
   const bookingStartedTrackedRef = useRef(false)
 
+  useEffect(() => {
+    const beginIfConsented = () => {
+      if (hasTrackingConsent()) beginBookingFunnelSession()
+    }
+    beginIfConsented()
+    window.addEventListener(TRACKING_CONSENT_EVENT, beginIfConsented)
+    return () => window.removeEventListener(TRACKING_CONSENT_EVENT, beginIfConsented)
+  }, [])
+
   // Move focus to the confirmation heading so screen-reader and keyboard
   // users reliably notice the form was sent.
   const successHeadingRef = useRef<HTMLHeadingElement>(null)
@@ -175,16 +190,19 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
   // その時点でログイン状態が未確定であることは line_ready で判別できるようにする。
   const hasTrackedFormView = useRef(false)
   useEffect(() => {
-    if (hasTrackedFormView.current) return
-    hasTrackedFormView.current = true
-    // このフォーム1回分のファネル計測を開始する（2回目の予約が消えないように）
-    beginBookingFunnelSession()
-    trackBookingFormView({
-      locale,
-      lineAuthenticated: hasFreshLineSession,
-      lineReady: isLiffReady,
-      source: getAttributionSourceLabel(),
-    })
+    const trackIfConsented = () => {
+      if (!hasTrackingConsent() || hasTrackedFormView.current) return
+      hasTrackedFormView.current = true
+      trackBookingFormView({
+        locale,
+        lineAuthenticated: hasFreshLineSession,
+        lineReady: isLiffReady,
+        source: getAttributionSourceLabel(),
+      })
+    }
+    trackIfConsented()
+    window.addEventListener(TRACKING_CONSENT_EVENT, trackIfConsented)
+    return () => window.removeEventListener(TRACKING_CONSENT_EVENT, trackIfConsented)
     // 表示の記録はマウント時の1回だけ。LIFFの準備完了を待たない。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -407,6 +425,7 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
     participantsValid &&
     !seniorRestricted &&
     customerName.trim().length > 0 &&
+    customerEmail.trim().length > 0 &&
     customerPhone.trim().length >= 10 &&
     agreed
 
@@ -428,13 +447,14 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
     if (!isNight && !(typeof p.footSize === "number" && p.footSize > 0)) missingItems.push(copy.missingShoeFor(index + 1))
   })
   if (customerName.trim().length === 0) missingItems.push(copy.missingFullName)
+  if (customerEmail.trim().length === 0) missingItems.push(copy.emailLabel)
   if (customerPhone.trim().length < 10) missingItems.push(copy.missingPhone)
   if (!agreed) missingItems.push(copy.missingAgree)
   if (needsLineLogin) missingItems.push(copy.missingLineLogin)
 
   const bookingTag = LOCALE_BOOKING_TAGS[locale]
 
-  // 離脱計測。LINE認証への遷移中は離脱として数えない。
+  // 離脱計測。タブ切替ではなく、実際のページ破棄だけを離脱として数える。
   const funnelStateRef = useRef({ planId, participantCount: participants.length, missing: 0 })
   funnelStateRef.current = { planId, participantCount: participants.length, missing: missingItems.length }
   const formOpenedAtRef = useRef(Date.now())
@@ -457,15 +477,9 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
       })
     }
 
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") reportAbandon()
-    }
-
     window.addEventListener("pagehide", reportAbandon)
-    document.addEventListener("visibilitychange", onVisibilityChange)
     return () => {
       window.removeEventListener("pagehide", reportAbandon)
-      document.removeEventListener("visibilitychange", onVisibilityChange)
     }
   }, [hasFreshLineSession, isSubmitted, locale])
 
@@ -543,13 +557,14 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
           agreedToTerms: agreed,
           // 流入元（どのリンク経由か）。管理者メール・カレンダーの備考に [流入元] として載る
           attribution: getAttribution(),
+          customerAnalytics: getBookingCustomerAnalytics(),
         }),
       })
       failureCategory = categorizeBookingFailure(response.status)
       failureStage = toBookingFailureStage(response.status)
       const responseData: {
         success?: boolean
-        data?: { totalPrice?: unknown; couponDiscount?: unknown }
+        data?: { bookingNumber?: unknown; totalPrice?: unknown; couponDiscount?: unknown }
       } | null = await response.json().catch(() => null)
       if (!response.ok || responseData?.success !== true) {
         if (response.status === 401) {
@@ -585,7 +600,9 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
         currency: "JPY",
         source: getAttributionSourceLabel(),
         outcome: "success",
+        booking_id: typeof responseData.data?.bookingNumber === "string" ? responseData.data.bookingNumber : "",
       })
+      completeCustomerBookingFunnel()
       try {
         window.sessionStorage.removeItem(draftKey(locale))
       } catch {}
@@ -981,7 +998,7 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="intl-email" className="text-sm font-medium text-gray-700 mb-2 block">{copy.emailLabel}</Label>
-            <Input id="intl-email" type="email" autoComplete="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="rounded-xl border-emerald-200" />
+            <Input id="intl-email" type="email" required autoComplete="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="rounded-xl border-emerald-200" />
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="intl-requests" className="text-sm font-medium text-gray-700 mb-2 block">{copy.requestsLabel}</Label>

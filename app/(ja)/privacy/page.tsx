@@ -25,6 +25,8 @@ const SECTIONS: Array<{ title: string; body: React.ReactNode }> = [
           <li>LINEのユーザーID・表示名（LINE連携をご利用の場合）</li>
           <li>参加者の氏名（任意）、年齢、身長・体重（任意）、足のサイズ</li>
           <li>ご要望・ご相談などフォームにご入力いただいた内容</li>
+          <li>閲覧ページ、流入元、クリック、スクロール、フォーム操作、予約の成否</li>
+          <li>Visitor ID、Visit ID、予約ファネルID、デバイス・ブラウザ・OSの種別</li>
         </ul>
       </>
     ),
@@ -37,6 +39,7 @@ const SECTIONS: Array<{ title: string; body: React.ReactNode }> = [
         <li>安全管理および器材（フィン・ウェットスーツ等）の準備</li>
         <li>ツアー中に撮影した写真・動画のお渡し</li>
         <li>お問い合わせへの対応</li>
+        <li>同意いただいた方の予約前の閲覧履歴と予約情報を結合した、サービス改善、広告・集客効果、予約導線の分析</li>
       </ul>
     ),
   },
@@ -56,9 +59,9 @@ const SECTIONS: Array<{ title: string; body: React.ReactNode }> = [
         <ul className="list-disc pl-5 mt-2 space-y-1">
           <li>予約情報の管理: Google スプレッドシート（Google LLC）</li>
           <li>お客様へのご連絡: LINE（LINEヤフー株式会社）</li>
-          <li>サイト利用状況の解析: Vercel Analytics（個人を特定しない統計情報）</li>
+          <li>サイト利用状況の解析: Vercel Analytics、当店のGoogleスプレッドシート。同意済みの場合、Visitor IDにより予約情報と結合します。</li>
           <li>
-            サイト利用状況の解析: Google アナリティクス（Google LLC）。Cookieを利用してアクセス状況を収集しますが、個人を特定する情報は含まれません。詳細は
+            サイト利用状況の解析: Google アナリティクス（Google LLC）。同意後にCookie等を利用し、アクセス状況を収集します。詳細は
             <a href="https://policies.google.com/technologies/partner-sites?hl=ja" target="_blank" rel="noopener noreferrer" className="text-emerald-700 underline">
               Googleのポリシーと規約
             </a>
@@ -69,7 +72,16 @@ const SECTIONS: Array<{ title: string; body: React.ReactNode }> = [
     ),
   },
   {
-    title: "5. 安全管理",
+    title: "5. 行動履歴の連携、同意と保存期間",
+    body: (
+      <div className="space-y-2">
+        <p>行動履歴の取得は任意です。同意しない場合も予約できます。同意後は、ブラウザに保存するVisitor IDを予約データに付加し、予約前の閲覧履歴と氏名・連絡先・参加者情報を結合できる状態で保存します。</p>
+        <p>Visitor IDと行動イベントの保存期間は最大395日です。予約データは、予約管理、安全管理、対応履歴および法令上必要な期間保存します。画面左下の「データ取得設定」から今後の取得を停止できます。保存済みデータの削除は、下記窓口へご連絡ください。</p>
+      </div>
+    ),
+  },
+  {
+    title: "6. 安全管理",
     body: (
       <p>
         お預かりした個人情報への不正アクセス、紛失、漏えい等を防止するため、適切な安全管理措置を講じます。
@@ -77,7 +89,7 @@ const SECTIONS: Array<{ title: string; body: React.ReactNode }> = [
     ),
   },
   {
-    title: "6. 開示・訂正・削除のご請求",
+    title: "7. 開示・訂正・削除のご請求",
     body: (
       <p>
         ご本人からの個人情報の開示・訂正・削除のご請求には、本人確認のうえ速やかに対応します。下記の窓口までご連絡ください。
@@ -85,7 +97,7 @@ const SECTIONS: Array<{ title: string; body: React.ReactNode }> = [
     ),
   },
   {
-    title: "7. お問い合わせ窓口",
+    title: "8. お問い合わせ窓口",
     body: (
       <p>
         海亀兄弟（〒906-0014 沖縄県宮古島市平良松原107-1）
@@ -97,7 +109,7 @@ const SECTIONS: Array<{ title: string; body: React.ReactNode }> = [
     ),
   },
   {
-    title: "8. 本ポリシーの改定",
+    title: "9. 本ポリシーの改定",
     body: (
       <p>
         本ポリシーの内容は、法令の改正やサービス内容の変更に応じて改定することがあります。重要な変更は本ページでお知らせします。
@@ -131,7 +143,7 @@ export default function PrivacyPage() {
               </section>
             ))}
           </div>
-          <p className="mt-10 text-xs text-gray-500">制定日: 2026年6月13日</p>
+          <p className="mt-10 text-xs text-gray-500">制定日: 2026年6月13日　最終改定日: 2026年8月13日</p>
         </section>
       </main>
       <Footer />

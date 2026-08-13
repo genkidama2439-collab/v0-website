@@ -14,6 +14,7 @@
  * S: LINEメッセージ入力
  * T: LINE送信確認（チェック後に送信）
  * U: 送信予定・結果
+ * V以降: 顧客連絡先・参加者数値・要望・同意済みの閲覧履歴連携ID
  */
 
 // ============================================================
@@ -76,7 +77,30 @@ var COLUMNS = {
   STAFF: 16,
   COUPON_CODE: 17,
   COUPON_DISCOUNT: 18,
-  LINE_SEND: 19
+  LINE_SEND: 19,
+  EMAIL: 20,
+  VISITOR_ID: 21,
+  VISIT_ID: 22,
+  BOOKING_FUNNEL_ID: 23,
+  TRACKING_CONSENT_VERSION: 24,
+  TRACKING_CONSENT_AT: 25,
+  VISITOR_CREATED_AT: 26,
+  VISIT_STARTED_AT: 27,
+  LOCALE: 28,
+  LANDING_PAGE: 29,
+  REFERRER_HOST: 30,
+  UTM_SOURCE: 31,
+  UTM_MEDIUM: 32,
+  UTM_CAMPAIGN: 33,
+  CURRENT_PAGE: 34,
+  DEVICE_TYPE: 35,
+  BROWSER: 36,
+  OS: 37,
+  PARTICIPANT_AGES: 38,
+  PARTICIPANT_HEIGHTS: 39,
+  PARTICIPANT_WEIGHTS: 40,
+  PARTICIPANT_FOOT_SIZES: 41,
+  SPECIAL_REQUESTS: 42
 };
 
 var HEADERS = [
@@ -98,7 +122,30 @@ var HEADERS = [
   'スタッフ指名',
   'クーポンコード',
   'クーポン割引額',
-  'LINE送信'
+  'LINE送信',
+  'メールアドレス',
+  'Visitor ID',
+  'Visit ID',
+  '予約ファネルID',
+  '行動履歴連携同意バージョン',
+  '行動履歴連携同意日時',
+  'Visitor作成日時',
+  'Visit開始日時',
+  '言語',
+  '初回着地ページ',
+  '参照元ホスト',
+  'UTM Source',
+  'UTM Medium',
+  'UTM Campaign',
+  '予約送信ページ',
+  'デバイス',
+  'ブラウザ',
+  'OS',
+  '参加者年齢',
+  '参加者身長',
+  '参加者体重',
+  '参加者足サイズ',
+  '特別なご要望・アレルギー等'
 ];
 
 var LOCATION_OPTIONS = [
@@ -805,7 +852,21 @@ function getOrCreateSheet() {
     sheet = ss.insertSheet(SHEET_NAME);
   }
 
+  ensureBookingSchema_(sheet);
+
   return sheet;
+}
+
+// 既存の予約行を消さずに、新しい顧客・行動分析列だけを末尾へ追加する。
+// 既存19列の並びはLINE送信・カレンダー連携が参照しているため変更しない。
+function ensureBookingSchema_(sheet) {
+  var missingColumns = HEADERS.length - sheet.getMaxColumns();
+  if (missingColumns > 0) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), missingColumns);
+  }
+
+  sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  sheet.setFrozenRows(1);
 }
 
 // ============================================================
@@ -871,6 +932,11 @@ function setupSheet() {
   sheet.setColumnWidth(COLUMNS.COUPON_CODE, 140);
   sheet.setColumnWidth(COLUMNS.COUPON_DISCOUNT, 120);
   sheet.setColumnWidth(COLUMNS.LINE_SEND, 300);
+  sheet.setColumnWidth(COLUMNS.EMAIL, 220);
+  sheet.setColumnWidths(COLUMNS.VISITOR_ID, 3, 250);
+  sheet.setColumnWidths(COLUMNS.TRACKING_CONSENT_VERSION, 4, 170);
+  sheet.setColumnWidths(COLUMNS.LOCALE, 10, 140);
+  sheet.setColumnWidths(COLUMNS.PARTICIPANT_AGES, 4, 180);
 
   sheet.getRange(1, COLUMNS.LINE_SEND).setBackground('#fff2cc');
 
@@ -1009,6 +1075,15 @@ function sendBookingEmail(data, headcount, participantsDetail) {
 
 function buildBookingRow_(timestamp, data, headcount, participantsDetail, options) {
   options = options || {};
+  var analytics = data.customerAnalytics || {};
+  var attribution = data.attribution || {};
+  var participants = Array.isArray(data.participants) ? data.participants : [];
+  var participantValues = function(field) {
+    return participants.map(function(participant) {
+      var value = participant && participant[field];
+      return value === null || typeof value === 'undefined' || value === '' ? '' : String(value);
+    }).join(' / ');
+  };
 
   return [
     timestamp,
@@ -1035,7 +1110,30 @@ function buildBookingRow_(timestamp, data, headcount, participantsDetail, option
     typeof options.couponDiscount !== 'undefined'
       ? options.couponDiscount
       : (data.couponDiscount || 0),
-    ''
+    '',
+    data.customerEmail || '',
+    analytics.visitorId || '',
+    analytics.visitId || '',
+    analytics.bookingFunnelId || '',
+    analytics.consentVersion || '',
+    analytics.consentedAt || '',
+    analytics.visitorCreatedAt || '',
+    analytics.visitStartedAt || '',
+    data.locale || '',
+    attribution.landingPage || '',
+    attribution.referrer || '',
+    attribution.source || '',
+    attribution.medium || '',
+    attribution.campaign || '',
+    analytics.currentPage || '',
+    analytics.deviceType || '',
+    analytics.browser || '',
+    analytics.os || '',
+    participantValues('age'),
+    participantValues('height'),
+    participantValues('weight'),
+    participantValues('footSize'),
+    data.specialRequests || ''
   ];
 }
 

@@ -12,6 +12,7 @@ const ANALYTICS_CONFIG = Object.freeze({
   timingSheet: '曜日・時間帯分析',
   funnelSheet: '予約ファネル分析',
   funnelMonthlySheet: '予約ファネル月別',
+  ctaSheet: '記事CTA分析',
 });
 
 // WEEKDAY(date,2): 1=月...7=日
@@ -198,6 +199,7 @@ function setupAnalyticsWorkbook() {
     spreadsheet,
     ANALYTICS_CONFIG.funnelMonthlySheet
   );
+  const cta = ensureSheet_(spreadsheet, ANALYTICS_CONFIG.ctaSheet);
 
   configureEventsSheet_(events);
   configureDailySheet_(daily);
@@ -208,6 +210,7 @@ function setupAnalyticsWorkbook() {
   configureTimingSheet_(timing);
   configureFunnelSheet_(funnel);
   configureFunnelMonthlySheet_(funnelMonthly);
+  configureCtaSheet_(cta);
   removeUnusedDefaultSheets_(spreadsheet);
 
   spreadsheet.setActiveSheet(dashboard);
@@ -321,6 +324,7 @@ function requiredSheetNames_() {
     ANALYTICS_CONFIG.timingSheet,
     ANALYTICS_CONFIG.funnelSheet,
     ANALYTICS_CONFIG.funnelMonthlySheet,
+    ANALYTICS_CONFIG.ctaSheet,
   ];
 }
 
@@ -633,6 +637,78 @@ function configureSourceDeviceSheet_(sheet) {
   sheet.getRange('T:W').setNumberFormat('#,##0');
   sheet.getRange('X:X').setNumberFormat('¥#,##0');
   sheet.getRange('Y:Z').setNumberFormat('0.0%');
+}
+
+/**
+ * 記事内CTA（book_cta_click）の分析。
+ *
+ * ブログ記事は読まれているのに予約に繋がらない、という状態を切り分けるためのシートです。
+ * 「記事は読まれたがCTAが押されていない」のか「押されたが予約に至っていない」のかで
+ * 打ち手が変わるため、クリックの手前と後ろを分けて見ます。
+ *
+ * 見方の注意:
+ *  - ここはCTAの「クリック数」です。売上への貢献は流入元・ランディングページのシートを見ます。
+ *  - 記事内CTAのリンクには utm_campaign を記事ごとに付けているため、
+ *    UTM Campaign 列がそのまま「どの記事のCTAか」になります。
+ *  - サイト内リンクのUTMは訪問者の流入元を上書きしません（本来の獲得元を潰さないため）。
+ *    そのため予約完了側の集計にこの campaign が必ず出るわけではありません。
+ */
+function configureCtaSheet_(sheet) {
+  sheet.clear();
+  sheet.setHiddenGridlines(true);
+  sheet.setFrozenRows(1);
+  sheet.setColumnWidths(1, 14, 150);
+
+  // 記事別。どの記事のCTAが押されているか。
+  sheet.getRange('A1:C1').setValues([['記事（UTM Campaign）', 'CTAクリック', '誘導先プラン数']]);
+  sheet.getRange('A2').setFormula(
+    '=QUERY(\'イベントデータ\'!A:AO,"select L,count(B),count(U) ' +
+      'where B=\'book_cta_click\' and L is not null and L<>\'\' group by L order by count(B) desc ' +
+      'label L \'記事（UTM Campaign）\',count(B) \'CTAクリック\',count(U) \'誘導先プラン数\'",1)'
+  );
+
+  // 設置位置別。記事のどこに置いたCTAが効いているか（article_top / middle / bottom / sticky_mobile）。
+  sheet.getRange('E1:F1').setValues([['CTA設置位置', 'クリック']]);
+  sheet.getRange('E2').setFormula(
+    '=QUERY(\'イベントデータ\'!A:AO,"select T,count(B) ' +
+      'where B=\'book_cta_click\' and T is not null and T<>\'\' group by T order by count(B) desc ' +
+      'label T \'CTA設置位置\',count(B) \'クリック\'",1)'
+  );
+
+  // CTA種別別。予約フォームへ直行か、プラン詳細か、LINE相談か。
+  sheet.getRange('H1:I1').setValues([['CTA種別', 'クリック']]);
+  sheet.getRange('H2').setFormula(
+    '=QUERY(\'イベントデータ\'!A:AO,"select AN,count(B) ' +
+      'where B=\'book_cta_click\' and AN is not null and AN<>\'\' group by AN order by count(B) desc ' +
+      'label AN \'CTA種別\',count(B) \'クリック\'",1)'
+  );
+
+  // 誘導先プラン別。どのプランへ送れているか（貸切・セットの露出が効いているかを見る）。
+  sheet.getRange('K1:L1').setValues([['誘導先プランID', 'クリック']]);
+  sheet.getRange('K2').setFormula(
+    '=QUERY(\'イベントデータ\'!A:AO,"select U,count(B) ' +
+      'where B=\'book_cta_click\' and U is not null and U<>\'\' group by U order by count(B) desc ' +
+      'label U \'誘導先プランID\',count(B) \'クリック\'",1)'
+  );
+
+  // ボタン文言別。同じ位置でも文言で差が出るため、次に書き換える候補を見つける。
+  sheet.getRange('N1:O1').setValues([['CTAボタン文言', 'クリック']]);
+  sheet.getRange('N2').setFormula(
+    '=QUERY(\'イベントデータ\'!A:AO,"select AO,count(B) ' +
+      'where B=\'book_cta_click\' and AO is not null and AO<>\'\' group by AO order by count(B) desc ' +
+      'label AO \'CTAボタン文言\',count(B) \'クリック\'",1)'
+  );
+
+  sheet.getRangeList(['A1:C1', 'E1:F1', 'H1:I1', 'K1:L1', 'N1:O1'])
+    .setBackground('#0f766e')
+    .setFontColor('#ffffff')
+    .setFontWeight('bold');
+  sheet.getRange('B:C').setNumberFormat('#,##0');
+  sheet.getRange('F:F').setNumberFormat('#,##0');
+  sheet.getRange('I:I').setNumberFormat('#,##0');
+  sheet.getRange('L:L').setNumberFormat('#,##0');
+  sheet.getRange('O:O').setNumberFormat('#,##0');
+  sheet.setColumnWidth(14, 320);
 }
 
 /**

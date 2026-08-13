@@ -17,7 +17,7 @@
 ## 初回セットアップ
 
 1. Google Apps Scriptで新しいプロジェクトを作成します。
-2. `Code.gs` と `appsscript.json` の内容を同名ファイルへ貼り付けます。
+2. `Code.gs` と `appsscript.json` の内容を同名ファイルへ貼り付けます。`appsscript.json`には、395日後の削除トリガーを作成するための`script.scriptapp`権限が含まれます。
 3. `setupAnalyticsWorkbook` を1回実行し、Googleの権限を許可します。
 4. 実行ログの戻り値にある `spreadsheetUrl` を開き、10シートが作成されたことを確認します。
 5. `generateAnalyticsSharedSecret` を1回実行し、戻り値を安全な場所へ一時コピーします。

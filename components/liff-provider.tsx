@@ -171,7 +171,14 @@ export function LiffProvider({ children }: { children: ReactNode }) {
     // init はコールバックパラメータを消費し、失敗時の分岐でも hash を書き換えるため。
     const returnPath = currentPathForAnalytics()
     const providerError = detectProviderError()
-    const returnedFromLine = detectLoginCallback() || consumeLineLoginRedirectFlag()
+    // consumeLineLoginRedirectFlag() は必ず呼ぶ。`detectLoginCallback() || consume...()` と
+    // 書くと、コールバック痕跡がある通常の復帰では短絡評価で consume 側が実行されず、
+    // sessionStorage の遷移中フラグが消えないまま残る。すると
+    // isLineLoginRedirectInProgress() が以後ずっと true になり、
+    // 「LINE認証への遷移は離脱に数えない」ガードが効きっぱなしになって、
+    // 一度でもLINEログインしたタブでは booking_abandoned が二度と記録されなくなる。
+    const hadRedirectFlag = consumeLineLoginRedirectFlag()
+    const returnedFromLine = detectLoginCallback() || hadRedirectFlag
     lineLoginReturnRef.current = returnedFromLine ? { returnPath } : null
 
     // 認証から戻ったかどうかにかかわらず、結果を1回だけ記録するための小さなヘルパー。

@@ -32,6 +32,7 @@ import {
   isLineLoginRedirectInProgress,
   toBookingFailureStage,
   trackBookingAbandoned,
+  beginBookingFunnelSession,
   trackBookingFormView,
   trackBookingStarted as trackBookingStartedEvent,
   trackLineLoginClick,
@@ -167,13 +168,26 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
     if (isSubmitted) successHeadingRef.current?.focus()
   }, [isSubmitted])
 
-  // フォーム表示を1回だけ計測（LIFF準備完了時点のログイン状態付き）
+  // フォーム表示を1回だけ計測。
+  // isLiffReady を待つと、LINEのSDKが読めない・初期化が返らない回線で永久に発火せず、
+  // 「フォーム表示 < 入力開始」という辻褄の合わない数字になる（日本語フォームで実測）。
+  // 表示された事実は LIFF と無関係なのでマウント時に記録し、
+  // その時点でログイン状態が未確定であることは line_ready で判別できるようにする。
   const hasTrackedFormView = useRef(false)
   useEffect(() => {
-    if (hasTrackedFormView.current || !isLiffReady) return
+    if (hasTrackedFormView.current) return
     hasTrackedFormView.current = true
-    trackBookingFormView({ locale, lineAuthenticated: hasFreshLineSession, source: getAttributionSourceLabel() })
-  }, [isLiffReady, hasFreshLineSession, locale])
+    // このフォーム1回分のファネル計測を開始する（2回目の予約が消えないように）
+    beginBookingFunnelSession()
+    trackBookingFormView({
+      locale,
+      lineAuthenticated: hasFreshLineSession,
+      lineReady: isLiffReady,
+      source: getAttributionSourceLabel(),
+    })
+    // 表示の記録はマウント時の1回だけ。LIFFの準備完了を待たない。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 入力内容を随時sessionStorageへ退避（LINEログインのリダイレクトを跨いで復元するため）
   useEffect(() => {

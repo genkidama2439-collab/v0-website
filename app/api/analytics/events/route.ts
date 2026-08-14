@@ -122,8 +122,21 @@ export async function POST(request: Request) {
       cache: "no-store",
     })
     if (!response.ok) throw new Error("analytics_webhook_failed")
+
+    // Apps Scriptは共有シークレット不一致や不正イベントでもHTTP 200で
+    // { ok: false } を返す。本文を確認しないと「送れているのにシートへ
+    // 1行も入らない」状態に気づけないため、ok を明示的に検証する。
+    const result = (await response.json().catch(() => null)) as { ok?: unknown } | null
+    if (!result || result.ok !== true) throw new Error("analytics_webhook_rejected")
+
     return NextResponse.json({ accepted: true })
-  } catch {
+  } catch (error) {
+    // 計測はユーザー操作を妨げない。クライアントは結果を見ないため、
+    // ここでの502は運用ログ用のシグナルとして残す。
+    console.error(
+      "[analytics] Sheetsへの記録に失敗:",
+      error instanceof Error ? error.message : "unknown_error"
+    )
     return NextResponse.json({ accepted: false, reason: "delivery_failed" }, { status: 502 })
   }
 }

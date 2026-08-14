@@ -18,37 +18,9 @@ export const validateEmail = (email: string): { valid: boolean; error?: string }
   return { valid: true };
 };
 
-// 参加者数のバリデーション
-export const validateParticipants = (
-  count: number,
-  min: number = 1,
-  max: number = 4
-): { valid: boolean; error?: string } => {
-  if (!Number.isInteger(count) || count < min || count > max) {
-    return { valid: false, error: ERROR_MESSAGES.INVALID_PARTICIPANTS };
-  }
-  return { valid: true };
-};
-
-// 日付のバリデーション
-export const validateDate = (date: Date | string): { valid: boolean; error?: string } => {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  if (isNaN(d.getTime())) {
-    return { valid: false, error: ERROR_MESSAGES.INVALID_DATE };
-  }
-  return { valid: true };
-};
-
-// 時刻のバリデーション（24時間形式）
-export const validateTime = (hours: number, minutes: number = 0): { valid: boolean; error?: string } => {
-  if (!Number.isInteger(hours) || hours < 0 || hours > 23) {
-    return { valid: false, error: ERROR_MESSAGES.INVALID_TIME };
-  }
-  if (!Number.isInteger(minutes) || minutes < 0 || minutes > 59) {
-    return { valid: false, error: ERROR_MESSAGES.INVALID_TIME };
-  }
-  return { valid: true };
-};
+// 参加日・開始時間・参加者数の検証は app/api/booking/route.ts が
+// プランごとのルール（lib/booking-rules.ts / lib/plan-flags.ts）で行う。
+// ここに汎用版を置くと上限4名などの古い値を誤って使う原因になるため置かない。
 
 // 必須フィールドのバリデーション
 export const validateRequired = (value: string | number): { valid: boolean; error?: string } => {

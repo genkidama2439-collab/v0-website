@@ -1,3 +1,5 @@
+import { TOUR_MASTER } from "@/lib/tour-master"
+
 const SITE_URL = "https://www.umigamekyoudaimiyakojima.com"
 const SITE_NAME = "海亀兄弟"
 
@@ -102,79 +104,20 @@ export function LocalBusinessJsonLd() {
       longitude: 125.28,
     },
     image: `${SITE_URL}/images/gemini-generated-image-rq969urq969urq96.jpeg`,
-    priceRange: "¥4,000〜¥24,500",
-    makesOffer: [
-      {
-        "@type": "Offer",
-        name: "ウミガメシュノーケルツアー",
-        price: "6500",
-        priceCurrency: "JPY",
-        url: `${SITE_URL}/plans/S1`,
-      },
-      {
-        "@type": "Offer",
-        name: "本格ナイトツアー",
-        price: "4000",
-        priceCurrency: "JPY",
-        url: `${SITE_URL}/plans/S3`,
-      },
-      {
-        "@type": "Offer",
-        name: "宮古島ドローンSUP体験",
-        price: "7500",
-        priceCurrency: "JPY",
-        url: `${SITE_URL}/plans/S6`,
-      },
-      {
-        "@type": "Offer",
-        name: "ウミガメシュノーケル＆ヤシガニ探検 昼夜セット",
-        price: "9500",
-        priceCurrency: "JPY",
-        url: `${SITE_URL}/plans/C1`,
-      },
-      {
-        "@type": "Offer",
-        name: "【貸切】ウミガメシュノーケル＆ヤシガニ探検 昼夜セット",
-        price: "16000",
-        priceCurrency: "JPY",
-        url: `${SITE_URL}/plans/C2`,
-      },
-      {
-        "@type": "Offer",
-        name: "ウミガメシュノーケル＆ドローンSUP 海空セット",
-        price: "13000",
-        priceCurrency: "JPY",
-        url: `${SITE_URL}/plans/C3`,
-      },
-      {
-        "@type": "Offer",
-        name: "【貸切】宮古島ドローンSUP体験",
-        price: "9500",
-        priceCurrency: "JPY",
-        url: `${SITE_URL}/plans/S7`,
-      },
-      {
-        "@type": "Offer",
-        name: "【貸切】ウミガメシュノーケル＆ドローンSUP 海空セット",
-        price: "17500",
-        priceCurrency: "JPY",
-        url: `${SITE_URL}/plans/C4`,
-      },
-      {
-        "@type": "Offer",
-        name: "ウミガメシュノーケル＆ドローンSUP＆ナイトツアー まるごと1日セット",
-        price: "16000",
-        priceCurrency: "JPY",
-        url: `${SITE_URL}/plans/C5`,
-      },
-      {
-        "@type": "Offer",
-        name: "【貸切】ウミガメシュノーケル＆ドローンSUP＆ナイトツアー まるごと1日セット",
-        price: "24500",
-        priceCurrency: "JPY",
-        url: `${SITE_URL}/plans/C6`,
-      },
-    ],
+    priceRange: `¥${Math.min(...TOUR_MASTER.map((tour) => tour.pricing.adult)).toLocaleString()}〜¥${Math.max(...TOUR_MASTER.map((tour) => tour.pricing.adult)).toLocaleString()}`,
+    // 掲載プラン・料金・URLは lib/tour-master.ts（= PLAN_PRICE_DATA / PLAN_DETAILS）から生成する。
+    // 以前は10件を手書きしており、S2・S4・S5・S8・slide-boat が抜け、S1の名前も実名と違っていた。
+    makesOffer: TOUR_MASTER.map((tour) => ({
+      "@type": "Offer",
+      name: tour.displayName,
+      price: String(tour.pricing.adult),
+      priceCurrency: tour.pricing.currency,
+      url: tour.seo.url,
+      availability:
+        tour.status === "coming_soon"
+          ? "https://schema.org/PreOrder"
+          : "https://schema.org/InStock",
+    })),
     openingHoursSpecification: {
       "@type": "OpeningHoursSpecification",
       dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],

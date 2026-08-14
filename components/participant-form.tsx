@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { User, AlertTriangle } from "lucide-react"
-import { SENIOR_RESTRICTED_PLAN_IDS, getPrivateCounterpartName } from "@/lib/plan-flags"
+import { SENIOR_RESTRICTED_PLAN_IDS, getAdultAgeMax, getPrivateCounterpartName } from "@/lib/plan-flags"
 import { getRentalUnitPrice, planOffersRentals } from "@/lib/rental-options"
 
 interface ParticipantDetails {
@@ -39,6 +39,8 @@ export function ParticipantForm({ participants, minAge, selectedPlan, onUpdate }
     : `+\u00a5${rentalUnitPrice.toLocaleString()}`
   // 60歳以上お断りのグループ版プランと、その案内先（貸切版）は plan-flags を単一ソースに参照
   const seniorCounterpartName = getPrivateCounterpartName(selectedPlan)
+  // 対象年齢の上限もプランページの表記と同じ plan-flags から取る
+  const adultAgeMax = getAdultAgeMax(selectedPlan)
 
   return (
     <Card className="glass-card bg-white/70 backdrop-blur-xl rounded-3xl ring-1 ring-emerald-100 shadow-lg">
@@ -85,7 +87,13 @@ export function ParticipantForm({ participants, minAge, selectedPlan, onUpdate }
                       onUpdate(participant.id, "age", value)
                     }}
                     min={participant.category === "under3" ? 0 : participant.category === "child" ? minAge : 13}
-                    max={participant.category === "under3" ? 3 : participant.category === "child" ? 12 : 100}
+                    max={
+                      participant.category === "under3"
+                        ? 3
+                        : participant.category === "child"
+                          ? 12
+                          : adultAgeMax
+                    }
                     className={`rounded-xl focus:border-emerald-500 ${isOverSixty ? "border-red-400 focus:border-red-500" : "border-emerald-200"}`}
                     aria-invalid={isOverSixty || undefined}
                     required

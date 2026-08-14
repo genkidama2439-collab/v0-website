@@ -5,7 +5,19 @@
 目的: Cloudflare AI Search / MCP / llms.txt / AI Agent 対応の**前提となる情報設計**を整理する。
 
 > このドキュメントは**調査結果と設計案**です。Cloudflare の導入・Workers・MCP Server の実装は行っていません。
-> 予約処理・GAS・LINE・Googleカレンダー・URL構造・デザインには一切手を入れていません。
+
+## 対応状況（2026-08-14 更新）
+
+初版は調査のみで、コードは変更していませんでした。その後オーナー確認が取れた項目を反映しています。
+
+| 項目 | 状態 | 内容 |
+|---|---|---|
+| **M1** 対象年齢 | ✅ 対応済み | オーナー確認「**65歳が上限で正しい**」。`getParticipantAgeRange` の大人上限を 100 → **65歳**（ナイトツアーのみ75歳）へ修正。フォームの入力欄と予約APIの検証もここから導出するようにした |
+| **M2** 貸切セットの60歳 | ✅ 対応済み | オーナー確認「**貸切セットは60歳以上を受け付ける**」。C2/C4/C6 の「本プランをご予約いただけません」を修正し、C1/C3/C5 は対応する貸切版へ案内する文面へ統一 |
+| **§4.5** サンセットSUPの集合時刻 | ✅ 対応済み | オーナー確認「**日没の約90分前に集合**」。`lib/data.ts` の「開始15分前に集合」を修正 |
+| **M8** JSON-LD の欠落 | ✅ 対応済み | `makesOffer` と `priceRange` を `lib/tour-master.ts` から生成。欠落していた S2/S4/S5/S8/slide-boat が載り、S1 の名前ずれも解消 |
+| **M7** ピラーページのFAQ | ⚠️ **初版の誤り。問題なし** | 表示とJSON-LDは元から一致していた（M7 の項を参照） |
+| M3・M4・M5・M6・M9 | ⏳ 未対応 | オーナー確認待ち（付録B） |
 
 ---
 
@@ -158,9 +170,9 @@ Next.js 14 (App Router, TypeScript)  ── Vercel（main へのマージで本�
 
 | 定義元 | 件数 | 描画先 | FAQPage JSON-LD |
 |---|---|---|---|
-| `lib/data.ts` `FAQS` | 24 | `/faq` | ✅ `/faq` と `/miyakojima-sea-turtle` の両方 |
+| `lib/data.ts` `FAQS` | 24 | `/faq` | ✅ `/faq` |
 | `components/home/faq-section.tsx` | 4 | `/` | ❌ |
-| `app/(ja)/miyakojima-sea-turtle/page.tsx` | 5 | `/miyakojima-sea-turtle` | ❌（同ページのJSON-LDは `lib/data.ts` の24件を使用） |
+| `app/(ja)/miyakojima-sea-turtle/page.tsx` | 5 | `/miyakojima-sea-turtle` | ✅ 同じ5件（表示と一致） |
 | `lib/plan-details.ts` `faqs` | 62 | `/plans/[id]` | ❌ |
 | `lib/i18n/{en,ko,zh-tw}.ts` | 各21 | `/en/faq` 他 | ✅ |
 
@@ -173,7 +185,7 @@ Next.js 14 (App Router, TypeScript)  ── Vercel（main へのマージで本�
 | 集合場所 | 6 | `集合場所はどこですか？` / `集合場所はいつ分かりますか？` / `集合時間は何時ですか？` |
 | 持ち物 | 2 | 完全に同一文言が2ファイル |
 
-**重大な点:** `/miyakojima-sea-turtle` はページ本文に独自FAQ 5件を表示しながら、JSON-LD には `lib/data.ts` の24件を出力している。**表示とJSON-LDの内容が一致していない。**
+**補足（初版の訂正）:** 初版で「`/miyakojima-sea-turtle` は表示とJSON-LDが不一致」と書いたのは誤りでした。同ページはローカル定義の5件を表示・JSON-LDの両方に使っており一致しています。M7 を参照してください。
 
 ### 4.5 その他の重複（検出結果）
 
@@ -254,9 +266,16 @@ S1/S2 には `freeForPrivate: true` が付いているが、C4 には付いて�
 
 S3・S6・S8 はコード上60歳制限があるが、`lib/data.ts` にも `lib/plan-details.ts` にも本文がない。プラン詳細ページはコードから自動表示するため画面には出るが、**AIやテキスト抽出には制限が伝わらない**。
 
-### M7 — `/miyakojima-sea-turtle` の表示FAQとJSON-LDが別内容【SEO】
+### M7 — ~~`/miyakojima-sea-turtle` の表示FAQとJSON-LDが別内容~~【訂正: 問題なし】
 
-ページ本文は独自の5件、JSON-LD は `lib/data.ts` の24件。Googleのガイドライン上、FAQPage 構造化データは**ページに表示されている内容と一致している必要がある**。
+> **2026-08-14 訂正:** 初版で「ページ本文は独自の5件、JSON-LD は `lib/data.ts` の24件」と書きましたが、**これは誤りでした。**
+> 同ページはローカル定義の `FAQS`（5件）を本文の表示（`page.tsx:311`）と `FAQJsonLd`（`page.tsx:84`）の**両方に使っており、表示とJSON-LDは一致しています。**
+> `lib/data.ts` の `FAQS` を import しているのは `/faq` だけです。
+
+残る事実は次の2点で、いずれもGoogleのガイドライン違反ではありません。
+
+- サイト内に FAQPage 構造化データが2つある（`/faq` の24件、`/miyakojima-sea-turtle` の5件）。別URLなので問題なし
+- 「持ち物は何が必要ですか？」がトップページとピラーページに**同一文言で重複**している（内容の重複であり、構造化データの不整合ではない）
 
 ### M8 — LocalBusiness の `makesOffer` に5プラン欠落【SEO】
 
@@ -514,7 +533,6 @@ export interface TourMaster {
 | ファイル | 作業 |
 |---|---|
 | `components/json-ld.tsx` | `makesOffer` と `priceRange` を `tour-master` から生成（手書き10件を廃止・欠落5プランを解消） |
-| `app/(ja)/miyakojima-sea-turtle/page.tsx` | 表示FAQとJSON-LDを一致させる（M7） |
 | `components/home/faq-section.tsx` | ローカルFAQを共通FAQへ寄せる |
 | `lib/faq.ts`（新規） | FAQの単一ソース化（共通・プラン別・多言語をタグで分類） |
 
@@ -575,7 +593,7 @@ export interface TourMaster {
 | **1** | 監査（本書）＋ `lib/tour-master.ts`（導出ビュー）＋ドリフト検知テスト | なし | `npm test` `tsc` `lint` `build`。**既存ファイルを変更しない**ので画面・予約は不変 |
 | **2** | M1〜M6 をオーナーへ確認し、正しい値を確定 | オーナー回答 | — |
 | **3** | JSON-LD（`makesOffer` `priceRange`）を `tour-master` から生成 | 段階1 | 生成前後のJSON-LDをdiff。Rich Results Test |
-| **4** | FAQ を `lib/faq.ts` へ単一ソース化。`/miyakojima-sea-turtle` の表示とJSON-LDを一致させる | 段階1 | `/faq` の表示内容が変わらないことを目視 |
+| **4** | FAQ を `lib/faq.ts` へ単一ソース化（重複質問の解消） | 段階1 | `/faq` の表示内容が変わらないことを目視 |
 | **5** | `lib/data.ts` の未描画重複フィールドを削除 | 段階1・3・4 | `tsc` `build` ＋ 予約フォームとAPIの動作確認 |
 | **6** | `app/llms.txt` と `app/api/tours` を `tour-master` から生成 | 段階1〜5 | 出力内容に内部情報が含まれないことを確認 |
 | **7** | `sheetPlanName` と `displayName` の分離（GAS側とセット） | 段階1〜6・GAS再デプロイ枠 | テスト予約で単品・セットの行名を確認 |

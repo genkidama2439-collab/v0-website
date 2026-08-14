@@ -78,15 +78,33 @@ export const planHasNight = (planId: string): boolean =>
 // ナイトツアー単品（3歳以下区分・子どもの最低年齢判定に使用）
 export const isNightTourPlan = (planId: string): boolean => planId === "S3" || planId === "S5"
 
+// 参加できる年齢の上限。プラン詳細ページの「対象年齢」表記と必ず一致させる。
+// （2026-08-14 オーナー確認: 通常プランは65歳まで、ナイトツアーのみ75歳まで）
+// 以前はここが 100 歳になっており、ページの「5〜65歳」という表示と食い違っていた。
+// 表記との一致は lib/participation-rules.test.mjs が検査する。
+export const ADULT_AGE_MIN = 13
+export const ADULT_AGE_MAX_DEFAULT = 65
+export const ADULT_AGE_MAX_NIGHT_TOUR = 75
+
+export const getAdultAgeMax = (planId: string): number =>
+  isNightTourPlan(planId) ? ADULT_AGE_MAX_NIGHT_TOUR : ADULT_AGE_MAX_DEFAULT
+
 export function getParticipantAgeRange(
   planId: string,
   category: string,
 ): { min: number; max: number } | null {
-  if (category === "adult") return { min: 13, max: 100 }
+  if (category === "adult") return { min: ADULT_AGE_MIN, max: getAdultAgeMax(planId) }
   if (category === "child") return { min: isNightTourPlan(planId) ? 4 : 5, max: 12 }
   if (category === "under3" && FREE_UNDER3_PLAN_IDS.has(planId)) return { min: 0, max: 3 }
   return null
 }
+
+/**
+ * このプランのWeb予約で受け付けられる年齢を超えているか。
+ * 超えている場合は区分の付け替えでは解決しないため、案内文を分けるのに使う。
+ */
+export const isOverParticipantAgeLimit = (planId: string, age: unknown): boolean =>
+  typeof age === "number" && Number.isFinite(age) && age > getAdultAgeMax(planId)
 
 export function isParticipantAgeValid(
   planId: string,

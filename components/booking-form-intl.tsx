@@ -50,6 +50,10 @@ import {
 } from "@/lib/customer-tracking"
 import { getPlanMaxParticipants } from "@/lib/booking-rules"
 import {
+  clearBookingSubmissionId,
+  getOrCreateBookingSubmissionId,
+} from "@/lib/booking-submission"
+import {
   calculateRentalTotal,
   getRentalCounts,
   getRentalUnitPrice,
@@ -114,7 +118,7 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
   const planById = dict.planById
 
   const searchParams = useSearchParams()
-  const { lineIdToken, isLiffReady, isLiffLoggedIn, loginLiff, liffError, getFreshLineIdToken, invalidateLineSession } = useLiff()
+  const { lineIdToken, isLiffReady, isLiffLoggedIn, loginLiff, retryLiff, liffError, getFreshLineIdToken, invalidateLineSession } = useLiff()
   const liffRequired = !!process.env.NEXT_PUBLIC_LIFF_ID
   const hasFreshLineSession = isLiffLoggedIn && !!lineIdToken
 
@@ -500,7 +504,26 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (submissionInFlightRef.current) return
-    if (!plan || !t) return
+
+    if (!isFormValid || !plan || !t) {
+      toast.error(copy.missingHeading(missingItems.length || 1))
+      return
+    }
+    if (liffRequired && !isLiffReady) {
+      toast.error(copy.lineConnecting)
+      retryLiff()
+      return
+    }
+    if (liffRequired && !hasFreshLineSession) {
+      if (liffError) {
+        toast.error(`${copy.lineErrorPrefix}${liffError}`)
+        retryLiff()
+      } else {
+        trackLineLoginClick({ location: `booking_submit_${locale}`, locale })
+        loginLiff()
+      }
+      return
+    }
 
     // LINE ID tokens expire ~1 hour after login and LIFF never refreshes them,
     // so validate right before sending. On expiry the session is cleared and the
@@ -525,40 +548,59 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
     })
 
     try {
+      const participantsForSubmit = participants.map((p, i) => ({
+        ...p,
+        name: p.name.trim() === "" ? copy.defaultGuestName(i + 1) : p.name.trim(),
+        wetsuitRental: planOffersRentals(plan.id) && p.wetsuitRental === true,
+        prescriptionMaskRental:
+          planOffersRentals(plan.id) &&
+          p.category === "adult" &&
+          p.prescriptionMaskRental === true,
+      }))
+      const finalSpecialRequests = specialRequests.trim()
+        ? `${bookingTag} ${specialRequests.trim()}`
+        : `${bookingTag} ${copy.bookedViaSite}`
+      const requestBody = {
+        selectedPlan: plan.id,
+        selectedDate: date,
+        selectedTime: time,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerPhone: customerPhone.trim(),
+        planName: plan.name,
+        locale,
+        selectedStaff: staffAvailable ? staffId || undefined : undefined,
+        participants: participantsForSubmit,
+        totalPrice,
+        specialRequests: finalSpecialRequests,
+        lineIdToken: freshLineIdToken,
+        couponCode,
+        couponDiscount,
+        agreedToTerms: agreed,
+        // 流入元（どのリンク経由か）。管理者メール・カレンダーの備考に [流入元] として載る
+        attribution: getAttribution(),
+        customerAnalytics: getBookingCustomerAnalytics(),
+      }
+      const submissionId = await getOrCreateBookingSubmissionId(locale, {
+        planId: plan.id,
+        date,
+        time,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerPhone: customerPhone.trim(),
+        staffId,
+        participants: participantsForSubmit,
+        specialRequests: finalSpecialRequests,
+        couponCode: couponCode.trim(),
+      })
+
       const response = await fetch("/api/booking", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          selectedPlan: plan.id,
-          selectedDate: date,
-          selectedTime: time,
-          customerName: customerName.trim(),
-          customerEmail: customerEmail.trim(),
-          customerPhone: customerPhone.trim(),
-          planName: plan.name,
-          locale,
-          selectedStaff: staffAvailable ? staffId || undefined : undefined,
-          participants: participants.map((p, i) => ({
-            ...p,
-            name: p.name.trim() === "" ? copy.defaultGuestName(i + 1) : p.name.trim(),
-            wetsuitRental: planOffersRentals(plan.id) && p.wetsuitRental === true,
-            prescriptionMaskRental:
-              planOffersRentals(plan.id) &&
-              p.category === "adult" &&
-              p.prescriptionMaskRental === true,
-          })),
-          totalPrice,
-          specialRequests: specialRequests.trim()
-            ? `${bookingTag} ${specialRequests.trim()}`
-            : `${bookingTag} ${copy.bookedViaSite}`,
-          lineIdToken: freshLineIdToken,
-          couponCode,
-          couponDiscount,
-          agreedToTerms: agreed,
-          // 流入元（どのリンク経由か）。管理者メール・カレンダーの備考に [流入元] として載る
-          attribution: getAttribution(),
-          customerAnalytics: getBookingCustomerAnalytics(),
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": submissionId,
+        },
+        body: JSON.stringify(requestBody),
       })
       failureCategory = categorizeBookingFailure(response.status)
       failureStage = toBookingFailureStage(response.status)
@@ -606,6 +648,7 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
       try {
         window.sessionStorage.removeItem(draftKey(locale))
       } catch {}
+      clearBookingSubmissionId(locale)
       setIsSubmitted(true)
     } catch (error) {
       sendDetailedEvent("booking_failed", {
@@ -1108,7 +1151,7 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
 
           <Button
             type="submit"
-            disabled={!isFormValid || isSubmitting || needsLineLogin}
+            disabled={isSubmitting}
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg py-6 rounded-2xl disabled:opacity-50"
           >
             {isSubmitting ? copy.submitSending : copy.submitLabel}

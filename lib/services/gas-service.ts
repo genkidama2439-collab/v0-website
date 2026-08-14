@@ -1,12 +1,16 @@
+import { createHash } from 'node:crypto';
+
 // GAS APIレスポンスの型定義
 export interface GASResponse {
   success: boolean;
   message: string;
   bookingNumber?: string;
   timestamp?: string;
+  duplicate?: boolean;
 }
 
 const GAS_REQUEST_FAILED_MESSAGE = '予約システムへの送信に失敗しました';
+const GAS_TIMEOUT_MS = 25_000;
 
 const isJSONObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -61,8 +65,13 @@ export const getGASUrl = (): string => {
   return url;
 };
 
-// 予約番号を生成
-export const generateBookingNumber = (): string => {
+// 予約番号を生成。同じ送信IDには同じ番号を返し、GAS側での重複防止に使う。
+export const generateBookingNumber = (stableSeed?: string): string => {
+  if (stableSeed) {
+    const digest = createHash('sha256').update(stableSeed).digest('hex').slice(0, 16).toUpperCase();
+    return `W${digest}`;
+  }
+
   const timestamp = Date.now().toString(36).toUpperCase();
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `${timestamp}${random}`;
@@ -72,9 +81,12 @@ export const generateBookingNumber = (): string => {
 export const sendToGAS = async (payload: BookingPayload): Promise<GASResponse> => {
   const gasUrl = getGASUrl();
 
-  // 10秒タイムアウト
+  const startedAt = Date.now();
+
+  // シートロック・カレンダー・Gmailまで含むGAS処理を待つ。従来の10秒では
+  // 保存済みなのにクライアントだけ失敗扱いになる余地が大きかった。
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), GAS_TIMEOUT_MS);
 
   try {
     const response = await fetch(gasUrl, {
@@ -90,13 +102,21 @@ export const sendToGAS = async (payload: BookingPayload): Promise<GASResponse> =
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.error('[v0] GAS returned an HTTP error:', response.status);
+      console.error('[v0] GAS returned an HTTP error:', {
+        status: response.status,
+        bookingNumber: payload.bookingNumber,
+        durationMs: Date.now() - startedAt,
+      });
       throw new Error(GAS_REQUEST_FAILED_MESSAGE);
     }
 
     const responseText = (await response.text()).trim();
     if (!responseText) {
-      console.error('[v0] GAS returned an empty response');
+      console.error('[v0] GAS returned an empty response', {
+        bookingNumber: payload.bookingNumber,
+        redirected: response.redirected,
+        durationMs: Date.now() - startedAt,
+      });
       throw new Error(GAS_REQUEST_FAILED_MESSAGE);
     }
 
@@ -104,13 +124,22 @@ export const sendToGAS = async (payload: BookingPayload): Promise<GASResponse> =
     try {
       gasResult = JSON.parse(responseText);
     } catch {
-      console.error('[v0] GAS returned invalid JSON');
+      console.error('[v0] GAS returned invalid JSON', {
+        bookingNumber: payload.bookingNumber,
+        contentType: response.headers.get('content-type') || 'unknown',
+        responseLength: responseText.length,
+        redirected: response.redirected,
+        durationMs: Date.now() - startedAt,
+      });
       throw new Error(GAS_REQUEST_FAILED_MESSAGE);
     }
 
     // GAS側がJSONで success: true を明示した場合だけ、保存成功と判断する。
     if (!isJSONObject(gasResult) || gasResult.success !== true) {
-      console.error('[v0] GAS did not confirm a successful booking');
+      console.error('[v0] GAS did not confirm a successful booking', {
+        bookingNumber: payload.bookingNumber,
+        durationMs: Date.now() - startedAt,
+      });
       throw new Error(GAS_REQUEST_FAILED_MESSAGE);
     }
 
@@ -119,12 +148,16 @@ export const sendToGAS = async (payload: BookingPayload): Promise<GASResponse> =
       message: '予約がシステムに送信されました',
       bookingNumber: payload.bookingNumber,
       timestamp: new Date().toISOString(),
+      ...(gasResult.duplicate === true ? { duplicate: true } : {}),
     };
   } catch (error) {
     clearTimeout(timeoutId);
 
     if (error instanceof Error && error.name === 'AbortError') {
-      console.warn('[v0] GAS送信タイムアウト（10秒）');
+      console.warn('[v0] GAS送信タイムアウト', {
+        bookingNumber: payload.bookingNumber,
+        timeoutMs: GAS_TIMEOUT_MS,
+      });
       throw new Error(GAS_REQUEST_FAILED_MESSAGE);
     }
 

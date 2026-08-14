@@ -60,6 +60,10 @@ import { getStaffFee } from "@/lib/data"
 import { getPlanPriceDisplay, getPlanCode } from "@/lib/plan-price-display"
 import { getPlanMaxParticipants } from "@/lib/booking-rules"
 import {
+  clearBookingSubmissionId,
+  getOrCreateBookingSubmissionId,
+} from "@/lib/booking-submission"
+import {
   calculateRentalTotal,
   getRentalCounts,
   getRentalUnitPrice,
@@ -292,12 +296,14 @@ export function BookingForm() {
 
   const [totalPrice, setTotalPrice] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [confirmedPricing, setConfirmedPricing] = useState<{ totalPrice: number; couponDiscount: number } | null>(null)
   const appliedCouponRef = useRef<{ code: string; signature: string } | null>(null)
   const submissionInFlightRef = useRef(false)
   const bookingStartedTrackedRef = useRef(false)
+  const validationSummaryRef = useRef<HTMLDivElement>(null)
 
   // 同意済みならURL由来の初期選択イベントより先に予約ファネルIDを用意する。
   // 予約画面を開いてから同意した場合も、同じ画面の以後の操作へIDを付与する。
@@ -773,6 +779,38 @@ export function BookingForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (submissionInFlightRef.current) return
+
+    if (!isFormValid) {
+      const firstMissingItem = missingItems[0]
+      toast.error(
+        firstMissingItem
+          ? `まだ送信できません。「${firstMissingItem}」を確認してください。`
+          : "入力内容を確認してください。",
+      )
+      window.requestAnimationFrame(() => {
+        validationSummaryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+        validationSummaryRef.current?.focus({ preventScroll: true })
+      })
+      return
+    }
+
+    const liffRequired = !!process.env.NEXT_PUBLIC_LIFF_ID
+    if (liffRequired && !isLiffReady) {
+      toast.error("LINE連携の準備が完了していません。再接続を開始します。")
+      retryLiff()
+      return
+    }
+    if (liffRequired && !hasFreshLineSession) {
+      if (liffError) {
+        toast.error("LINE連携を再試行します。完了後にもう一度送信してください。")
+        retryLiff()
+      } else {
+        toast.info("予約送信にはLINEログインが必要です。入力内容を保存してログイン画面へ移動します。")
+        loginLiff()
+      }
+      return
+    }
+
     if (selectedPlanIsComingSoon) {
       toast.error("このプランは近日公開のため、まだ予約できません")
       return
@@ -787,6 +825,7 @@ export function BookingForm() {
     }
     submissionInFlightRef.current = true
     setIsSubmitting(true)
+    setSubmitError(null)
     let failureCategory = categorizeBookingFailure()
     let failureStage = toBookingFailureStage()
 
@@ -827,31 +866,48 @@ export function BookingForm() {
       : bookingData.specialRequests
 
     try {
+      const requestBody = {
+        ...bookingData,
+        participants: participantsForSubmit,
+        // 昼夜セットは備考に [COMBO booking] ブロックを付与（...bookingData の specialRequests を上書き）
+        specialRequests: finalSpecialRequests,
+        // 本人情報は送らず、サーバーがLINE公式APIで検証するID tokenだけを渡す。
+        lineIdToken: freshLineIdToken,
+        planName: selectedPlanData?.name,
+        staffName: STAFF_LIST.find((s) => s.id === bookingData.selectedStaff)?.name,
+        adultPrice,
+        childPrice,
+        vipSurcharge: selectedPlanData?.vipSurcharge || 0,
+        totalPrice,
+        couponCode: bookingData.couponCode,
+        couponDiscount: bookingData.couponDiscount,
+        // 流入元（どのリンク経由か）。管理者メール・カレンダーの備考に [流入元] として載る
+        attribution: getAttribution(),
+        // 同意済みの場合だけ、予約前の閲覧履歴と予約を結合する識別子を送る。
+        customerAnalytics: getBookingCustomerAnalytics(),
+      }
+      const submissionId = await getOrCreateBookingSubmissionId("ja", {
+        selectedPlan: bookingData.selectedPlan,
+        selectedDate: bookingData.selectedDate,
+        selectedTime: bookingData.selectedTime,
+        nightTime: bookingData.nightTime,
+        selectedStaff: bookingData.selectedStaff,
+        customerName: bookingData.customerName.trim(),
+        customerEmail: bookingData.customerEmail.trim(),
+        customerPhone: bookingData.customerPhone.trim(),
+        participants: participantsForSubmit,
+        specialRequests: finalSpecialRequests,
+        agreedToTerms: bookingData.agreedToTerms,
+        couponCode: bookingData.couponCode.trim(),
+      })
+
       const response = await fetch("/api/booking", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Idempotency-Key": submissionId,
         },
-        body: JSON.stringify({
-          ...bookingData,
-          participants: participantsForSubmit,
-          // 昼夜セットは備考に [COMBO booking] ブロックを付与（...bookingData の specialRequests を上書き）
-          specialRequests: finalSpecialRequests,
-          // 本人情報は送らず、サーバーがLINE公式APIで検証するID tokenだけを渡す。
-          lineIdToken: freshLineIdToken,
-          planName: selectedPlanData?.name,
-          staffName: STAFF_LIST.find((s) => s.id === bookingData.selectedStaff)?.name,
-          adultPrice,
-          childPrice,
-          vipSurcharge: selectedPlanData?.vipSurcharge || 0,
-          totalPrice,
-          couponCode: bookingData.couponCode,
-          couponDiscount: bookingData.couponDiscount,
-          // 流入元（どのリンク経由か）。管理者メール・カレンダーの備考に [流入元] として載る
-          attribution: getAttribution(),
-          // 同意済みの場合だけ、予約前の閲覧履歴と予約を結合する識別子を送る。
-          customerAnalytics: getBookingCustomerAnalytics(),
-        }),
+        body: JSON.stringify(requestBody),
       })
       failureCategory = categorizeBookingFailure(response.status)
       failureStage = toBookingFailureStage(response.status)
@@ -904,6 +960,7 @@ export function BookingForm() {
       })
       completeCustomerBookingFunnel()
       clearBookingDraft()
+      clearBookingSubmissionId("ja")
       setIsSubmitted(true)
     } catch (error) {
       sendDetailedEvent("booking_failed", {
@@ -923,6 +980,9 @@ export function BookingForm() {
         stage: failureStage,
       })
       const errorMessage = error instanceof Error ? error.message : "予約の送信中にエラーが発生しました。もう一度お試しください。"
+      setSubmitError(
+        `${errorMessage} 同じ内容で再送しても重複登録されないよう保護されています。`,
+      )
       toast.error(errorMessage)
     } finally {
       submissionInFlightRef.current = false
@@ -1000,7 +1060,11 @@ export function BookingForm() {
   if (!bookingData.customerEmail) missingItems.push("メールアドレスの入力")
   if (!bookingData.customerPhone) missingItems.push("電話番号の入力")
   if (!bookingData.agreedToTerms) missingItems.push("キャンセルポリシーへの同意チェック")
-  if (!!process.env.NEXT_PUBLIC_LIFF_ID && isLiffReady && !hasFreshLineSession) missingItems.push("LINEログイン")
+  if (!!process.env.NEXT_PUBLIC_LIFF_ID) {
+    if (!isLiffReady) missingItems.push("LINE情報の取得完了")
+    else if (liffError) missingItems.push("LINE連携の再試行")
+    else if (!hasFreshLineSession) missingItems.push("LINEログイン")
+  }
 
   // ============================================================
   // ファネル計測（表示・入力順序・必須条件には影響しない観測のみ）
@@ -2397,7 +2461,13 @@ export function BookingForm() {
 
           {/* 「なぜ送信できないのか」を送信ボタンの直前で具体的に示す */}
           {missingItems.length > 0 && (
-            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4" role="status">
+            <div
+              ref={validationSummaryRef}
+              id="booking-validation-summary"
+              tabIndex={-1}
+              className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 outline-none focus:ring-2 focus:ring-amber-400"
+              role="status"
+            >
               <p className="text-sm font-bold text-amber-900">送信まであと{missingItems.length}項目です</p>
               <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-sm text-amber-800">
                 {missingItems.map((item) => (
@@ -2407,13 +2477,22 @@ export function BookingForm() {
             </div>
           )}
 
+          {submitError && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+              <p className="font-bold">送信結果を確認できませんでした</p>
+              <p className="mt-1">{submitError}</p>
+              <p className="mt-2 font-semibold">送信ボタンを連打せず、同じ内容のまま再送してください。</p>
+            </div>
+          )}
+
           <Button
             type="submit"
             size="lg"
-            disabled={!isFormValid || isSubmitting || (!!process.env.NEXT_PUBLIC_LIFF_ID && (!isLiffReady || !hasFreshLineSession))}
+            disabled={isSubmitting}
+            aria-describedby={missingItems.length > 0 ? "booking-validation-summary" : undefined}
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-4 text-lg font-semibold disabled:opacity-50"
           >
-            {!isLiffReady && !!process.env.NEXT_PUBLIC_LIFF_ID ? "LINE連携中..." : (!!process.env.NEXT_PUBLIC_LIFF_ID && !hasFreshLineSession) ? "上のLINEログイン後に送信できます" : isSubmitting ? "送信中..." : "仮予約を送信する"}
+            {isSubmitting ? "送信中..." : "仮予約を送信する"}
           </Button>
 
           <p className="text-xs text-gray-500 text-center mt-3">送信後、24時間以内にスタッフよりご連絡いたします。</p>

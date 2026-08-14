@@ -6,7 +6,9 @@
  * 予約受信の doPost や既存の編集トリガーには依存しません。
  */
 
-var ADMIN_APP_VERSION = '2026.07.18-3';
+var ADMIN_APP_VERSION = '2026.08.14-5';
+var ADMIN_SCHEMA_VERSION = '2026.08.14-4';
+var ADMIN_SCHEMA_VERSION_PROPERTY = 'ADMIN_BOOKING_SCHEMA_VERSION';
 var ADMIN_DEFAULT_SPREADSHEET_ID =
   '1bPYur4Dfg3LxTCIiYzZvyZRT8bgLoYizG1B6LIkETKk';
 var ADMIN_DEFAULT_CALENDAR_ID = 'genkidama2439@gmail.com';
@@ -41,8 +43,143 @@ var ADMIN_COLUMNS = {
   COUPON_DISCOUNT: 18,
   LINE_SEND: 19,
   LINE_CONFIRM: 20,
-  LINE_RESULT: 21
+  LINE_RESULT: 21,
+  EMAIL: 22,
+  VISITOR_ID: 23,
+  VISIT_ID: 24,
+  BOOKING_FUNNEL_ID: 25,
+  TRACKING_CONSENT_VERSION: 26,
+  TRACKING_CONSENT_AT: 27,
+  VISITOR_CREATED_AT: 28,
+  VISIT_STARTED_AT: 29,
+  LOCALE: 30,
+  LANDING_PAGE: 31,
+  REFERRER_HOST: 32,
+  UTM_SOURCE: 33,
+  UTM_MEDIUM: 34,
+  UTM_CAMPAIGN: 35,
+  CURRENT_PAGE: 36,
+  DEVICE_TYPE: 37,
+  BROWSER: 38,
+  OS: 39,
+  PARTICIPANT_AGES: 40,
+  PARTICIPANT_HEIGHTS: 41,
+  PARTICIPANT_WEIGHTS: 42,
+  PARTICIPANT_FOOT_SIZES: 43,
+  SPECIAL_REQUESTS: 44,
+  PLAN_ID: 45
 };
+
+var ADMIN_CANONICAL_HEADERS = [
+  '受付日時', '予約番号', '参加日', '時間', '名前', 'プラン', '合計金額',
+  '電話', 'ステータス', '人数内訳', '参加者詳細', 'lineUserId',
+  '予約ステータス', '開催場所', 'LINE名', 'スタッフ指名',
+  'クーポンコード', 'クーポン割引額', 'LINE送信', 'LINE送信確認',
+  '送信予定・結果', 'メールアドレス', 'Visitor ID', 'Visit ID',
+  '予約ファネルID', '行動履歴連携同意バージョン',
+  '行動履歴連携同意日時', 'Visitor作成日時', 'Visit開始日時', '言語',
+  '初回着地ページ', '参照元ホスト', 'UTM Source', 'UTM Medium',
+  'UTM Campaign', '予約送信ページ', 'デバイス', 'ブラウザ', 'OS',
+  '参加者年齢', '参加者身長', '参加者体重', '参加者足サイズ',
+  '特別なご要望・アレルギー等', '管理プランID'
+];
+
+var ADMIN_PLAN_CATALOG = [
+  {
+    id: 'S1', name: 'ウミガメと泳ぐシュノーケルツアー',
+    adultPrice: 6500, childPrice: 6000, under3Price: 6000,
+    components: [{ plan: 'ウミガメと泳ぐシュノーケルツアー', role: 'turtle', duration: 120 }]
+  },
+  {
+    id: 'S2', name: '【貸切】ウミガメシュノーケルツアー',
+    adultPrice: 9000, childPrice: 9000, under3Price: 9000,
+    components: [{ plan: '【貸切】ウミガメシュノーケルツアー', role: 'turtle', duration: 120 }]
+  },
+  {
+    id: 'S3', name: '本格ナイトツアー',
+    adultPrice: 4000, childPrice: 4000, under3Price: 0,
+    components: [{ plan: '本格ナイトツアー', role: 'night', duration: 90 }]
+  },
+  {
+    id: 'S4', name: '【貸切】サンセットSUP',
+    adultPrice: 9500, childPrice: 8500, under3Price: 8500,
+    components: [{ plan: '【貸切】サンセットSUP', role: 'sup', duration: 120 }]
+  },
+  {
+    id: 'S8', name: 'サンセットSUP',
+    adultPrice: 7500, childPrice: 6500, under3Price: 6500,
+    components: [{ plan: 'サンセットSUP', role: 'sup', duration: 120 }]
+  },
+  {
+    id: 'S5', name: '【貸切】本格ナイトツアー',
+    adultPrice: 8000, childPrice: 8000, under3Price: 0,
+    components: [{ plan: '【貸切】本格ナイトツアー', role: 'night', duration: 90 }]
+  },
+  {
+    id: 'S6', name: '宮古島ドローンSUP体験',
+    adultPrice: 7500, childPrice: 6500, under3Price: 6500,
+    components: [{ plan: '宮古島ドローンSUP体験', role: 'sup', duration: 120 }]
+  },
+  {
+    id: 'S7', name: '【貸切】宮古島ドローンSUP体験',
+    adultPrice: 9500, childPrice: 8500, under3Price: 8500,
+    components: [{ plan: '【貸切】宮古島ドローンSUP体験', role: 'sup', duration: 120 }]
+  },
+  {
+    id: 'C1', name: 'ウミガメシュノーケル＆ヤシガニ探検 昼夜セット',
+    adultPrice: 9500, childPrice: 9000, under3Price: 9000,
+    components: [
+      { plan: '昼夜セット海亀', role: 'turtle', duration: 90 },
+      { plan: '昼夜セットヤシガニ', role: 'night', duration: 90 }
+    ]
+  },
+  {
+    id: 'C2', name: '【貸切】ウミガメシュノーケル＆ヤシガニ探検 昼夜セット',
+    adultPrice: 16000, childPrice: 16000, under3Price: 16000,
+    components: [
+      { plan: '昼夜セット海亀', role: 'turtle', duration: 90 },
+      { plan: '昼夜セットヤシガニ', role: 'night', duration: 90 }
+    ]
+  },
+  {
+    id: 'C3', name: 'ウミガメシュノーケル＆ドローンSUP 海空セット',
+    adultPrice: 13000, childPrice: 11500, under3Price: 11500,
+    autoSup: true,
+    components: [
+      { plan: '海空セット（ウミガメシュノーケル）', role: 'turtle', duration: 90 },
+      { plan: '海空セット（ドローンSUP）', role: 'sup', duration: 90 }
+    ]
+  },
+  {
+    id: 'C4', name: '【貸切】ウミガメシュノーケル＆ドローンSUP 海空セット',
+    adultPrice: 17500, childPrice: 16500, under3Price: 16500,
+    autoSup: true,
+    components: [
+      { plan: '海空セット（ウミガメシュノーケル）', role: 'turtle', duration: 90 },
+      { plan: '海空セット（ドローンSUP）', role: 'sup', duration: 90 }
+    ]
+  },
+  {
+    id: 'C5', name: 'ウミガメシュノーケル＆ドローンSUP＆ナイトツアー まるごと1日セット',
+    adultPrice: 16000, childPrice: 14500, under3Price: 14500,
+    autoSup: true,
+    components: [
+      { plan: 'まるごと1日セット海亀', role: 'turtle', duration: 90 },
+      { plan: 'まるごと1日セットドローンSUP', role: 'sup', duration: 90 },
+      { plan: 'まるごと1日セットヤシガニ', role: 'night', duration: 90 }
+    ]
+  },
+  {
+    id: 'C6', name: '【貸切】ウミガメシュノーケル＆ドローンSUP＆ナイトツアー まるごと1日セット',
+    adultPrice: 24500, childPrice: 23500, under3Price: 23500,
+    autoSup: true,
+    components: [
+      { plan: '貸切まるごと1日セット海亀', role: 'turtle', duration: 90 },
+      { plan: '貸切まるごと1日セットドローンSUP', role: 'sup', duration: 90 },
+      { plan: '貸切まるごと1日セットヤシガニ', role: 'night', duration: 90 }
+    ]
+  }
+];
 
 var ADMIN_LOCATION_OPTIONS = [
   '新城海岸',
@@ -57,14 +194,33 @@ var ADMIN_LOCATION_OPTIONS = [
 var ADMIN_STATUS_OPTIONS = ['', '確定', '満席'];
 
 function doGet() {
-  adminAssertAuthorized_();
+  var template = HtmlService.createTemplateFromFile('Index');
 
-  return HtmlService
-    .createTemplateFromFile('Index')
+  try {
+    template.initialDataJson = adminSafeJsonForHtml_(adminGetAppData());
+    template.initialDataErrorJson = adminSafeJsonForHtml_('');
+  } catch (error) {
+    template.initialDataJson = 'null';
+    template.initialDataErrorJson = adminSafeJsonForHtml_(
+      error && error.message ? error.message : String(error)
+    );
+  }
+
+  return template
     .evaluate()
     .setTitle('海亀兄弟 予約管理')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
+}
+
+// 顧客入力に</script>相当の文字が含まれてもHTMLを途中終了させない。
+function adminSafeJsonForHtml_(value) {
+  return JSON.stringify(value)
+    .replace(/&/g, '\\u0026')
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 }
 
 function include(filename) {
@@ -151,9 +307,34 @@ function adminGetAppData() {
       )),
       plans: adminUniqueSorted_(publicBookings.map(function(booking) {
         return booking.displayPlan;
-      }))
+      })),
+      planCatalog: ADMIN_PLAN_CATALOG.map(function(plan) {
+        return {
+          id: plan.id,
+          name: plan.name,
+          adultPrice: plan.adultPrice,
+          childPrice: plan.childPrice,
+          under3Price: plan.under3Price,
+          autoSup: !!plan.autoSup,
+          components: plan.components.map(function(component) {
+            return {
+              plan: component.plan,
+              role: component.role,
+              duration: component.duration
+            };
+          })
+        };
+      })
     }
   };
+}
+
+/**
+ * google.script.runのオブジェクト変換で応答が止まるケースを避けるため、
+ * 初期表示データを明示的なJSON文字列として返します。
+ */
+function adminGetAppDataJson() {
+  return JSON.stringify(adminGetAppData());
 }
 
 /**
@@ -462,6 +643,583 @@ function adminUpdateSchedule(request) {
 }
 
 /**
+ * 予約内容を後から安全に変更します。
+ * 単品・2予定セット・3予定セットを相互変換し、予約一覧とGoogleカレンダーを
+ * 一括更新します。この処理だけではLINEを送信しません。
+ */
+function adminChangeReservation(request) {
+  var actor = adminAssertAuthorized_();
+  request = request || {};
+
+  if (!request.bookingKey) throw new Error('変更する予約を特定できません。');
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+
+  try {
+    var sheet = adminGetBookingSheet_();
+    var beforeBooking = adminFindBooking_(sheet, request.bookingKey);
+
+    if (!beforeBooking) {
+      throw new Error('予約が見つかりません。画面を更新してください。');
+    }
+
+    if (
+      request.expectedVersion &&
+      request.expectedVersion !== beforeBooking.version
+    ) {
+      throw new Error(
+        'この予約は別の画面で更新されています。再読み込みして内容を確認してください。'
+      );
+    }
+
+    if (!beforeBooking.bookingNumber) {
+      throw new Error('予約番号がない予約は管理画面から内容変更できません。');
+    }
+
+    var reason = String(request.reason || '').trim();
+    if (!reason || reason.length > 500) {
+      throw new Error('変更理由を1〜500文字で入力してください。');
+    }
+
+    var plan = adminGetPlanById_(request.planId);
+    if (!plan) throw new Error('変更後のプランを選択してください。');
+
+    var normalized = adminNormalizeReservationChange_(
+      beforeBooking,
+      plan,
+      request
+    );
+    var oldRows = adminReadFullBookingRows_(sheet, beforeBooking.rowNumbers);
+    var targetRowNumbers = beforeBooking.rowNumbers.slice(0, plan.components.length);
+    var addedRowNumbers = [];
+    var nextAppendRow = Math.max(sheet.getLastRow() + 1, 2);
+
+    while (targetRowNumbers.length < plan.components.length) {
+      var nextRow = nextAppendRow + addedRowNumbers.length;
+      targetRowNumbers.push(nextRow);
+      addedRowNumbers.push(nextRow);
+      sheet.getRange(nextRow, 1, 1, ADMIN_COLUMNS.PLAN_ID).clearContent();
+    }
+
+    var calendar = adminGetCalendar_();
+    var oldCalendar = adminFindCalendarEventsForDeletion_(calendar, beforeBooking);
+    var deletedOldEvents = [];
+    var createdEvents = [];
+    var updatedBooking = null;
+    var newRows = adminBuildChangedRows_(
+      sheet,
+      beforeBooking,
+      plan,
+      normalized,
+      targetRowNumbers
+    );
+
+    try {
+      oldCalendar.events.forEach(function(event) {
+        var snapshot = adminSnapshotCalendarEvent_(event);
+        event.deleteEvent();
+        deletedOldEvents.push(snapshot);
+      });
+
+      targetRowNumbers.forEach(function(rowNumber, index) {
+        sheet
+          .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.PLAN_ID)
+          .setValues([newRows[index]]);
+      });
+
+      beforeBooking.rowNumbers
+        .slice(plan.components.length)
+        .forEach(function(rowNumber) {
+          sheet
+            .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.PLAN_ID)
+            .clearContent();
+        });
+
+      SpreadsheetApp.flush();
+
+      normalized.components.forEach(function(component, index) {
+        createdEvents.push(
+          adminCreateChangedCalendarEvent_(
+            calendar,
+            beforeBooking,
+            plan,
+            component,
+            normalized,
+            newRows[index]
+          )
+        );
+      });
+
+      updatedBooking = adminFindBooking_(
+        sheet,
+        'BOOKING:' + beforeBooking.bookingNumber
+      );
+
+      if (!updatedBooking) {
+        throw new Error('変更後の予約を読み取れませんでした。');
+      }
+      if (
+        updatedBooking.componentCount !== plan.components.length ||
+        updatedBooking.planId !== plan.id ||
+        updatedBooking.totalPrice !== normalized.totalPrice
+      ) {
+        throw new Error('変更後の予約内容が保存値と一致しませんでした。');
+      }
+
+    } catch (updateError) {
+      var rollbackErrors = [];
+
+      createdEvents.forEach(function(event) {
+        try {
+          event.deleteEvent();
+        } catch (error) {
+          rollbackErrors.push('新カレンダー予定削除: ' + error.message);
+        }
+      });
+
+      rollbackErrors = rollbackErrors.concat(
+        adminRestoreFullBookingRows_(sheet, oldRows)
+      );
+
+      addedRowNumbers.forEach(function(rowNumber) {
+        try {
+          sheet
+            .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.PLAN_ID)
+            .clearContent();
+        } catch (error) {
+          rollbackErrors.push('追加行' + rowNumber + 'の取消: ' + error.message);
+        }
+      });
+
+      if (deletedOldEvents.length) {
+        rollbackErrors = rollbackErrors.concat(
+          adminRestoreCalendarEvents_(calendar, deletedOldEvents)
+        );
+      }
+
+      throw new Error(
+        '予約変更を完了できなかったため元の状態へ戻しました。' +
+        updateError.message +
+        (rollbackErrors.length
+          ? ' / 自動復旧の確認が必要です: ' + rollbackErrors.join(' / ')
+          : '')
+      );
+    }
+
+    var warning = oldCalendar.warning || '';
+
+    try {
+      adminClearPendingForBooking_(sheet, updatedBooking);
+    } catch (pendingError) {
+      warning = adminJoinWarnings_(
+        warning,
+        '古いLINE送信待ちを取消できませんでした: ' + pendingError.message
+      );
+    }
+
+    var changeSummary = adminBuildReservationChangeSummary_(
+      beforeBooking,
+      updatedBooking,
+      reason
+    );
+
+    try {
+      adminAppendReservationChangeHistory_(
+        actor,
+        beforeBooking,
+        updatedBooking,
+        reason,
+        changeSummary
+      );
+      adminAppendAudit_(
+        actor,
+        updatedBooking,
+        '予約内容変更',
+        changeSummary,
+        updatedBooking.rowNumbers
+      );
+    } catch (historyError) {
+      warning = adminJoinWarnings_(
+        warning,
+        '予約は変更されましたが、変更履歴を記録できませんでした: ' +
+          historyError.message
+      );
+    }
+
+    return {
+      success: true,
+      booking: adminToPublicBooking_(updatedBooking),
+      warning: warning,
+      changeSummary: changeSummary,
+      suggestedLineMessage: adminBuildChangeNoticeMessage_(
+        updatedBooking,
+        changeSummary
+      )
+    };
+
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function adminNormalizeReservationChange_(beforeBooking, plan, request) {
+  var counts = request.counts || {};
+  var adult = adminValidateCount_(counts.adult, '大人');
+  var child = adminValidateCount_(counts.child, '子供');
+  var under3 = adminValidateCount_(counts.under3, '3歳未満');
+
+  if (adult + child + under3 < 1) {
+    throw new Error('参加人数は1名以上にしてください。');
+  }
+
+  var totalPrice = Number(request.totalPrice);
+  var couponDiscount = Number(request.couponDiscount || 0);
+
+  if (!isFinite(totalPrice) || totalPrice < 0 || totalPrice > 10000000) {
+    throw new Error('合計金額を0〜10,000,000円で入力してください。');
+  }
+  if (
+    !isFinite(couponDiscount) ||
+    couponDiscount < 0 ||
+    couponDiscount > 1000000
+  ) {
+    throw new Error('クーポン割引額を0〜1,000,000円で入力してください。');
+  }
+
+  if (plan.id.charAt(0) === 'C') {
+    couponDiscount = 0;
+    request.couponCode = '';
+  }
+
+  var customerName = String(request.customerName || '').trim();
+  var phone = String(request.phone || '').trim();
+  var email = String(request.email || '').trim();
+  var participants = String(request.participants || '').trim();
+  var participantAges = String(request.participantAges || '').trim();
+  var participantHeights = String(request.participantHeights || '').trim();
+  var participantWeights = String(request.participantWeights || '').trim();
+  var participantFootSizes = String(request.participantFootSizes || '').trim();
+  var specialRequests = String(request.specialRequests || '').trim();
+
+  if (!customerName || customerName.length > 120) {
+    throw new Error('お客様名を1〜120文字で入力してください。');
+  }
+  if (!phone || phone.length > 40) {
+    throw new Error('電話番号を1〜40文字で入力してください。');
+  }
+  if (email.length > 254 || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+    throw new Error('メールアドレスを確認してください。');
+  }
+  if (participants.length > 5000 || specialRequests.length > 5000) {
+    throw new Error('参加者詳細または要望が長すぎます。');
+  }
+  if (
+    participantAges.length > 2000 ||
+    participantHeights.length > 2000 ||
+    participantWeights.length > 2000 ||
+    participantFootSizes.length > 2000
+  ) {
+    throw new Error('参加者の年齢・身長・体重・足サイズが長すぎます。');
+  }
+
+  var requestedComponents = Array.isArray(request.components)
+    ? request.components
+    : [];
+  var byRole = {};
+
+  requestedComponents.forEach(function(component) {
+    var role = String(component && component.role || '');
+    if (role) byRole[role] = component;
+  });
+
+  var components = plan.components.map(function(definition) {
+    var source = byRole[definition.role] || {};
+    var date = String(source.date || '').trim();
+    var time = adminNormalizeScheduleTime_(source.time);
+
+    adminValidateScheduleDate_(date);
+    if (!time) {
+      throw new Error('「' + definition.plan + '」の開始時間を入力してください。');
+    }
+
+    return {
+      plan: definition.plan,
+      role: definition.role,
+      duration: definition.duration,
+      date: date,
+      time: time
+    };
+  });
+
+  if (plan.autoSup) {
+    var turtle = components.filter(function(component) {
+      return component.role === 'turtle';
+    })[0];
+    var sup = components.filter(function(component) {
+      return component.role === 'sup';
+    })[0];
+
+    if (turtle && sup) {
+      sup.date = turtle.date;
+      sup.time = adminAddMinutesToScheduleTime_(turtle.time, 90);
+    }
+  }
+
+  return {
+    counts: { adult: adult, child: child, under3: under3 },
+    headcount: '大人' + adult + '名 / 子供' + child + '名 / 3歳未満' + under3 + '名',
+    totalPrice: Math.round(totalPrice),
+    couponDiscount: Math.round(couponDiscount),
+    couponCode: String(request.couponCode || '').trim().slice(0, 100),
+    customerName: customerName,
+    phone: phone,
+    email: email,
+    participants: participants,
+    participantAges: participantAges,
+    participantHeights: participantHeights,
+    participantWeights: participantWeights,
+    participantFootSizes: participantFootSizes,
+    specialRequests: specialRequests,
+    components: components,
+    status: ['確定', '満席'].indexOf(
+      String(request.bookingStatus || beforeBooking.bookingStatus || '').trim()
+    ) !== -1
+      ? String(request.bookingStatus || beforeBooking.bookingStatus || '').trim()
+      : ''
+  };
+}
+
+function adminValidateCount_(value, label) {
+  var count = Number(value || 0);
+
+  if (!isFinite(count) || count < 0 || count > 99 || Math.floor(count) !== count) {
+    throw new Error(label + 'の人数を0〜99の整数で入力してください。');
+  }
+
+  return count;
+}
+
+function adminSplitAmountByComponents_(amount, componentCount) {
+  var total = Math.round(Number(amount || 0));
+  var count = Math.max(Number(componentCount || 1), 1);
+  var base = Math.floor(total / count);
+
+  return Array.apply(null, Array(count)).map(function(_, index) {
+    return base + (index >= count - (total - base * count) ? 1 : 0);
+  });
+}
+
+function adminFindOldComponentForRole_(booking, role) {
+  var components = booking && booking.components || [];
+
+  for (var i = 0; i < components.length; i++) {
+    var plan = String(components[i].plan || '');
+    if (role === 'night' && adminIsNightPlan_(plan)) return components[i];
+    if (role === 'sup' && plan.indexOf('SUP') !== -1) return components[i];
+    if (
+      role === 'turtle' &&
+      (plan.indexOf('海亀') !== -1 || plan.indexOf('ウミガメ') !== -1)
+    ) return components[i];
+  }
+
+  return components[0] || null;
+}
+
+function adminBuildChangedRows_(sheet, beforeBooking, plan, normalized, rowNumbers) {
+  var sourceValues = sheet
+    .getRange(beforeBooking.rowNumbers[0], 1, 1, ADMIN_COLUMNS.PLAN_ID)
+    .getValues()[0];
+  var prices = adminSplitAmountByComponents_(
+    normalized.totalPrice,
+    plan.components.length
+  );
+  var discounts = adminSplitAmountByComponents_(
+    normalized.couponDiscount,
+    plan.components.length
+  );
+
+  return plan.components.map(function(definition, index) {
+    var values = sourceValues.slice();
+    var schedule = normalized.components[index];
+    var oldComponent = adminFindOldComponentForRole_(
+      beforeBooking,
+      definition.role
+    );
+
+    while (values.length < ADMIN_COLUMNS.PLAN_ID) values.push('');
+
+    values[ADMIN_COLUMNS.BOOKING_NUM - 1] = beforeBooking.bookingNumber;
+    values[ADMIN_COLUMNS.DATE - 1] = schedule.date;
+    values[ADMIN_COLUMNS.TIME - 1] = schedule.time;
+    values[ADMIN_COLUMNS.NAME - 1] = normalized.customerName;
+    values[ADMIN_COLUMNS.PLAN - 1] = definition.plan;
+    values[ADMIN_COLUMNS.TOTAL_PRICE - 1] = prices[index];
+    values[ADMIN_COLUMNS.PHONE - 1] = normalized.phone;
+    values[ADMIN_COLUMNS.HEADCOUNT - 1] = normalized.headcount;
+    values[ADMIN_COLUMNS.PARTICIPANTS - 1] = normalized.participants;
+    values[ADMIN_COLUMNS.BOOKING_STATUS - 1] = normalized.status === '未対応'
+      ? ''
+      : normalized.status;
+    values[ADMIN_COLUMNS.LOCATION - 1] = oldComponent
+      ? oldComponent.location
+      : '';
+    values[ADMIN_COLUMNS.STAFF - 1] = oldComponent ? oldComponent.staff : '';
+    values[ADMIN_COLUMNS.COUPON_CODE - 1] = normalized.couponCode;
+    values[ADMIN_COLUMNS.COUPON_DISCOUNT - 1] = discounts[index];
+    values[ADMIN_COLUMNS.LINE_CONFIRM - 1] = '';
+    values[ADMIN_COLUMNS.LINE_RESULT - 1] = '';
+    values[ADMIN_COLUMNS.EMAIL - 1] = normalized.email;
+    values[ADMIN_COLUMNS.PARTICIPANT_AGES - 1] = normalized.participantAges;
+    values[ADMIN_COLUMNS.PARTICIPANT_HEIGHTS - 1] = normalized.participantHeights;
+    values[ADMIN_COLUMNS.PARTICIPANT_WEIGHTS - 1] = normalized.participantWeights;
+    values[ADMIN_COLUMNS.PARTICIPANT_FOOT_SIZES - 1] =
+      normalized.participantFootSizes;
+    values[ADMIN_COLUMNS.SPECIAL_REQUESTS - 1] = normalized.specialRequests;
+    values[ADMIN_COLUMNS.PLAN_ID - 1] = plan.id;
+
+    return values;
+  });
+}
+
+function adminCreateChangedCalendarEvent_(
+  calendar,
+  beforeBooking,
+  plan,
+  component,
+  normalized,
+  rowValues
+) {
+  var start = adminDateTimeFromTexts_(component.date, component.time);
+  var end = new Date(start.getTime() + Number(component.duration || 120) * 60000);
+  var isPrivate = String(plan.name || '').indexOf('貸切') !== -1;
+  var eventPrefix = isPrivate ? 'WEB VIP' : 'WEB予約';
+  var eventEmoji = component.role === 'night'
+    ? '🦀'
+    : (component.role === 'sup' ? '🏄' : '🐢');
+  var eventColor = component.role === 'night'
+    ? '8'
+    : (component.role === 'sup' ? '6' : '2');
+  var title = eventPrefix + ' ' + eventEmoji + ' ' + component.plan + ' / ' +
+    normalized.customerName + ' / ' + normalized.headcount;
+  var description = [
+    '予約番号: ' + beforeBooking.bookingNumber,
+    '名前: ' + normalized.customerName,
+    '電話: ' + normalized.phone,
+    'メール: ' + normalized.email,
+    '参加日: ' + component.date,
+    '時間: ' + component.time,
+    'プラン: ' + component.plan,
+    '元プラン: ' + plan.name,
+    '人数: ' + normalized.headcount,
+    'この予定の売上: ' + adminFormatYen_(
+      rowValues[ADMIN_COLUMNS.TOTAL_PRICE - 1]
+    ),
+    '予約全体の受取金額: ' + adminFormatYen_(normalized.totalPrice),
+    '参加者詳細: ' + (normalized.participants || 'なし'),
+    '参加者年齢: ' + (normalized.participantAges || 'なし'),
+    '参加者身長: ' + (normalized.participantHeights || 'なし'),
+    '参加者体重: ' + (normalized.participantWeights || 'なし'),
+    '参加者足サイズ: ' + (normalized.participantFootSizes || 'なし'),
+    '要望: ' + (normalized.specialRequests || 'なし')
+  ].join('\n');
+  var oldComponent = adminFindOldComponentForRole_(
+    beforeBooking,
+    component.role
+  );
+
+  if (oldComponent && oldComponent.staff) {
+    description += '\n担当スタッフ: ' + oldComponent.staff;
+  }
+
+  var event = calendar.createEvent(title, start, end, {
+    description: description,
+    location: oldComponent && oldComponent.location
+      ? oldComponent.location
+      : '宮古島'
+  });
+
+  try {
+    event.setColor(eventColor);
+  } catch (colorError) {
+    Logger.log('変更後カレンダー予定の色設定失敗: ' + colorError.message);
+  }
+
+  return event;
+}
+
+function adminBuildReservationChangeSummary_(beforeBooking, afterBooking, reason) {
+  var beforeCounts = adminParseHeadcount_(beforeBooking.headcount);
+  var afterCounts = adminParseHeadcount_(afterBooking.headcount);
+
+  return [
+    '理由=' + reason,
+    'プラン=' + beforeBooking.displayPlan + ' → ' + afterBooking.displayPlan,
+    '日時=' + adminBuildScheduleText_(beforeBooking) + ' → ' +
+      adminBuildScheduleText_(afterBooking),
+    '人数=' + beforeCounts.adult + '/' + beforeCounts.child + '/' +
+      beforeCounts.under3 + ' → ' + afterCounts.adult + '/' +
+      afterCounts.child + '/' + afterCounts.under3,
+    '金額=' + adminFormatYen_(beforeBooking.totalPrice) + ' → ' +
+      adminFormatYen_(afterBooking.totalPrice),
+    '氏名=' + beforeBooking.name + ' → ' + afterBooking.name,
+    '電話=' + beforeBooking.phone + ' → ' + afterBooking.phone,
+    'メール=' + (beforeBooking.email || 'なし') + ' → ' +
+      (afterBooking.email || 'なし')
+  ].join(' / ');
+}
+
+function adminAppendReservationChangeHistory_(
+  actor,
+  beforeBooking,
+  afterBooking,
+  reason,
+  summary
+) {
+  var ss = adminGetSpreadsheet_();
+  var sheetName = '予約変更履歴';
+  var sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
+  var headers = [
+    '変更日時', '操作者', '予約番号', '名前', '変更理由', '変更概要',
+    '変更前JSON', '変更後JSON', 'アプリ版'
+  ];
+
+  if (String(sheet.getRange(1, 1).getValue()) !== headers[0]) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, headers.length)
+      .setFontWeight('bold')
+      .setBackground('#d9ead3');
+  }
+
+  sheet.appendRow([
+    new Date(),
+    actor,
+    afterBooking.bookingNumber || beforeBooking.bookingNumber,
+    afterBooking.name || beforeBooking.name,
+    reason,
+    summary,
+    JSON.stringify(adminToPublicBooking_(beforeBooking)).slice(0, 45000),
+    JSON.stringify(adminToPublicBooking_(afterBooking)).slice(0, 45000),
+    ADMIN_APP_VERSION
+  ]);
+}
+
+function adminBuildChangeNoticeMessage_(booking, summary) {
+  return (
+    (booking.name || 'お客様') + ' 様\n\n' +
+    'ご予約内容を下記の通り変更いたしました。\n\n' +
+    '【変更後の内容】\n' +
+    'プラン：' + booking.displayPlan + '\n' +
+    '日時：' + adminBuildScheduleText_(booking) + '\n' +
+    '人数：' + booking.headcount + '\n' +
+    '合計金額：' + adminFormatYen_(booking.totalPrice) + '\n\n' +
+    '内容をご確認いただき、ご不明点がございましたらご連絡ください。\n\n' +
+    '海亀兄弟'
+  );
+}
+
+/**
  * 重複予約を削除します。
  * 元データは「削除済み予約」シートへ退避し、
  * 対応するGoogleカレンダー予定も削除します。
@@ -500,11 +1258,8 @@ function adminDeleteBooking(request) {
       throw new Error('予約番号がない行は管理画面から削除できません。');
     }
 
-    if (
-      String(request.confirmBookingNumber || '').trim() !==
-      String(booking.bookingNumber)
-    ) {
-      throw new Error('予約番号が一致しないため削除を中止しました。');
+    if (request.confirmed !== true) {
+      throw new Error('削除確認が完了していないため、削除を中止しました。');
     }
 
     var originalRows = adminReadFullBookingRows_(sheet, booking.rowNumbers);
@@ -549,7 +1304,7 @@ function adminDeleteBooking(request) {
     try {
       booking.rowNumbers.forEach(function(rowNumber) {
         sheet
-          .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.LINE_RESULT)
+          .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.PLAN_ID)
           .clearContent();
       });
 
@@ -901,7 +1656,170 @@ function adminGetBookingSheet_() {
 
   if (!sheet) throw new Error('予約一覧シートが見つかりません。');
 
+  adminEnsureBookingSchema_(sheet);
+
   return sheet;
+}
+
+// 予約受付GASと管理Webアプリで列順を共通化する。
+// 2026-08-13の衝突版（T=メール、U=Visitor ID）だけを検出して、
+// T/UをLINE管理列へ戻し、顧客・行動データをV列以降へ移す。
+function adminEnsureBookingSchema_(sheet) {
+  var schemaChanged = false;
+
+  if (sheet.getMaxColumns() >= 21) {
+    var currentHeaders = sheet.getRange(1, 1, 1, 21).getDisplayValues()[0];
+    var hasCollision =
+      String(currentHeaders[19] || '').trim() === 'メールアドレス' &&
+      String(currentHeaders[20] || '').trim() === 'Visitor ID';
+
+    if (hasCollision) {
+      adminMigrateCollidingCustomerColumns_(sheet);
+      schemaChanged = true;
+    }
+  }
+
+  var missingColumns = ADMIN_CANONICAL_HEADERS.length - sheet.getMaxColumns();
+  if (missingColumns > 0) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), missingColumns);
+    schemaChanged = true;
+  }
+
+  var existing = sheet
+    .getRange(1, 1, 1, ADMIN_CANONICAL_HEADERS.length)
+    .getDisplayValues()[0];
+  var headersMatch = ADMIN_CANONICAL_HEADERS.every(function(header, index) {
+    return String(existing[index] || '') === header;
+  });
+
+  var properties = PropertiesService.getScriptProperties();
+  var needsRepair =
+    schemaChanged ||
+    !headersMatch ||
+    properties.getProperty(ADMIN_SCHEMA_VERSION_PROPERTY) !==
+      ADMIN_SCHEMA_VERSION;
+
+  if (!needsRepair) return;
+
+  // ヘッダー書き込み前にT/Uの古い規則を外す。
+  // 修復済みの通常読込ではシートへ一切書き込まない。
+  adminClearLineColumnValidations_(sheet);
+
+  if (!headersMatch) {
+    sheet
+      .getRange(1, 1, 1, ADMIN_CANONICAL_HEADERS.length)
+      .setValues([ADMIN_CANONICAL_HEADERS]);
+  }
+
+  adminClearInvalidLineResults_(sheet);
+
+  var checkboxRule = SpreadsheetApp.newDataValidation()
+    .requireCheckbox()
+    .setAllowInvalid(false)
+    .build();
+
+  sheet
+    .getRange(2, ADMIN_COLUMNS.LINE_CONFIRM, Math.max(sheet.getMaxRows() - 1, 1), 1)
+    .setDataValidation(checkboxRule);
+
+  properties.setProperty(
+    ADMIN_SCHEMA_VERSION_PROPERTY,
+    ADMIN_SCHEMA_VERSION
+  );
+}
+
+function adminMigrateCollidingCustomerColumns_(sheet) {
+  sheet.insertColumnsBefore(20, 2);
+  adminClearLineColumnValidations_(sheet);
+
+  var lastRow = sheet.getLastRow();
+
+  if (lastRow >= 2) {
+    var shiftedValues = sheet.getRange(2, 22, lastRow - 1, 2).getValues();
+    var lineValues = [];
+    var customerValues = [];
+
+    shiftedValues.forEach(function(row) {
+      var first = row[0];
+      var second = row[1];
+      var firstText = String(first == null ? '' : first).trim();
+      var secondText = String(second == null ? '' : second).trim();
+      var looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(firstText);
+      var looksLikeVisitorId =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+          .test(secondText);
+      var looksLikeLineConfirm =
+        typeof first === 'boolean' || /^(TRUE|FALSE)$/i.test(firstText);
+      var looksLikeLineResult = !!secondText && !looksLikeVisitorId;
+      var isLegacyLineRow =
+        looksLikeLineConfirm ||
+        (!looksLikeEmail && looksLikeLineResult);
+
+      if (isLegacyLineRow) {
+        lineValues.push([first, second]);
+        customerValues.push(['', '']);
+      } else {
+        lineValues.push(['', '']);
+        customerValues.push([first, second]);
+      }
+    });
+
+    sheet.getRange(2, 20, lineValues.length, 2).setValues(lineValues);
+    sheet.getRange(2, 22, customerValues.length, 2).setValues(customerValues);
+    sheet
+      .getRange(2, 22, Math.max(sheet.getMaxRows() - 1, 1), 2)
+      .clearDataValidations();
+  }
+
+  Logger.log(
+    '[SCHEMA_MIGRATION] T/U列衝突を修復し、顧客・行動列をV列以降へ移動しました。'
+  );
+
+  return true;
+}
+
+// 列挿入時に隣接列から引き継がれた古い入力規則を解除する。
+// U列は自由記述の送信結果、T列だけをこの後チェックボックスへ戻す。
+function adminClearLineColumnValidations_(sheet) {
+  if (sheet.getMaxColumns() < ADMIN_COLUMNS.LINE_RESULT) return;
+
+  sheet
+    .getRange(
+      2,
+      ADMIN_COLUMNS.LINE_CONFIRM,
+      Math.max(sheet.getMaxRows() - 1, 1),
+      2
+    )
+    .clearDataValidations();
+}
+
+// 旧入力規則のFALSE/TRUEがU列へ残った場合は送信結果ではないため除去する。
+// 実際のLINE送信結果や自由記述はそのまま保持する。
+function adminClearInvalidLineResults_(sheet) {
+  var lastRow = sheet.getLastRow();
+
+  if (lastRow < 2) return;
+
+  var range = sheet.getRange(
+    2,
+    ADMIN_COLUMNS.LINE_RESULT,
+    lastRow - 1,
+    1
+  );
+  var values = range.getValues();
+  var changed = false;
+
+  values.forEach(function(row) {
+    var value = row[0];
+    var text = String(value == null ? '' : value).trim();
+
+    if (typeof value === 'boolean' || /^(TRUE|FALSE)$/i.test(text)) {
+      row[0] = '';
+      changed = true;
+    }
+  });
+
+  if (changed) range.setValues(values);
 }
 
 function adminGetCalendar_() {
@@ -936,7 +1854,7 @@ function adminReadBookings_(sheet) {
   if (lastRow < 2) return [];
 
   var values = sheet
-    .getRange(2, 1, lastRow - 1, ADMIN_COLUMNS.LINE_RESULT)
+    .getRange(2, 1, lastRow - 1, ADMIN_COLUMNS.PLAN_ID)
     .getDisplayValues();
   var groups = {};
 
@@ -999,7 +1917,16 @@ function adminMapRow_(values, rowNumber) {
     couponDiscount: adminToNumber_(values[ADMIN_COLUMNS.COUPON_DISCOUNT - 1]),
     freeMessage: String(values[ADMIN_COLUMNS.LINE_SEND - 1] || ''),
     lineConfirm: String(values[ADMIN_COLUMNS.LINE_CONFIRM - 1] || ''),
-    lineResult: String(values[ADMIN_COLUMNS.LINE_RESULT - 1] || '')
+    lineResult: adminNormalizeLineResult_(
+      values[ADMIN_COLUMNS.LINE_RESULT - 1]
+    ),
+    email: String(values[ADMIN_COLUMNS.EMAIL - 1] || '').trim(),
+    participantAges: String(values[ADMIN_COLUMNS.PARTICIPANT_AGES - 1] || ''),
+    participantHeights: String(values[ADMIN_COLUMNS.PARTICIPANT_HEIGHTS - 1] || ''),
+    participantWeights: String(values[ADMIN_COLUMNS.PARTICIPANT_WEIGHTS - 1] || ''),
+    participantFootSizes: String(values[ADMIN_COLUMNS.PARTICIPANT_FOOT_SIZES - 1] || ''),
+    specialRequests: String(values[ADMIN_COLUMNS.SPECIAL_REQUESTS - 1] || ''),
+    planId: String(values[ADMIN_COLUMNS.PLAN_ID - 1] || '').trim().toUpperCase()
   };
 }
 
@@ -1022,6 +1949,7 @@ function adminBuildBooking_(key, rows) {
   var lineResults = rows.map(function(row) {
     return row.lineResult;
   }).filter(String);
+  var inferredPlanId = adminInferPlanIdFromRows_(rows);
 
   var booking = {
     key: key,
@@ -1029,15 +1957,22 @@ function adminBuildBooking_(key, rows) {
     date: first.date,
     time: times.join(' / '),
     name: first.name,
-    displayPlan: adminGetDisplayPlan_(rows),
+    planId: inferredPlanId,
+    displayPlan: adminGetDisplayPlan_(rows, inferredPlanId),
     totalPrice: rows.reduce(function(sum, row) { return sum + row.totalPrice; }, 0),
     couponDiscount: rows.reduce(function(sum, row) {
       return sum + row.couponDiscount;
     }, 0),
     phone: first.phone,
+    email: first.email,
     sourceStatus: first.sourceStatus,
     headcount: first.headcount,
     participants: first.participants,
+    participantAges: first.participantAges,
+    participantHeights: first.participantHeights,
+    participantWeights: first.participantWeights,
+    participantFootSizes: first.participantFootSizes,
+    specialRequests: first.specialRequests,
     lineName: first.lineName,
     couponCode: first.couponCode,
     bookingStatus: statuses.length === 0
@@ -1067,6 +2002,21 @@ function adminBuildBooking_(key, rows) {
       row.rowNumber,
       row.date,
       row.time,
+      row.name,
+      row.plan,
+      row.planId,
+      row.totalPrice,
+      row.couponCode,
+      row.couponDiscount,
+      row.headcount,
+      row.participants,
+      row.participantAges,
+      row.participantHeights,
+      row.participantWeights,
+      row.participantFootSizes,
+      row.phone,
+      row.email,
+      row.specialRequests,
       row.bookingStatus,
       row.location,
       row.staff,
@@ -1160,14 +2110,24 @@ function adminToPublicBooking_(booking) {
       staff: component.staff,
       couponCode: component.couponCode,
       couponDiscount: component.couponDiscount,
-      lineResult: component.lineResult
+      lineResult: component.lineResult,
+      email: component.email,
+      participantAges: component.participantAges,
+      participantHeights: component.participantHeights,
+      participantWeights: component.participantWeights,
+      participantFootSizes: component.participantFootSizes,
+      specialRequests: component.specialRequests,
+      planId: component.planId
     };
   });
 
   return result;
 }
 
-function adminGetDisplayPlan_(rows) {
+function adminGetDisplayPlan_(rows, planId) {
+  var catalogPlan = adminGetPlanById_(planId);
+  if (catalogPlan) return catalogPlan.name;
+
   var plans = rows.map(function(row) { return row.plan; });
   var joined = plans.join(' ');
 
@@ -1184,6 +2144,81 @@ function adminGetDisplayPlan_(rows) {
   }
 
   return adminUnique_(plans.filter(String)).join(' / ');
+}
+
+function adminGetPlanById_(planId) {
+  var normalized = String(planId || '').trim().toUpperCase();
+
+  for (var i = 0; i < ADMIN_PLAN_CATALOG.length; i++) {
+    if (ADMIN_PLAN_CATALOG[i].id === normalized) return ADMIN_PLAN_CATALOG[i];
+  }
+
+  return null;
+}
+
+function adminParseHeadcount_(headcount) {
+  var text = String(headcount || '');
+  var read = function(pattern) {
+    var match = text.match(pattern);
+    return match ? Number(match[1] || 0) : 0;
+  };
+
+  return {
+    adult: read(/大人\s*(\d+)\s*名?/),
+    child: read(/子供\s*(\d+)\s*名?/),
+    under3: read(/3歳未満\s*(\d+)\s*名?/)
+  };
+}
+
+function adminCalculateStandardPrice_(plan, counts) {
+  if (!plan) return 0;
+
+  counts = counts || { adult: 0, child: 0, under3: 0 };
+
+  return (
+    Number(counts.adult || 0) * Number(plan.adultPrice || 0) +
+    Number(counts.child || 0) * Number(plan.childPrice || plan.adultPrice || 0) +
+    Number(counts.under3 || 0) * Number(plan.under3Price || 0)
+  );
+}
+
+function adminInferPlanIdFromRows_(rows) {
+  if (!rows || !rows.length) return '';
+
+  var explicit = adminUnique_(rows.map(function(row) {
+    return String(row.planId || '').trim().toUpperCase();
+  }).filter(String));
+
+  if (explicit.length === 1 && adminGetPlanById_(explicit[0])) {
+    return explicit[0];
+  }
+
+  var rowPlans = rows.map(function(row) { return String(row.plan || ''); }).sort();
+  var candidates = ADMIN_PLAN_CATALOG.filter(function(plan) {
+    var componentPlans = plan.components
+      .map(function(component) { return component.plan; })
+      .sort();
+
+    return componentPlans.length === rowPlans.length &&
+      componentPlans.every(function(componentPlan, index) {
+        return componentPlan === rowPlans[index];
+      });
+  });
+
+  if (!candidates.length) return '';
+  if (candidates.length === 1) return candidates[0].id;
+
+  var counts = adminParseHeadcount_(rows[0].headcount);
+  var currentTotal = rows.reduce(function(sum, row) {
+    return sum + Number(row.totalPrice || 0) + Number(row.couponDiscount || 0);
+  }, 0);
+
+  candidates.sort(function(a, b) {
+    return Math.abs(adminCalculateStandardPrice_(a, counts) - currentTotal) -
+      Math.abs(adminCalculateStandardPrice_(b, counts) - currentTotal);
+  });
+
+  return candidates[0].id;
 }
 
 function adminBuildDashboard_(bookings) {
@@ -1463,24 +2498,8 @@ function adminFindTurtleScheduleComponent_(booking) {
 }
 
 function adminFindCalendarAssignments_(calendar, booking) {
-  var dates = adminUnique_(booking.components.map(function(component) {
-    return component.date;
-  }).filter(String));
-  var events = [];
-
-  dates.forEach(function(dateText) {
-    events = events.concat(
-      calendar.getEventsForDay(adminDateFromText_(dateText))
-    );
-  });
-
   var bookingNumber = String(booking.bookingNumber || '');
-  var candidates = events.filter(function(event) {
-    var description = String(event.getDescription() || '');
-
-    return description.indexOf('予約番号: ' + bookingNumber) !== -1 ||
-      description.indexOf('予約番号：' + bookingNumber) !== -1;
-  });
+  var candidates = adminFindCalendarEventsByBookingNumber_(calendar, booking);
 
   if (!candidates.length) {
     throw new Error(
@@ -1708,7 +2727,7 @@ function adminReadFullBookingRows_(sheet, rowNumbers) {
     return {
       rowNumber: rowNumber,
       values: sheet
-        .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.LINE_RESULT)
+        .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.PLAN_ID)
         .getValues()[0]
     };
   });
@@ -1726,7 +2745,7 @@ function adminArchiveDeletedBooking_(sourceSheet, booking, originalRows, actor) 
     'アプリ版'
   ];
   var sourceHeaders = sourceSheet
-    .getRange(1, 1, 1, ADMIN_COLUMNS.LINE_RESULT)
+    .getRange(1, 1, 1, ADMIN_COLUMNS.PLAN_ID)
     .getValues()[0];
   var headers = metadataHeaders.concat(sourceHeaders);
 
@@ -1782,37 +2801,16 @@ function adminMarkDeletedArchiveComplete_(archive) {
 }
 
 function adminFindCalendarEventsForDeletion_(calendar, booking) {
-  var dates = adminUnique_(booking.components.map(function(component) {
-    return component.date;
-  }).filter(String));
-  var matched = [];
-  var seen = {};
-  var bookingNumber = String(booking.bookingNumber || '');
-
-  dates.forEach(function(dateText) {
-    calendar
-      .getEventsForDay(adminDateFromText_(dateText))
-      .forEach(function(event) {
-        var eventId = String(event.getId());
-
-        if (
-          !seen[eventId] &&
-          adminCalendarEventHasBookingNumber_(event, bookingNumber)
-        ) {
-          seen[eventId] = true;
-          matched.push(event);
-        }
-      });
-  });
+  var matched = adminFindCalendarEventsByBookingNumber_(calendar, booking);
 
   var warning = '';
 
   if (!matched.length) {
     warning =
-      '予約一覧は削除しましたが、Googleカレンダーに同じ予約番号の予定が見つかりませんでした。';
+      'Googleカレンダーに同じ予約番号の既存予定が見つかりませんでした。';
   } else if (matched.length !== booking.components.length) {
     warning =
-      'Googleカレンダーは' + matched.length + '件削除しました。' +
+      'Googleカレンダーの既存予定は' + matched.length + '件処理しました。' +
       '予約の予定数（' + booking.components.length + '件）と一致しないため、' +
       'カレンダーを念のため確認してください。';
   }
@@ -1821,6 +2819,61 @@ function adminFindCalendarEventsForDeletion_(calendar, booking) {
     events: matched,
     warning: warning
   };
+}
+
+// 元の日付に加え前後31日も予約番号で補助検索する。
+// カレンダー上だけで予定が手動移動されても、完全一致した予約だけを扱う。
+function adminFindCalendarEventsByBookingNumber_(calendar, booking) {
+  var dates = adminUnique_((booking.components || []).map(function(component) {
+    return component.date;
+  }).filter(String));
+  var bookingNumber = String(booking.bookingNumber || '');
+  var events = [];
+
+  dates.forEach(function(dateText) {
+    events = events.concat(
+      calendar.getEventsForDay(adminDateFromText_(dateText))
+    );
+  });
+
+  if (dates.length && bookingNumber) {
+    var sortedDates = dates.map(adminDateFromText_).sort(function(a, b) {
+      return a.getTime() - b.getTime();
+    });
+    var rangeStart = new Date(sortedDates[0].getTime());
+    var rangeEnd = new Date(sortedDates[sortedDates.length - 1].getTime());
+
+    rangeStart.setDate(rangeStart.getDate() - 31);
+    rangeStart.setHours(0, 0, 0, 0);
+    rangeEnd.setDate(rangeEnd.getDate() + 32);
+    rangeEnd.setHours(0, 0, 0, 0);
+
+    try {
+      events = events.concat(
+        calendar.getEvents(rangeStart, rangeEnd, { search: bookingNumber })
+      );
+    } catch (searchError) {
+      Logger.log(
+        'カレンダー補助検索を省略しました: ' + searchError.message
+      );
+    }
+  }
+
+  var seen = {};
+
+  return events.filter(function(event) {
+    var eventId = String(event.getId());
+
+    if (
+      seen[eventId] ||
+      !adminCalendarEventHasBookingNumber_(event, bookingNumber)
+    ) {
+      return false;
+    }
+    seen[eventId] = true;
+
+    return true;
+  });
 }
 
 function adminCalendarEventHasBookingNumber_(event, bookingNumber) {
@@ -1905,7 +2958,7 @@ function adminRestoreFullBookingRows_(sheet, originalRows) {
   originalRows.forEach(function(item) {
     try {
       sheet
-        .getRange(item.rowNumber, 1, 1, ADMIN_COLUMNS.LINE_RESULT)
+        .getRange(item.rowNumber, 1, 1, ADMIN_COLUMNS.PLAN_ID)
         .setValues([item.values]);
     } catch (error) {
       Logger.log('削除した予約一覧行の復旧失敗: ' + error.message);
@@ -2129,6 +3182,7 @@ function adminSavePendingLine_(pending) {
     type: pending.type,
     summary: pending.summary,
     message: pending.message,
+    sourceRowNumber: pending.sourceRowNumber,
     expiresInMinutes: ADMIN_PENDING_TTL_MINUTES
   };
 }
@@ -2781,6 +3835,14 @@ function adminNormalizeTime_(value) {
   if (!match) return text;
 
   return ('0' + match[1]).slice(-2) + ':' + ('0' + match[2]).slice(-2);
+}
+
+function adminNormalizeLineResult_(value) {
+  if (typeof value === 'boolean') return '';
+
+  var text = String(value == null ? '' : value).trim();
+
+  return /^(TRUE|FALSE)$/i.test(text) ? '' : text;
 }
 
 function adminToNumber_(value) {

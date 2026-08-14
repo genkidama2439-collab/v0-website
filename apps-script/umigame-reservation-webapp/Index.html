@@ -164,7 +164,7 @@
       <div class="loading-card">
         <div class="loading-turtle">🐢</div>
         <strong>予約情報を読み込んでいます</strong>
-        <span>少しだけお待ちください</span>
+        <span id="loadingDetail">初期データを準備中 / v2026.08.14-5</span>
         <div class="loading-line"><i></i></div>
       </div>
     </div>
@@ -207,6 +207,100 @@
 
     <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
 
+    <script id="adminInitialData" type="application/json"><?!= initialDataJson ?></script>
+    <script id="adminInitialError" type="application/json"><?!= initialDataErrorJson ?></script>
+
+    <script>
+      (function() {
+        'use strict';
+
+        var boot = window.__UMIGAME_ADMIN_BOOT__ = {
+          phase: 'Index.html読込済み',
+          initStarted: false,
+          ready: false
+        };
+
+        window.__showUmigameAdminFatal = function(message, phase) {
+          var screen = document.getElementById('loadingScreen');
+          if (!screen) return;
+
+          screen.hidden = false;
+          screen.innerHTML = '';
+
+          var card = document.createElement('div');
+          card.className = 'loading-card';
+          card.style.maxWidth = '560px';
+
+          var icon = document.createElement('div');
+          icon.className = 'loading-turtle';
+          icon.textContent = '⚠️';
+
+          var title = document.createElement('strong');
+          title.textContent = '予約管理画面を起動できませんでした';
+
+          var detail = document.createElement('span');
+          detail.style.whiteSpace = 'pre-wrap';
+          detail.style.lineHeight = '1.7';
+          detail.textContent = String(message || '不明なエラー') +
+            '\n停止位置: ' + String(phase || boot.phase || '不明');
+
+          var retry = document.createElement('button');
+          retry.type = 'button';
+          retry.className = 'primary-button';
+          retry.style.marginTop = '18px';
+          retry.textContent = '画面を再読み込み';
+          retry.addEventListener('click', function() { window.location.reload(); });
+
+          card.appendChild(icon);
+          card.appendChild(title);
+          card.appendChild(detail);
+          card.appendChild(retry);
+          screen.appendChild(card);
+        };
+
+        window.addEventListener('error', function(event) {
+          if (boot.ready) {
+            boot.lastError = event.message || 'JavaScriptエラー';
+            return;
+          }
+          boot.phase = 'JavaScriptエラー';
+          window.__showUmigameAdminFatal(
+            event.message || 'App.htmlの実行中にエラーが発生しました。',
+            boot.phase
+          );
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+          if (boot.ready) {
+            boot.lastError = event.reason && event.reason.message
+              ? event.reason.message
+              : String(event.reason || '非同期処理エラー');
+            return;
+          }
+          var reason = event.reason;
+          boot.phase = '非同期処理エラー';
+          window.__showUmigameAdminFatal(
+            reason && reason.message ? reason.message : String(reason || '不明なエラー'),
+            boot.phase
+          );
+        });
+
+        setTimeout(function() {
+          if (boot.ready) return;
+          if (!boot.appScriptLoaded) {
+            window.__showUmigameAdminFatal(
+              'App.htmlが読み込まれていません。App.htmlの内容とデプロイ版を確認してください。',
+              boot.phase
+            );
+          } else if (!boot.initStarted) {
+            window.__showUmigameAdminFatal(
+              'App.htmlは読み込まれましたが、画面の初期化が開始されませんでした。',
+              boot.phase
+            );
+          }
+        }, 5000);
+      })();
+    </script>
     <?!= include('App'); ?>
   </body>
 </html>

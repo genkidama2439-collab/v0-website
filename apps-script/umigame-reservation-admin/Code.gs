@@ -27,6 +27,8 @@ var NOTIFY_SECRET = ''; // Script Properties の NOTIFY_SECRET を優先して�
 var SHEET_NAME = '予約一覧';
 var CALENDAR_ID = 'genkidama2439@gmail.com';
 var ADMIN_EMAIL = 'genkidama2439@gmail.com';
+var BOOKING_SCHEMA_VERSION = '2026.08.14-5';
+var BOOKING_SCHEMA_VERSION_PROPERTY = 'BOOKING_SCHEMA_VERSION';
 
 var COMBO_PLAN_NAME = 'ウミガメシュノーケル＆ヤシガニ探検 昼夜セット';
 var LEGACY_COMBO_PLAN_NAME = 'ウミガメ＆ジャングルナイト まるごと1日プラン';
@@ -78,29 +80,32 @@ var COLUMNS = {
   COUPON_CODE: 17,
   COUPON_DISCOUNT: 18,
   LINE_SEND: 19,
-  EMAIL: 20,
-  VISITOR_ID: 21,
-  VISIT_ID: 22,
-  BOOKING_FUNNEL_ID: 23,
-  TRACKING_CONSENT_VERSION: 24,
-  TRACKING_CONSENT_AT: 25,
-  VISITOR_CREATED_AT: 26,
-  VISIT_STARTED_AT: 27,
-  LOCALE: 28,
-  LANDING_PAGE: 29,
-  REFERRER_HOST: 30,
-  UTM_SOURCE: 31,
-  UTM_MEDIUM: 32,
-  UTM_CAMPAIGN: 33,
-  CURRENT_PAGE: 34,
-  DEVICE_TYPE: 35,
-  BROWSER: 36,
-  OS: 37,
-  PARTICIPANT_AGES: 38,
-  PARTICIPANT_HEIGHTS: 39,
-  PARTICIPANT_WEIGHTS: 40,
-  PARTICIPANT_FOOT_SIZES: 41,
-  SPECIAL_REQUESTS: 42
+  LINE_CONFIRM: 20,
+  LINE_RESULT: 21,
+  EMAIL: 22,
+  VISITOR_ID: 23,
+  VISIT_ID: 24,
+  BOOKING_FUNNEL_ID: 25,
+  TRACKING_CONSENT_VERSION: 26,
+  TRACKING_CONSENT_AT: 27,
+  VISITOR_CREATED_AT: 28,
+  VISIT_STARTED_AT: 29,
+  LOCALE: 30,
+  LANDING_PAGE: 31,
+  REFERRER_HOST: 32,
+  UTM_SOURCE: 33,
+  UTM_MEDIUM: 34,
+  UTM_CAMPAIGN: 35,
+  CURRENT_PAGE: 36,
+  DEVICE_TYPE: 37,
+  BROWSER: 38,
+  OS: 39,
+  PARTICIPANT_AGES: 40,
+  PARTICIPANT_HEIGHTS: 41,
+  PARTICIPANT_WEIGHTS: 42,
+  PARTICIPANT_FOOT_SIZES: 43,
+  SPECIAL_REQUESTS: 44,
+  PLAN_ID: 45
 };
 
 var HEADERS = [
@@ -123,6 +128,8 @@ var HEADERS = [
   'クーポンコード',
   'クーポン割引額',
   'LINE送信',
+  'LINE送信確認',
+  '送信予定・結果',
   'メールアドレス',
   'Visitor ID',
   'Visit ID',
@@ -145,7 +152,8 @@ var HEADERS = [
   '参加者身長',
   '参加者体重',
   '参加者足サイズ',
-  '特別なご要望・アレルギー等'
+  '特別なご要望・アレルギー等',
+  '管理プランID'
 ];
 
 var LOCATION_OPTIONS = [
@@ -858,15 +866,193 @@ function getOrCreateSheet() {
 }
 
 // 既存の予約行を消さずに、新しい顧客・行動分析列だけを末尾へ追加する。
-// 既存19列の並びはLINE送信・カレンダー連携が参照しているため変更しない。
+// A〜Uの21列は予約管理・LINE安全送信が参照するため変更しない。
 function ensureBookingSchema_(sheet) {
+  var schemaChanged = migrateCollidingCustomerColumns_(sheet);
+
   var missingColumns = HEADERS.length - sheet.getMaxColumns();
   if (missingColumns > 0) {
     sheet.insertColumnsAfter(sheet.getMaxColumns(), missingColumns);
+    schemaChanged = true;
   }
 
-  sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  var existing = sheet
+    .getRange(1, 1, 1, HEADERS.length)
+    .getDisplayValues()[0];
+  var headersMatch = HEADERS.every(function(header, index) {
+    return String(existing[index] || '') === header;
+  });
+  var properties = PropertiesService.getScriptProperties();
+  var needsRepair =
+    !!schemaChanged ||
+    !headersMatch ||
+    properties.getProperty(BOOKING_SCHEMA_VERSION_PROPERTY) !==
+      BOOKING_SCHEMA_VERSION;
+
+  if (!needsRepair) return;
+
+  // ヘッダー書き込み前にT/Uの古い規則を外す。
+  // 修復済みの通常予約受信ではシートへ一切書き込まない。
+  clearLineColumnValidations_(sheet);
+
+  if (!headersMatch) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  }
+
   sheet.setFrozenRows(1);
+  clearInvalidLineResults_(sheet);
+  clearBlankRowLineValues_(sheet);
+
+  var checkboxRule = SpreadsheetApp.newDataValidation()
+    .requireCheckbox()
+    .setAllowInvalid(false)
+    .build();
+
+  sheet
+    .getRange(2, COLUMNS.LINE_CONFIRM, Math.max(sheet.getMaxRows() - 1, 1), 1)
+    .setDataValidation(checkboxRule);
+  sheet.setColumnWidth(COLUMNS.LINE_CONFIRM, 130);
+  sheet.setColumnWidth(COLUMNS.LINE_RESULT, 360);
+
+  properties.setProperty(
+    BOOKING_SCHEMA_VERSION_PROPERTY,
+    BOOKING_SCHEMA_VERSION
+  );
+}
+
+// 2026-08-13版では、既存のT/U列（LINE確認・結果）と新しいメール／
+// Visitor ID列が衝突していた。衝突版のヘッダーを検出した場合だけ2列挿入し、
+// 新規予約の顧客データはV列以降へ、従来のLINE値はT/U列へ戻す。
+// 既存行の削除・並べ替えは行わない。
+function migrateCollidingCustomerColumns_(sheet) {
+  if (sheet.getMaxColumns() < 21) return false;
+
+  var headers = sheet.getRange(1, 1, 1, 21).getDisplayValues()[0];
+  var hasCollision =
+    String(headers[19] || '').trim() === 'メールアドレス' &&
+    String(headers[20] || '').trim() === 'Visitor ID';
+
+  if (!hasCollision) return false;
+
+  sheet.insertColumnsBefore(20, 2);
+  clearLineColumnValidations_(sheet);
+
+  var lastRow = sheet.getLastRow();
+
+  if (lastRow >= 2) {
+    var shiftedValues = sheet.getRange(2, 22, lastRow - 1, 2).getValues();
+    var lineValues = [];
+    var customerValues = [];
+
+    shiftedValues.forEach(function(row) {
+      var first = row[0];
+      var second = row[1];
+      var firstText = String(first == null ? '' : first).trim();
+      var secondText = String(second == null ? '' : second).trim();
+      var looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(firstText);
+      var looksLikeVisitorId =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+          .test(secondText);
+      var looksLikeLineConfirm =
+        typeof first === 'boolean' || /^(TRUE|FALSE)$/i.test(firstText);
+      var looksLikeLineResult =
+        !!secondText && !looksLikeVisitorId;
+      var isLegacyLineRow =
+        looksLikeLineConfirm ||
+        (!looksLikeEmail && looksLikeLineResult);
+
+      if (isLegacyLineRow) {
+        lineValues.push([first, second]);
+        customerValues.push(['', '']);
+      } else {
+        lineValues.push(['', '']);
+        customerValues.push([first, second]);
+      }
+    });
+
+    sheet.getRange(2, 20, lineValues.length, 2).setValues(lineValues);
+    sheet.getRange(2, 22, customerValues.length, 2).setValues(customerValues);
+    sheet
+      .getRange(2, 22, Math.max(sheet.getMaxRows() - 1, 1), 2)
+      .clearDataValidations();
+  }
+
+  Logger.log(
+    '[SCHEMA_MIGRATION] T/U列衝突を修復し、顧客・行動列をV列以降へ移動しました。'
+  );
+
+  return true;
+}
+
+// 列挿入時に隣接列から引き継がれた古い入力規則を解除する。
+// U列は自由記述の送信結果、T列だけをこの後チェックボックスへ戻す。
+function clearLineColumnValidations_(sheet) {
+  if (sheet.getMaxColumns() < COLUMNS.LINE_RESULT) return;
+
+  sheet
+    .getRange(
+      2,
+      COLUMNS.LINE_CONFIRM,
+      Math.max(sheet.getMaxRows() - 1, 1),
+      2
+    )
+    .clearDataValidations();
+}
+
+// 旧入力規則のFALSE/TRUEがU列へ残った場合は送信結果ではないため除去する。
+function clearInvalidLineResults_(sheet) {
+  var lastRow = sheet.getLastRow();
+
+  if (lastRow < 2) return;
+
+  var range = sheet.getRange(2, COLUMNS.LINE_RESULT, lastRow - 1, 1);
+  var values = range.getValues();
+  var changed = false;
+
+  values.forEach(function(row) {
+    var value = row[0];
+    var text = String(value == null ? '' : value).trim();
+
+    if (typeof value === 'boolean' || /^(TRUE|FALSE)$/i.test(text)) {
+      row[0] = '';
+      changed = true;
+    }
+  });
+
+  if (changed) range.setValues(values);
+}
+
+// 旧チェックボックス規則が空行へ入れたFALSEが残ると getLastRow() が1000行目まで
+// 膨らみ、新規予約が大きく飛ぶ。予約番号(B列)が空の行だけT/Uを空に戻す。
+function clearBlankRowLineValues_(sheet) {
+  var lastRow = sheet.getLastRow();
+
+  if (lastRow < 2) return;
+
+  var rowCount = lastRow - 1;
+  var bookingNumbers = sheet
+    .getRange(2, COLUMNS.BOOKING_NUM, rowCount, 1)
+    .getDisplayValues();
+  var lineRange = sheet.getRange(
+    2,
+    COLUMNS.LINE_CONFIRM,
+    rowCount,
+    2
+  );
+  var lineValues = lineRange.getValues();
+  var changed = false;
+
+  lineValues.forEach(function(row, index) {
+    if (String(bookingNumbers[index][0] || '').trim()) return;
+
+    if (row[0] !== '' || row[1] !== '') {
+      row[0] = '';
+      row[1] = '';
+      changed = true;
+    }
+  });
+
+  if (changed) lineRange.setValues(lineValues);
 }
 
 // ============================================================
@@ -932,6 +1118,8 @@ function setupSheet() {
   sheet.setColumnWidth(COLUMNS.COUPON_CODE, 140);
   sheet.setColumnWidth(COLUMNS.COUPON_DISCOUNT, 120);
   sheet.setColumnWidth(COLUMNS.LINE_SEND, 300);
+  sheet.setColumnWidth(COLUMNS.LINE_CONFIRM, 130);
+  sheet.setColumnWidth(COLUMNS.LINE_RESULT, 360);
   sheet.setColumnWidth(COLUMNS.EMAIL, 220);
   sheet.setColumnWidths(COLUMNS.VISITOR_ID, 3, 250);
   sheet.setColumnWidths(COLUMNS.TRACKING_CONSENT_VERSION, 4, 170);
@@ -957,6 +1145,15 @@ function setupSheet() {
   sheet
     .getRange(2, COLUMNS.LOCATION, 1000, 1)
     .setDataValidation(locationRule);
+
+  var lineConfirmRule = SpreadsheetApp.newDataValidation()
+    .requireCheckbox()
+    .setAllowInvalid(false)
+    .build();
+
+  sheet
+    .getRange(2, COLUMNS.LINE_CONFIRM, 1000, 1)
+    .setDataValidation(lineConfirmRule);
 
   SpreadsheetApp.getActiveSpreadsheet().toast(
     'シートの準備が完了しました',
@@ -1043,6 +1240,7 @@ function sendBookingEmail(data, headcount, participantsDetail) {
       '【お客様情報】\n' +
       '名前　　：' + (data.customerName || '') + '\n' +
       '電話　　：' + (data.customerPhone || '') + '\n' +
+      'メール　：' + (data.customerEmail || '') + '\n' +
       'LINE名　：' + (data.lineDisplayName || '') + '\n\n' +
       '【予約内容】\n' +
       'プラン　　：' + (data.planName || '') + '\n' +
@@ -1111,6 +1309,8 @@ function buildBookingRow_(timestamp, data, headcount, participantsDetail, option
       ? options.couponDiscount
       : (data.couponDiscount || 0),
     '',
+    '',
+    '',
     data.customerEmail || '',
     analytics.visitorId || '',
     analytics.visitId || '',
@@ -1133,22 +1333,84 @@ function buildBookingRow_(timestamp, data, headcount, participantsDetail, option
     participantValues('height'),
     participantValues('weight'),
     participantValues('footSize'),
-    data.specialRequests || ''
+    data.specialRequests || '',
+    data.planId || ''
   ];
 }
 
+function findExistingBookingRow_(sheet, bookingNumber) {
+  var normalized = String(bookingNumber || '').trim();
+
+  if (!normalized || sheet.getMaxRows() < 2) return 0;
+
+  var match = sheet
+    .getRange(2, COLUMNS.BOOKING_NUM, sheet.getMaxRows() - 1, 1)
+    .createTextFinder(normalized)
+    .matchEntireCell(true)
+    .findNext();
+
+  return match ? match.getRow() : 0;
+}
+
+// T列などの空行チェックボックス値に影響されず、予約番号(B列)の最後へ追記する。
+function getNextBookingRow_(sheet) {
+  if (sheet.getMaxRows() < 2) return 2;
+
+  var values = sheet
+    .getRange(2, COLUMNS.BOOKING_NUM, sheet.getMaxRows() - 1, 1)
+    .getDisplayValues();
+
+  for (var index = values.length - 1; index >= 0; index -= 1) {
+    if (String(values[index][0] || '').trim()) return index + 3;
+  }
+
+  return 2;
+}
+
+// true=新規保存、false=同じ予約番号が既に存在。確認から書き込みまで同じロック内で
+// 行うため、同時に同じリクエストが届いてもメール・カレンダーは1回だけになる。
 function writeBookingRows_(sheet, rows) {
-  if (!rows || !rows.length) return;
+  if (!rows || !rows.length) return false;
+
+  var bookingNumber = String(
+    rows[0][COLUMNS.BOOKING_NUM - 1] || ''
+  ).trim();
+
+  if (!bookingNumber) {
+    throw new Error('予約番号がないため保存できません。');
+  }
 
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
 
   try {
-    var startRow = Math.max(sheet.getLastRow() + 1, 2);
+    var existingRow = findExistingBookingRow_(sheet, bookingNumber);
+
+    if (existingRow) {
+      Logger.log(
+        '[DUPLICATE_BOOKING_SKIPPED] booking=' +
+        bookingNumber +
+        ' / row=' +
+        existingRow
+      );
+      return false;
+    }
+
+    var startRow = getNextBookingRow_(sheet);
+    var requiredLastRow = startRow + rows.length - 1;
+
+    if (requiredLastRow > sheet.getMaxRows()) {
+      sheet.insertRowsAfter(
+        sheet.getMaxRows(),
+        requiredLastRow - sheet.getMaxRows()
+      );
+    }
 
     sheet
       .getRange(startRow, 1, rows.length, HEADERS.length)
       .setValues(rows);
+
+    return true;
 
   } finally {
     lock.releaseLock();
@@ -1312,7 +1574,17 @@ function doPost(e) {
       ];
     }
 
-    writeBookingRows_(sheet, rows);
+    var created = writeBookingRows_(sheet, rows);
+
+    if (!created) {
+      return ContentService.createTextOutput(
+        JSON.stringify({
+          success: true,
+          duplicate: true,
+          bookingNumber: data.bookingNumber
+        })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
 
     try {
       addToCalendar(data, headcount);
@@ -2826,6 +3098,7 @@ sendBookingEmail = function(data, headcount, participantsDetail) {
       '【お客様情報】\n' +
       '名前　　：' + (data.customerName || '') + '\n' +
       '電話　　：' + (data.customerPhone || '') + '\n' +
+      'メール　：' + (data.customerEmail || '') + '\n' +
       'LINE名　：' + (data.lineDisplayName || '') + '\n\n' +
       '【予約内容】\n' +
       'プラン　　：' + labels.display + '\n' +
@@ -2943,7 +3216,17 @@ doPost = function(e) {
       })
     ];
 
-    writeBookingRows_(sheet, rows);
+    var created = writeBookingRows_(sheet, rows);
+
+    if (!created) {
+      return ContentService.createTextOutput(
+        JSON.stringify({
+          success: true,
+          duplicate: true,
+          bookingNumber: data.bookingNumber
+        })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
 
     try {
       addToCalendar(data, headcount);

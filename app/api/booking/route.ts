@@ -29,6 +29,8 @@ import {
   isParticipantAgeValid,
 } from '@/lib/plan-flags'
 
+export const maxDuration = 30
+
 interface BookingParticipant {
   name?: string
   age?: number | ''
@@ -102,22 +104,35 @@ const STAFF_NAMES: Record<string, string> = {
 // 完全ではないが、スパム送信によるGAS予約シート・LINE通知の氾濫を抑止する
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
 const RATE_LIMIT_MAX = 5
-const rateLimitMap = new Map<string, number[]>()
+const IDEMPOTENCY_KEY_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+interface RateLimitAttempt {
+  timestamp: number
+  idempotencyKey: string
+}
+const rateLimitMap = new Map<string, RateLimitAttempt[]>()
 
-const isRateLimited = (clientKey: string): boolean => {
+const isRateLimited = (clientKey: string, idempotencyKey: string): boolean => {
   const now = Date.now()
   const windowStart = now - RATE_LIMIT_WINDOW_MS
-  const timestamps = (rateLimitMap.get(clientKey) || []).filter((t) => t > windowStart)
-  if (timestamps.length >= RATE_LIMIT_MAX) {
-    rateLimitMap.set(clientKey, timestamps)
+  const attempts = (rateLimitMap.get(clientKey) || []).filter((attempt) => attempt.timestamp > windowStart)
+
+  // 通信結果を受け取れなかった同一予約の再送は、回数制限を消費させない。
+  // GAS側でも同じ予約番号として扱うため、これでスパム予約を増やすことはできない。
+  if (idempotencyKey && attempts.some((attempt) => attempt.idempotencyKey === idempotencyKey)) {
+    rateLimitMap.set(clientKey, attempts)
+    return false
+  }
+
+  if (attempts.length >= RATE_LIMIT_MAX) {
+    rateLimitMap.set(clientKey, attempts)
     return true
   }
-  timestamps.push(now)
-  rateLimitMap.set(clientKey, timestamps)
+  attempts.push({ timestamp: now, idempotencyKey })
+  rateLimitMap.set(clientKey, attempts)
   // Mapの肥大化防止: 定員超過時に期限切れエントリを掃除
   if (rateLimitMap.size > 1000) {
-    for (const [key, ts] of rateLimitMap) {
-      if (!ts.some((t) => t > windowStart)) rateLimitMap.delete(key)
+    for (const [key, entries] of rateLimitMap) {
+      if (!entries.some((attempt) => attempt.timestamp > windowStart)) rateLimitMap.delete(key)
     }
   }
   return false
@@ -426,6 +441,7 @@ const buildGASPayload = (
 
   return {
     bookingNumber,
+    planId: plan.id,
     customerName: bookingData.customerName,
     customerEmail: bookingData.customerEmail || '',
     customerPhone: bookingData.customerPhone || '',
@@ -456,7 +472,14 @@ const buildGASPayload = (
 export async function POST(request: Request) {
   try {
     const clientIp = (request.headers.get('x-forwarded-for') || 'unknown').split(',')[0].trim()
-    if (isRateLimited(clientIp)) {
+    const idempotencyKey = (request.headers.get('idempotency-key') || '').trim()
+    if (idempotencyKey && !IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey)) {
+      return NextResponse.json(
+        { success: false, error: '送信識別子の形式が正しくありません。ページを再読み込みしてください。', timestamp: new Date().toISOString() },
+        { status: 400 }
+      )
+    }
+    if (isRateLimited(clientIp, idempotencyKey)) {
       return NextResponse.json(
         { success: false, error: 'リクエストが多すぎます。しばらく時間をおいてからお試しください。', timestamp: new Date().toISOString() },
         { status: 429 }
@@ -510,7 +533,9 @@ export async function POST(request: Request) {
       )
     }
 
-    const bookingNumber = generateBookingNumber()
+    const bookingNumber = generateBookingNumber(
+      idempotencyKey ? `${lineProfile.userId}:${idempotencyKey}` : undefined
+    )
 
     // クーポンをサーバー側で再計算（コードから直接金額を算出）
     // 昼夜セットなど対象外プランは plan.id を渡すことで割引0に強制する
@@ -536,6 +561,10 @@ export async function POST(request: Request) {
 
     try {
       const result = await sendToGAS(gasPayload)
+      console.info('[v0] Booking accepted by GAS:', {
+        bookingNumber,
+        duplicate: result.duplicate === true,
+      })
       return NextResponse.json(
         createAPIResponse(
           true,

@@ -71,6 +71,26 @@ let liffInstance: Liff | null = null
 // IDトークンを自動更新しない。そのまま送信するとサーバー検証(/oauth2/v2.1/verify)で
 // 必ず拒否されるため、残り時間がこの秒数を切ったら期限切れとして扱い再ログインへ誘導する。
 const ID_TOKEN_MIN_REMAINING_SECONDS = 60
+const LIFF_OPERATION_TIMEOUT_MS = 12_000
+
+const withTimeout = <T,>(promise: Promise<T>, message: string): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(
+      () => reject(new Error(message)),
+      LIFF_OPERATION_TIMEOUT_MS,
+    )
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeoutId)
+        resolve(value)
+      },
+      (error) => {
+        window.clearTimeout(timeoutId)
+        reject(error)
+      },
+    )
+  })
 
 // ログイン済みLIFFセッションから「検証に通る見込みのある」IDトークンだけを取り出す。
 // 期限切れ・取得不能なら null。
@@ -166,6 +186,8 @@ export function LiffProvider({ children }: { children: ReactNode }) {
 
   const initLiff = useCallback(async () => {
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID
+    setIsLiffReady(false)
+    setLiffError(null)
 
     // 計測用の判定材料は liff.init() より前に取る。
     // init はコールバックパラメータを消費し、失敗時の分岐でも hash を書き換えるため。
@@ -205,11 +227,17 @@ export function LiffProvider({ children }: { children: ReactNode }) {
 
       // LIFF初期化（ログインはしない）
       try {
-        await liff.init({ liffId })
+        await withTimeout(
+          liff.init({ liffId }),
+          "LINE連携の初期化がタイムアウトしました。通信環境を確認して再試行してください。",
+        )
       } catch (initError) {
         if (window.location.hash && window.location.hash.includes("access_token")) {
           window.history.replaceState(null, "", window.location.pathname + window.location.search)
-          await liff.init({ liffId })
+          await withTimeout(
+            liff.init({ liffId }),
+            "LINE連携の再初期化がタイムアウトしました。通信環境を確認して再試行してください。",
+          )
         } else {
           throw initError
         }
@@ -239,7 +267,10 @@ export function LiffProvider({ children }: { children: ReactNode }) {
         } else {
           setIsLiffLoggedIn(true)
           try {
-            const profile = await liff.getProfile()
+            const profile = await withTimeout(
+              liff.getProfile(),
+              "LINE情報の取得がタイムアウトしました。再試行してください。",
+            )
             setLineUserId(profile.userId)
             setLineDisplayName(profile.displayName)
             setLineIdToken(idToken)
@@ -266,6 +297,7 @@ export function LiffProvider({ children }: { children: ReactNode }) {
 
       setIsLiffReady(true)
     } catch (error) {
+      liffInstance = null
       clearLiffIdentity()
       // liff.init 自体が失敗（コールバック処理の失敗）。生のエラー文字列は分析へ送らない。
       reportReturn("unknown", false)
@@ -301,10 +333,13 @@ export function LiffProvider({ children }: { children: ReactNode }) {
   }
 
   const retryLiff = () => {
+    // 初期化中の連打で liff.init() を並列実行しない。
+    if (!isLiffReady && initialized.current) return
+
     clearLiffIdentity()
     setLiffError(null)
     setIsLiffReady(false)
-    initialized.current = false
+    initialized.current = true
     initLiff()
   }
 

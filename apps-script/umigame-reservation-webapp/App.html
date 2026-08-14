@@ -2,6 +2,11 @@
   (function() {
     'use strict';
 
+    var bootState = window.__UMIGAME_ADMIN_BOOT__ || {};
+    window.__UMIGAME_ADMIN_BOOT__ = bootState;
+    bootState.appScriptLoaded = true;
+    bootState.phase = 'App.html読込済み';
+
     var state = {
       data: null,
       view: 'reservations',
@@ -13,12 +18,63 @@
 
     var els = {};
 
-    document.addEventListener('DOMContentLoaded', init);
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', startApp, { once: true });
+    } else {
+      startApp();
+    }
+
+    function startApp() {
+      if (bootState.initStarted) return;
+      bootState.initStarted = true;
+      bootState.phase = '初期化開始';
+
+      try {
+        init();
+      } catch (error) {
+        bootState.phase = '初期化エラー';
+        showFatalStartupError(error);
+      }
+    }
 
     function init() {
       cacheElements();
       bindEvents();
+
+      bootState.phase = 'HTML埋込データ確認';
+      var initialData = readInitialAppData();
+
+      if (initialData) {
+        state.data = normalizeAppData(initialData);
+        bootState.phase = '初期データ描画中';
+        populateFilterOptions();
+        renderAll();
+        setSync('ready', '更新 ' + formatClock(state.data.generatedAt));
+        bootState.phase = '表示完了（HTML埋込）';
+        bootState.ready = true;
+        els.loadingScreen.hidden = true;
+        return;
+      }
+
+      bootState.phase = '予約データ要求開始';
       loadData(true);
+    }
+
+    function readInitialAppData() {
+      var errorNode = document.getElementById('adminInitialError');
+      var errorText = errorNode ? String(errorNode.textContent || '').trim() : '';
+
+      if (errorText) {
+        var embeddedError = JSON.parse(errorText);
+        if (embeddedError) throw new Error(String(embeddedError));
+      }
+
+      var dataNode = document.getElementById('adminInitialData');
+      var dataText = dataNode ? String(dataNode.textContent || '').trim() : '';
+
+      if (!dataText || dataText === 'null') return null;
+
+      return JSON.parse(dataText);
     }
 
     function cacheElements() {
@@ -35,11 +91,16 @@
       ].forEach(function(id) {
         els[id] = document.getElementById(id);
       });
+
+      var missing = Object.keys(els).filter(function(id) { return !els[id]; });
+      if (missing.length) {
+        throw new Error('画面部品が不足しています: ' + missing.join(', '));
+      }
     }
 
     function bindEvents() {
       els.refreshButton.addEventListener('click', function() {
-        loadData(false);
+        if (!state.loading) window.location.reload();
       });
 
       [els.searchInput, els.periodFilter, els.statusFilter, els.locationFilter]
@@ -67,6 +128,7 @@
       els.drawerBackdrop.addEventListener('click', closeDrawer);
       els.drawerBody.addEventListener('click', handleDrawerClick);
       els.drawerBody.addEventListener('input', handleDrawerInput);
+      els.drawerBody.addEventListener('change', handleDrawerInput);
 
       els.lineModalClose.addEventListener('click', cancelLinePreview);
       els.lineCancelButton.addEventListener('click', cancelLinePreview);
@@ -79,12 +141,31 @@
       });
     }
 
-    function gas(functionName, argument) {
+    function gas(functionName, argument, timeoutMs) {
       return new Promise(function(resolve, reject) {
+        var settled = false;
+        var waitMs = Number(timeoutMs || 45000);
+        var timer = setTimeout(function() {
+          if (settled) return;
+          settled = true;
+          reject(new Error(
+            functionName + 'の応答が' + Math.round(waitMs / 1000) +
+            '秒以内にありませんでした。Webアプリのデプロイ版と実行履歴を確認してください。'
+          ));
+        }, waitMs);
+        var finish = function(handler, value) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          handler(value);
+        };
         var runner = google.script.run
-          .withSuccessHandler(resolve)
+          .withSuccessHandler(function(value) { finish(resolve, value); })
           .withFailureHandler(function(error) {
-            reject(new Error(error && error.message ? error.message : String(error)));
+            finish(
+              reject,
+              new Error(error && error.message ? error.message : String(error))
+            );
           });
 
         if (typeof argument === 'undefined') runner[functionName]();
@@ -95,30 +176,86 @@
     async function loadData(showFullLoader) {
       if (state.loading) return;
       state.loading = true;
-      setSync('loading', '最新情報を確認中');
-      els.refreshButton.disabled = true;
-
-      if (showFullLoader) els.loadingScreen.hidden = false;
+      var previousData = state.data;
+      var hadUsableData = !!previousData && !!bootState.ready;
 
       try {
+        setSync('loading', '最新情報を確認中');
+        els.refreshButton.disabled = true;
+        if (showFullLoader) els.loadingScreen.hidden = false;
+
         var previousSelected = state.selectedKey;
-        state.data = await gas('adminGetAppData');
+        bootState.phase = 'GAS応答待ち';
+        var responseJson = await gas('adminGetAppDataJson', undefined, 45000);
+        if (typeof responseJson !== 'string' || !responseJson) {
+          throw new Error('予約データの返却形式が不正です。');
+        }
+        state.data = normalizeAppData(JSON.parse(responseJson));
+        bootState.phase = '画面描画中';
         populateFilterOptions();
         renderAll();
 
-        if (previousSelected && findBooking(previousSelected)) {
-          state.selectedKey = previousSelected;
+        var selectedAfterLoad = state.selectedKey || previousSelected;
+        if (selectedAfterLoad && findBooking(selectedAfterLoad)) {
+          state.selectedKey = selectedAfterLoad;
           renderDrawer();
+        } else if (selectedAfterLoad) {
+          state.selectedKey = '';
+          state.history = [];
+          closeDrawer();
         }
 
         setSync('ready', '更新 ' + formatClock(state.data.generatedAt));
+        bootState.phase = '表示完了';
+        bootState.ready = true;
       } catch (error) {
+        state.data = previousData;
+        bootState.phase = '読込エラー';
+        bootState.lastError = error && error.message ? error.message : String(error);
         setSync('error', '読み込みエラー');
         showToast(error.message, 'error', 6500);
+        if (!hadUsableData) {
+          showFatalStartupError(error);
+        }
       } finally {
         state.loading = false;
         els.refreshButton.disabled = false;
-        els.loadingScreen.hidden = true;
+        if (bootState.ready || hadUsableData) els.loadingScreen.hidden = true;
+      }
+    }
+
+    function normalizeAppData(value) {
+      if (!value || typeof value !== 'object') {
+        throw new Error('予約データ本体が見つかりません。');
+      }
+      if (!Array.isArray(value.reservations)) {
+        throw new Error('予約一覧の返却形式が不正です。');
+      }
+
+      value.options = value.options && typeof value.options === 'object'
+        ? value.options
+        : {};
+      ['locations', 'staff', 'plans', 'planCatalog'].forEach(function(key) {
+        if (!Array.isArray(value.options[key])) value.options[key] = [];
+      });
+
+      return value;
+    }
+
+    function showFatalStartupError(error) {
+      if (typeof window.__showUmigameAdminFatal === 'function') {
+        window.__showUmigameAdminFatal(
+          error && error.message ? error.message : String(error),
+          bootState.phase || '不明'
+        );
+        return;
+      }
+
+      var loading = document.getElementById('loadingScreen');
+      if (loading) {
+        loading.hidden = false;
+        loading.textContent = '予約管理画面を起動できませんでした: ' +
+          (error && error.message ? error.message : String(error));
       }
     }
 
@@ -340,6 +477,7 @@
     async function openDrawer(key) {
       var booking = findBooking(key);
       if (!booking) return;
+      var requestedKey = key;
 
       state.selectedKey = key;
       state.history = [];
@@ -353,12 +491,16 @@
       document.body.style.overflow = 'hidden';
 
       try {
-        state.history = await gas('adminGetHistory', {
+        var history = await gas('adminGetHistory', {
           bookingNumber: booking.bookingNumber
         });
+        if (state.selectedKey !== requestedKey) return;
+        state.history = Array.isArray(history) ? history : [];
         renderDrawerHistory();
       } catch (error) {
-        showToast('送信履歴を取得できませんでした：' + error.message, 'error');
+        if (state.selectedKey === requestedKey) {
+          showToast('送信履歴を取得できませんでした：' + error.message, 'error');
+        }
       }
     }
 
@@ -399,6 +541,8 @@
           '</div>' + statusChip(booking.bookingStatus) + '</div>' +
           '<div class="detail-datetime"><strong>' + escapeHtml(bookingDateDisplay(booking)) + '</strong><span>' + escapeHtml(bookingTimeDisplay(booking)) + '</span></div>' +
         '</section>' +
+
+        reservationChangeEditorHtml(booking) +
 
         scheduleEditorHtml(booking) +
 
@@ -494,6 +638,164 @@
       '</details>';
     }
 
+    function reservationChangeEditorHtml(booking) {
+      var planCatalog = state.data.options.planCatalog || [];
+      var currentPlanId = booking.planId || '';
+      var counts = parseHeadcount(booking.headcount);
+      var currentCatalogPlan = findPlanCatalog(currentPlanId);
+      var currentIsCombo = currentPlanId.charAt(0) === 'C';
+      var currentStandardPrice = calculateChangeStandardPrice(currentCatalogPlan, counts);
+      var planOptions = planCatalog.map(function(plan) {
+        return '<option value="' + attr(plan.id) + '"' +
+          (plan.id === currentPlanId ? ' selected' : '') + '>' +
+          escapeHtml(plan.id + '｜' + plan.name) + '</option>';
+      }).join('');
+
+      if (!currentPlanId) {
+        planOptions = '<option value="" selected>変更後のプランを選択</option>' +
+          planOptions;
+      }
+
+      return '<details class="reservation-change" data-change-editor>' +
+        '<summary><span><strong>予約内容を変更する</strong>' +
+          '<small>プラン・人数・料金・連絡先・日時をまとめて変更</small></span>' +
+          '<span aria-hidden="true">›</span></summary>' +
+        '<div class="reservation-change-body">' +
+          '<div class="change-warning"><strong>保存だけではLINEは送信されません。</strong>' +
+            'シートとGoogleカレンダーを一括更新し、失敗時は元へ戻します。</div>' +
+          '<div class="change-grid">' +
+            '<label class="change-field change-wide"><span>変更後のプラン</span>' +
+              '<select data-change-plan>' + planOptions + '</select></label>' +
+            '<label class="change-field"><span>お客様名</span>' +
+              '<input class="field-input" data-change-name maxlength="120" value="' + attr(booking.name || '') + '"></label>' +
+            '<label class="change-field"><span>電話番号</span>' +
+              '<input class="field-input" data-change-phone maxlength="40" value="' + attr(booking.phone || '') + '"></label>' +
+            '<label class="change-field change-wide"><span>メールアドレス</span>' +
+              '<input type="email" class="field-input" data-change-email maxlength="254" value="' + attr(booking.email || '') + '"></label>' +
+          '</div>' +
+          '<div class="change-count-grid">' +
+            changeCountField('大人', 'adult', counts.adult) +
+            changeCountField('子供', 'child', counts.child) +
+            changeCountField('3歳未満', 'under3', counts.under3) +
+          '</div>' +
+          '<div class="change-grid">' +
+            '<label class="change-field"><span>料金の決め方</span>' +
+              '<select data-change-pricing-mode>' +
+                '<option value="manual">現在の金額を基準に手入力</option>' +
+                '<option value="standard">標準料金で再計算</option>' +
+              '</select></label>' +
+            '<label class="change-field"><span>合計受取金額</span>' +
+              '<input type="number" min="0" max="10000000" step="1" class="field-input" data-change-total value="' + attr(booking.totalPrice || 0) + '"></label>' +
+            '<label class="change-field"><span>クーポンコード</span>' +
+              '<input class="field-input" data-change-coupon-code maxlength="100" value="' + attr(booking.couponCode || '') + '"' + (currentIsCombo ? ' disabled' : '') + '></label>' +
+            '<label class="change-field"><span>クーポン割引額</span>' +
+              '<input type="number" min="0" max="1000000" step="1" class="field-input" data-change-coupon-discount value="' + attr(currentIsCombo ? 0 : (booking.couponDiscount || 0)) + '"' + (currentIsCombo ? ' disabled' : '') + '></label>' +
+          '</div>' +
+          '<p class="standard-price-note" data-standard-price-note>標準料金の目安：' +
+            escapeHtml(formatMoney(currentStandardPrice)) +
+            '（レンタル・指名料は含みません' +
+            (currentIsCombo ? '／セットプランはクーポン対象外' : '') + '）</p>' +
+          '<div class="change-schedule-grid" data-change-schedules>' +
+            changeScheduleFieldsHtml(booking, currentCatalogPlan) +
+          '</div>' +
+          '<label class="change-field change-block"><span>参加者詳細</span>' +
+            '<textarea class="message-compose compact-compose" data-change-participants maxlength="5000">' + escapeHtml(booking.participants || '') + '</textarea></label>' +
+          '<div class="change-grid participant-measurements">' +
+            '<label class="change-field"><span>参加者年齢</span>' +
+              '<input class="field-input" data-change-ages maxlength="2000" value="' + attr(booking.participantAges || '') + '" placeholder="例：43 / 37 / 5"></label>' +
+            '<label class="change-field"><span>参加者身長（cm）</span>' +
+              '<input class="field-input" data-change-heights maxlength="2000" value="' + attr(booking.participantHeights || '') + '" placeholder="例：170 / 158 / 110"></label>' +
+            '<label class="change-field"><span>参加者体重（kg）</span>' +
+              '<input class="field-input" data-change-weights maxlength="2000" value="' + attr(booking.participantWeights || '') + '" placeholder="例：65 / 50 / 20"></label>' +
+            '<label class="change-field"><span>参加者足サイズ（cm）</span>' +
+              '<input class="field-input" data-change-foot-sizes maxlength="2000" value="' + attr(booking.participantFootSizes || '') + '" placeholder="例：26 / 23 / 18"></label>' +
+          '</div>' +
+          '<label class="change-field change-block"><span>特別なご要望・アレルギー等</span>' +
+            '<textarea class="message-compose compact-compose" data-change-requests maxlength="5000">' + escapeHtml(booking.specialRequests || '') + '</textarea></label>' +
+          '<label class="change-field change-block"><span>変更理由（必須）</span>' +
+            '<textarea class="message-compose compact-compose" data-change-reason maxlength="500" placeholder="例：お客様の希望により貸切プランへ変更"></textarea></label>' +
+          '<button class="primary-button change-save" data-save-reservation-change>変更内容を確認する</button>' +
+        '</div>' +
+      '</details>';
+    }
+
+    function changeCountField(label, key, value) {
+      return '<label class="change-field"><span>' + escapeHtml(label) + '</span>' +
+        '<input type="number" min="0" max="99" step="1" class="field-input" data-change-count="' + attr(key) + '" value="' + attr(value || 0) + '"></label>';
+    }
+
+    function findPlanCatalog(planId) {
+      var catalog = state.data && state.data.options.planCatalog || [];
+      for (var i = 0; i < catalog.length; i++) {
+        if (catalog[i].id === planId) return catalog[i];
+      }
+      return null;
+    }
+
+    function planRoleFromName(planName) {
+      var text = String(planName || '');
+      if (text.indexOf('ナイト') !== -1 || text.indexOf('ヤシガニ') !== -1) return 'night';
+      if (text.indexOf('SUP') !== -1) return 'sup';
+      return 'turtle';
+    }
+
+    function currentComponentForRole(booking, role) {
+      var components = booking && booking.components || [];
+      for (var i = 0; i < components.length; i++) {
+        if (planRoleFromName(components[i].plan) === role) return components[i];
+      }
+      return null;
+    }
+
+    function defaultChangeTime(role, plan, date) {
+      if (role === 'night') return '19:20';
+
+      if (role === 'sup' && plan && (plan.id === 'S4' || plan.id === 'S8')) {
+        var month = Number(String(date || '').split('-')[1] || 0);
+        var sunsetTimes = [
+          '', '16:45', '17:00', '17:15', '17:30', '17:45', '18:00',
+          '18:00', '17:45', '17:15', '16:45', '16:30', '16:30'
+        ];
+        return sunsetTimes[month] || '17:30';
+      }
+
+      return '09:00';
+    }
+
+    function changeScheduleFieldsHtml(booking, plan) {
+      if (!plan) return '<p>プランを選択してください。</p>';
+
+      var fallbackSource = booking.components && booking.components[0] || {};
+      var turtleSource = currentComponentForRole(booking, 'turtle') || {};
+
+      return plan.components.map(function(component) {
+        var source = currentComponentForRole(booking, component.role) || {};
+        var autoSup = plan.autoSup && component.role === 'sup';
+        var date = source.date || turtleSource.date || fallbackSource.date ||
+          localDateString(new Date());
+        var time = timeInputValue(source.time) ||
+          defaultChangeTime(component.role, plan, date);
+
+        if (autoSup) {
+          var renderedTurtle = currentComponentForRole(booking, 'turtle') || {};
+          date = renderedTurtle.date || date;
+          time = addMinutesToTime(
+            timeInputValue(renderedTurtle.time) || defaultChangeTime('turtle', plan, date),
+            90
+          );
+        }
+
+        return '<article class="change-schedule-card" data-change-schedule-role="' + attr(component.role) + '">' +
+          '<strong>' + escapeHtml(component.plan) + '</strong>' +
+          (autoSup ? '<small>海亀と同じ日・90分後に自動設定</small>' : '') +
+          '<div class="change-schedule-fields">' +
+            '<label class="change-field"><span>参加日</span><input type="date" class="field-input" data-change-date min="' + attr(localDateString(new Date())) + '" value="' + attr(date || '') + '"' + (autoSup ? ' disabled' : '') + '></label>' +
+            '<label class="change-field"><span>開始時間</span><input type="time" class="field-input" data-change-time value="' + attr(time || '') + '"' + (autoSup ? ' disabled' : '') + '></label>' +
+          '</div>' +
+        '</article>';
+      }).join('');
+    }
+
     function renderDrawerHistory() {
       var container = document.getElementById('drawerHistory');
       if (container) container.innerHTML = historyHtml();
@@ -526,6 +828,12 @@
         return;
       }
 
+      var changeButton = event.target.closest('[data-save-reservation-change]');
+      if (changeButton) {
+        saveReservationChange(changeButton);
+        return;
+      }
+
       var statusButton = event.target.closest('[data-status-value]');
       if (statusButton) {
         updateStatus(statusButton);
@@ -547,29 +855,13 @@
       var booking = findBooking(state.selectedKey);
       if (!booking) return;
 
-      var firstConfirmed = window.confirm(
-        '「' + (booking.name || '名前未登録') + ' 様」の予約を削除しますか？\n\n' +
-        '予約一覧の' + booking.componentCount + '行と、同じ予約番号のGoogleカレンダー予定が対象です。\n' +
-        'お客様へLINEは送信されません。'
-      );
-
-      if (!firstConfirmed) return;
-
-      var enteredNumber = window.prompt(
-        '誤削除防止のため、予約番号を入力してください。\n\n' +
-        '予約番号：' + booking.bookingNumber,
-        ''
-      );
-
-      if (enteredNumber === null) return;
-
-      if (String(enteredNumber).trim() !== String(booking.bookingNumber)) {
-        showToast('予約番号が一致しないため削除しませんでした。', 'error', 6000);
-        return;
-      }
-
       if (!window.confirm(
-        '最終確認です。\n\n予約番号「' + booking.bookingNumber + '」を削除します。よろしいですか？'
+        'この予約を削除しますか？\n\n' +
+        'お客様：' + (booking.name || '名前未登録') + ' 様\n' +
+        '予約番号：' + booking.bookingNumber + '\n' +
+        '対象：予約一覧 ' + booking.componentCount + '行と、同じ予約番号のGoogleカレンダー予定\n\n' +
+        '元データは「削除済み予約」シートへ退避されます。\n' +
+        'お客様へLINEは送信されません。'
       )) {
         return;
       }
@@ -580,7 +872,7 @@
         var result = await gas('adminDeleteBooking', {
           bookingKey: booking.key,
           expectedVersion: booking.version,
-          confirmBookingNumber: enteredNumber.trim()
+          confirmed: true
         });
 
         state.data.reservations = state.data.reservations.filter(function(item) {
@@ -610,6 +902,12 @@
     }
 
     function handleDrawerInput(event) {
+      var changeEditor = event.target.closest('[data-change-editor]');
+      if (changeEditor) {
+        handleReservationChangeInput(event, changeEditor);
+        return;
+      }
+
       var input = event.target.closest('[data-schedule-role="turtle"]');
       if (!input) return;
 
@@ -624,6 +922,232 @@
       if (supDateInput && turtleDateInput) supDateInput.value = turtleDateInput.value;
       if (supTimeInput && turtleTimeInput) {
         supTimeInput.value = addMinutesToTime(turtleTimeInput.value, 90);
+      }
+    }
+
+    function handleReservationChangeInput(event, editor) {
+      var booking = findBooking(state.selectedKey);
+      if (!booking) return;
+
+      var planSelect = editor.querySelector('[data-change-plan]');
+      var plan = findPlanCatalog(planSelect && planSelect.value);
+
+      if (event.target.matches('[data-change-plan]')) {
+        var schedules = editor.querySelector('[data-change-schedules]');
+        if (schedules) schedules.innerHTML = changeScheduleFieldsHtml(booking, plan);
+      }
+
+      var turtleCard = editor.querySelector('[data-change-schedule-role="turtle"]');
+      var supCard = editor.querySelector('[data-change-schedule-role="sup"]');
+
+      if (plan && plan.autoSup && turtleCard && supCard) {
+        var turtleDate = turtleCard.querySelector('[data-change-date]');
+        var turtleTime = turtleCard.querySelector('[data-change-time]');
+        var supDate = supCard.querySelector('[data-change-date]');
+        var supTime = supCard.querySelector('[data-change-time]');
+
+        if (turtleDate && supDate) supDate.value = turtleDate.value;
+        if (turtleTime && supTime) supTime.value = addMinutesToTime(turtleTime.value, 90);
+      }
+
+      var countValues = getChangeCounts(editor);
+      var standardPrice = calculateChangeStandardPrice(plan, countValues);
+      var note = editor.querySelector('[data-standard-price-note]');
+      var pricingMode = editor.querySelector('[data-change-pricing-mode]');
+      var totalInput = editor.querySelector('[data-change-total]');
+      var couponCode = editor.querySelector('[data-change-coupon-code]');
+      var couponDiscount = editor.querySelector('[data-change-coupon-discount]');
+      var isCombo = plan && plan.id.charAt(0) === 'C';
+
+      if (note) {
+        note.textContent = plan
+          ? '標準料金の目安：' + formatMoney(standardPrice) +
+            '（レンタル・指名料は含みません' +
+            (isCombo ? '／セットプランはクーポン対象外' : '') + '）'
+          : '';
+      }
+
+      if (pricingMode && pricingMode.value === 'standard' && totalInput) {
+        totalInput.value = String(Math.max(
+          0,
+          standardPrice - Number(couponDiscount && couponDiscount.value || 0)
+        ));
+      }
+
+      if (couponCode) couponCode.disabled = !!isCombo;
+      if (couponDiscount) couponDiscount.disabled = !!isCombo;
+      if (isCombo) {
+        if (couponCode) couponCode.value = '';
+        if (couponDiscount) couponDiscount.value = '0';
+      }
+    }
+
+    function getChangeCounts(editor) {
+      var result = { adult: 0, child: 0, under3: 0 };
+      [].slice.call(editor.querySelectorAll('[data-change-count]')).forEach(function(input) {
+        result[input.getAttribute('data-change-count')] = Number(input.value || 0);
+      });
+      return result;
+    }
+
+    function calculateChangeStandardPrice(plan, counts) {
+      if (!plan) return 0;
+      return Number(counts.adult || 0) * Number(plan.adultPrice || 0) +
+        Number(counts.child || 0) * Number(plan.childPrice || plan.adultPrice || 0) +
+        Number(counts.under3 || 0) * Number(plan.under3Price || 0);
+    }
+
+    async function saveReservationChange(button) {
+      var booking = findBooking(state.selectedKey);
+      var editor = button.closest('[data-change-editor]');
+      if (!booking || !editor) return;
+
+      var planId = editor.querySelector('[data-change-plan]').value;
+      var plan = findPlanCatalog(planId);
+      var counts = getChangeCounts(editor);
+      var totalPrice = Number(editor.querySelector('[data-change-total]').value || 0);
+      var couponCodeInput = editor.querySelector('[data-change-coupon-code]');
+      var couponDiscountInput = editor.querySelector('[data-change-coupon-discount]');
+      var reason = editor.querySelector('[data-change-reason]').value.trim();
+      var customerName = editor.querySelector('[data-change-name]').value.trim();
+      var phone = editor.querySelector('[data-change-phone]').value.trim();
+      var email = editor.querySelector('[data-change-email]').value.trim();
+      var participants = editor.querySelector('[data-change-participants]').value;
+      var participantAges = editor.querySelector('[data-change-ages]').value;
+      var participantHeights = editor.querySelector('[data-change-heights]').value;
+      var participantWeights = editor.querySelector('[data-change-weights]').value;
+      var participantFootSizes = editor.querySelector('[data-change-foot-sizes]').value;
+      var specialRequests = editor.querySelector('[data-change-requests]').value;
+      var couponCode = couponCodeInput && !couponCodeInput.disabled
+        ? couponCodeInput.value.trim()
+        : '';
+      var couponDiscount = couponDiscountInput && !couponDiscountInput.disabled
+        ? Number(couponDiscountInput.value || 0)
+        : 0;
+      var components = [].slice.call(
+        editor.querySelectorAll('[data-change-schedule-role]')
+      ).map(function(card) {
+        return {
+          role: card.getAttribute('data-change-schedule-role'),
+          date: card.querySelector('[data-change-date]').value,
+          time: card.querySelector('[data-change-time]').value
+        };
+      });
+
+      if (!plan || !reason) {
+        showToast('変更後のプランと変更理由を入力してください。', 'error', 6000);
+        return;
+      }
+      if (counts.adult + counts.child + counts.under3 < 1) {
+        showToast('参加人数は1名以上にしてください。', 'error', 6000);
+        return;
+      }
+      if (components.some(function(component) { return !component.date || !component.time; })) {
+        showToast('すべての予定の日付と開始時間を入力してください。', 'error', 6000);
+        return;
+      }
+
+      var afterHeadcount = '大人' + counts.adult + '名 / 子供' + counts.child +
+        '名 / 3歳未満' + counts.under3 + '名';
+      var scheduleSummary = components.map(function(component) {
+        return component.date + ' ' + component.time;
+      }).join(' / ');
+      var changeLines = [
+        'プラン：' + booking.displayPlan + ' → ' + plan.name,
+        '日時：' + bookingDateDisplay(booking) + ' ' + bookingTimeDisplay(booking) +
+          ' → ' + scheduleSummary,
+        '人数：' + booking.headcount + ' → ' + afterHeadcount,
+        '金額：' + formatMoney(booking.totalPrice) + ' → ' + formatMoney(totalPrice)
+      ];
+
+      if (customerName !== String(booking.name || '')) {
+        changeLines.push('氏名：' + (booking.name || '未入力') + ' → ' + customerName);
+      }
+      if (phone !== String(booking.phone || '')) {
+        changeLines.push('電話：' + (booking.phone || '未入力') + ' → ' + phone);
+      }
+      if (email !== String(booking.email || '')) {
+        changeLines.push('メール：' + (booking.email || '未入力') + ' → ' + (email || '未入力'));
+      }
+      if (
+        couponCode !== String(booking.couponCode || '') ||
+        couponDiscount !== Number(booking.couponDiscount || 0)
+      ) {
+        changeLines.push(
+          'クーポン：' + (booking.couponCode || 'なし') + ' / ' +
+          formatMoney(booking.couponDiscount || 0) + ' → ' +
+          (couponCode || 'なし') + ' / ' + formatMoney(couponDiscount)
+        );
+      }
+      if (
+        participants !== String(booking.participants || '') ||
+        participantAges !== String(booking.participantAges || '') ||
+        participantHeights !== String(booking.participantHeights || '') ||
+        participantWeights !== String(booking.participantWeights || '') ||
+        participantFootSizes !== String(booking.participantFootSizes || '')
+      ) {
+        changeLines.push('参加者詳細・数値：変更あり');
+      }
+      if (specialRequests !== String(booking.specialRequests || '')) {
+        changeLines.push('要望・アレルギー等：変更あり');
+      }
+
+      var confirmation = [
+        '以下の内容へ変更します。',
+        '',
+        changeLines.join('\n'),
+        '理由：' + reason,
+        '',
+        '予約一覧とGoogleカレンダーを同時に更新します。LINEはまだ送信されません。'
+      ].join('\n');
+
+      if (!window.confirm(confirmation)) return;
+
+      setButtonBusy(button, true, '変更中');
+
+      try {
+        var result = await gas('adminChangeReservation', {
+          bookingKey: booking.key,
+          expectedVersion: booking.version,
+          planId: planId,
+          customerName: customerName,
+          phone: phone,
+          email: email,
+          counts: counts,
+          totalPrice: totalPrice,
+          couponCode: couponCode,
+          couponDiscount: couponDiscount,
+          components: components,
+          participants: participants,
+          participantAges: participantAges,
+          participantHeights: participantHeights,
+          participantWeights: participantWeights,
+          participantFootSizes: participantFootSizes,
+          specialRequests: specialRequests,
+          reason: reason,
+          bookingStatus: booking.bookingStatus
+        });
+
+        replaceBooking(result.booking);
+        renderAll();
+        renderDrawer();
+
+        var messageInput = document.getElementById('customLineMessage');
+        if (messageInput && result.suggestedLineMessage) {
+          messageInput.value = result.suggestedLineMessage;
+        }
+
+        showToast(
+          '予約一覧とGoogleカレンダーを変更しました。LINEはまだ送信されていません。',
+          'success',
+          7000
+        );
+        if (result.warning) showToast(result.warning, 'error', 9000);
+
+      } catch (error) {
+        showToast(error.message, 'error', 9000);
+      } finally {
+        setButtonBusy(button, false);
       }
     }
 
@@ -840,10 +1364,14 @@
           showToast(result.warning, 'error', 8000);
         }
 
-        await loadData(false);
-
         var booking = findBooking(state.selectedKey);
         if (booking) {
+          booking.lastLineResult = result.resultText || '';
+          booking.components.forEach(function(component) {
+            if (component.rowNumber === Number(pending.sourceRowNumber || 0)) {
+              component.lineResult = result.resultText || '';
+            }
+          });
           state.history = await gas('adminGetHistory', {
             bookingNumber: booking.bookingNumber
           });
@@ -974,6 +1502,20 @@
       });
 
       return times.length ? times.join(' / ') : '時間未設定';
+    }
+
+    function parseHeadcount(value) {
+      var text = String(value || '');
+      var read = function(pattern) {
+        var match = text.match(pattern);
+        return match ? Number(match[1] || 0) : 0;
+      };
+
+      return {
+        adult: read(/大人\s*(\d+)\s*名?/),
+        child: read(/子供\s*(\d+)\s*名?/),
+        under3: read(/3歳未満\s*(\d+)\s*名?/)
+      };
     }
 
     function locationOptions(current) {

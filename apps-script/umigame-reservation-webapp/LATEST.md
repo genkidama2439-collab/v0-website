@@ -31,6 +31,58 @@
 - LINEの通信再試行・記録エラー時の二重送信防止
 - スマホの長い売上金額表示の調整
 
+## 次にこのGASを触るとき、一緒に直すこと（2026-08-14 監査で発見・未修正）
+
+急ぎではありません。**データが壊れる種類の不具合ではなく**、下記の条件を満たしたときに
+管理画面の操作がエラーになるだけです。次に`Code.gs`を貼り替える機会に、まとめて直してください。
+
+### 症状
+
+予約一覧シートが行数の上限まで埋まると、**行が増えるプラン変更（単品 → 2予定セット / 3予定セット）が必ずエラーになる**。
+
+- 壊れない操作: セット → 単品、同じ行数同士の変更、日時変更、削除、ステータス更新、LINE送信
+- データ破損: **なし**（例外はシート・カレンダーを書き換える前に発生する）
+
+### 原因
+
+`adminChangeReservation`（`Code.gs` の `var nextAppendRow = Math.max(sheet.getLastRow() + 1, 2);` の箇所）が、
+足りない行を`getRange`で直接掴んでいる。Apps Scriptの`getRange`はシートの現在の行数を超えると例外になる。
+
+予約受付GASの`writeBookingRows_`は`insertRowsAfter`でシートを必要分ちょうど拡張するため、
+**一度シートが埋まると以後は常に「最終行 ＝ シートの行数」になる**。その状態では
+`getLastRow() + 1` が必ず範囲外になる。
+
+なお、空行に値が残って`getLastRow()`が膨らむ問題は予約受付GAS側では対処済み
+（B列の予約番号を基準に追記位置を決める`getNextBookingRow_`）だが、管理Webアプリ側は`getLastRow()`のまま。
+そのため、シートが埋まる前でも空行に値が残っていれば同じ症状が出る。
+
+### 直し方
+
+`adminChangeReservation`で行を追加する前に、予約受付GASと同じ行拡張を入れる。
+
+```js
+// 追加行がシートの行数を超える場合は先に拡張する（getRangeは範囲外で例外になる）
+var requiredRows = nextAppendRow + (plan.components.length - targetRowNumbers.length) - 1;
+if (requiredRows > sheet.getMaxRows()) {
+  sheet.insertRowsAfter(sheet.getMaxRows(), requiredRows - sheet.getMaxRows());
+}
+```
+
+余力があれば、追記位置の求め方も予約受付GASと揃える（`getLastRow()`ではなく
+B列＝予約番号の最終データ行を基準にする）とより安全。
+
+### 同じ書き方がもう1か所ある
+
+`adminArchiveDeletedBooking_`（削除済み予約シートへの退避、`var startRow = Math.max(sheet.getLastRow() + 1, 2);`）も
+同じ方式。こちらは`削除済み予約`シートが1000行を超えたころに同じ症状が出る（かなり先）。
+削除処理の**前**に失敗するため、こちらもデータは壊れない。直すなら同じ`insertRowsAfter`を足す。
+
+### 直したあとの確認
+
+1. テスト予約を単品プランで1件作る
+2. 管理画面から3予定セット（まるごと1日セット）へプラン変更する
+3. 予約一覧が3行になり、Googleカレンダーが3件になり、`予約変更履歴`に記録されること
+
 ## 反映順序
 
 1. 予約受付GASの`Code.gs`を貼り替えて新バージョンをデプロイ

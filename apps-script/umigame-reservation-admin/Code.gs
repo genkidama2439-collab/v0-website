@@ -166,6 +166,44 @@ var LOCATION_OPTIONS = [
 ];
 
 // ============================================================
+// プラン判定の基準
+// ------------------------------------------------------------
+// サイト（app/api/booking/route.ts の buildGASPayload）は常に管理プランID
+// （S1〜S8 / C1〜C6）を planId で送る。プラン振り分けはこのIDを最優先で使う。
+//
+// 備考欄（specialRequests）にはお客様の自由記述がそのまま入るため、
+// 「ドローンSUP」「ヤシガニ」「貸切」などの語をテキスト判定に使うと、
+// お客様が要望欄にその言葉を書いただけでプランの振り分けが変わってしまう。
+// （例: 昼夜セットの要望欄に「ドローンSUP」と書かれると海空セット扱いになり、
+//   ヤシガニ探検の行とカレンダー予定が作られない）
+//
+// planId が取れない古い送信・手動再送のときだけ、従来のテキスト判定へ戻す。
+// ============================================================
+
+var SEA_SKY_PLAN_IDS = ['C3', 'C4'];
+var NIGHT_COMBO_PLAN_IDS = ['C1', 'C2'];
+var PRIVATE_COMBO_PLAN_IDS = ['C2', 'C4', 'C6'];
+
+// 予約データに含まれる管理プランID。取得できない場合は空文字。
+function bookingPlanId_(data) {
+  data = data || {};
+
+  return String(
+    data.planId ||
+    data.planID ||
+    data.selectedPlanId ||
+    data.planCode ||
+    data.code ||
+    (data.plan && data.plan.id) ||
+    ''
+  ).trim().toUpperCase();
+}
+
+function planIdIsOneOf_(planId, list) {
+  return list.indexOf(planId) !== -1;
+}
+
+// ============================================================
 // ユーティリティ
 // ============================================================
 
@@ -327,8 +365,11 @@ function isSeaSkyPlanName_(planName) {
     );
 }
 
-// C3も [COMBO booking] を持つため、昼夜セット判定から除外する。
+// C3/C4（海空セット）判定。C3も [COMBO booking] を持つため、昼夜セット判定から除外する。
 function isSeaSkyComboBooking(data) {
+  var planId = bookingPlanId_(data);
+  if (planId) return planIdIsOneOf_(planId, SEA_SKY_PLAN_IDS);
+
   var plan = String(data && data.planName || '');
   var specialRequests = String(data && data.specialRequests || '');
 
@@ -342,6 +383,9 @@ function isSeaSkyComboBooking(data) {
 // C1/C2の昼夜セット判定
 function isComboBooking(data) {
   if (isSeaSkyComboBooking(data)) return false;
+
+  var planId = bookingPlanId_(data);
+  if (planId) return planIdIsOneOf_(planId, NIGHT_COMBO_PLAN_IDS);
 
   return String(data && data.specialRequests || '').indexOf('[COMBO booking]') !== -1 ||
     isComboPlanName(data && data.planName);
@@ -431,6 +475,9 @@ function splitAmountEvenly_(amount) {
 
 function isPrivateComboBooking_(data) {
   data = data || {};
+
+  var planId = bookingPlanId_(data);
+  if (planId) return planIdIsOneOf_(planId, PRIVATE_COMBO_PLAN_IDS);
 
   var hint = [
     data.planName,
@@ -2859,17 +2906,7 @@ var C5C6_SUP_DURATION_MINUTES = 90;
 var C5C6_NIGHT_DURATION_MINUTES = 90;
 
 function c5c6GetPlanId_(data) {
-  data = data || {};
-
-  return String(
-    data.planId ||
-    data.planID ||
-    data.selectedPlanId ||
-    data.planCode ||
-    data.code ||
-    (data.plan && data.plan.id) ||
-    ''
-  ).trim().toUpperCase();
+  return bookingPlanId_(data);
 }
 
 function c5c6IsTriplePlanName_(planName) {
@@ -2885,12 +2922,15 @@ function c5c6IsTriplePlanName_(planName) {
 
 function c5c6IsTripleBooking_(data) {
   var planId = c5c6GetPlanId_(data);
+
+  if (planId) {
+    return planId === C5C6_NORMAL_PLAN_ID || planId === C5C6_PRIVATE_PLAN_ID;
+  }
+
   var plan = String(data && data.planName || '');
   var requests = String(data && data.specialRequests || '');
 
-  return planId === C5C6_NORMAL_PLAN_ID ||
-    planId === C5C6_PRIVATE_PLAN_ID ||
-    c5c6IsTriplePlanName_(plan) ||
+  return c5c6IsTriplePlanName_(plan) ||
     (
       requests.indexOf('[COMBO booking]') !== -1 &&
       requests.indexOf('ドローンSUP') !== -1 &&
@@ -2904,7 +2944,9 @@ function c5c6IsTripleBooking_(data) {
 function c5c6IsPrivateTriple_(data) {
   data = data || {};
 
-  if (c5c6GetPlanId_(data) === C5C6_PRIVATE_PLAN_ID) return true;
+  var planId = c5c6GetPlanId_(data);
+  if (planId === C5C6_PRIVATE_PLAN_ID) return true;
+  if (planId === C5C6_NORMAL_PLAN_ID) return false;
 
   var hints = [
     data.planName,
@@ -3912,8 +3954,9 @@ handleBookingStatusEdit_ = function(sheet, range, row) {
 // ============================================================
 // LINE安全送信・送信履歴 拡張（管理版）
 // ------------------------------------------------------------
-// 管理元: apps-script/umigame-reservation-admin/LineSafeSend.gs
-// 既存Code.gsの一番下に、このファイル全体を追加してください。
+// このブロックはこのCode.gsの一部です（別ファイルへ切り出さないでください）。
+// 別ファイルへコピーして同じGASプロジェクトへ置くと、下部のラップ処理が
+// 二重に適用され、LINE送信履歴が1回の送信で2行記録されます。
 // 既存の予約受信・カレンダー・セット予約処理は変更しません。
 //
 // 変更後の操作:

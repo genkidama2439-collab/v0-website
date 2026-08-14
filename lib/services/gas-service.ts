@@ -11,6 +11,27 @@ export interface GASResponse {
 
 const GAS_REQUEST_FAILED_MESSAGE = '予約システムへの送信に失敗しました';
 const GAS_TIMEOUT_MS = 25_000;
+const GAS_TOTAL_BUDGET_MS = 28_000;
+const GAS_CONFIRMATION_RETRY_TIMEOUT_MS = 8_000;
+const GAS_CONFIRMATION_ATTEMPTS = 2;
+
+interface GASUnconfirmedResponseDetails {
+  reason: 'empty-response' | 'invalid-json';
+  status: number;
+  contentType: string;
+  responseLength: number;
+  redirected: boolean;
+}
+
+class GASUnconfirmedResponseError extends Error {
+  readonly details: GASUnconfirmedResponseDetails;
+
+  constructor(details: GASUnconfirmedResponseDetails) {
+    super(GAS_REQUEST_FAILED_MESSAGE);
+    this.name = 'GASUnconfirmedResponseError';
+    this.details = details;
+  }
+}
 
 const isJSONObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -77,16 +98,14 @@ export const generateBookingNumber = (stableSeed?: string): string => {
   return `${timestamp}${random}`;
 };
 
-// GASにデータを送信（サーバーサイドから呼び出し）
-export const sendToGAS = async (payload: BookingPayload): Promise<GASResponse> => {
-  const gasUrl = getGASUrl();
-
-  const startedAt = Date.now();
-
-  // シートロック・カレンダー・Gmailまで含むGAS処理を待つ。従来の10秒では
-  // 保存済みなのにクライアントだけ失敗扱いになる余地が大きかった。
+const sendToGASOnce = async (
+  gasUrl: string,
+  payload: BookingPayload,
+  timeoutMs: number,
+  startedAt: number,
+): Promise<GASResponse> => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), GAS_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(gasUrl, {
@@ -112,26 +131,26 @@ export const sendToGAS = async (payload: BookingPayload): Promise<GASResponse> =
 
     const responseText = (await response.text()).trim();
     if (!responseText) {
-      console.error('[v0] GAS returned an empty response', {
-        bookingNumber: payload.bookingNumber,
+      throw new GASUnconfirmedResponseError({
+        reason: 'empty-response',
+        status: response.status,
+        contentType: response.headers.get('content-type') || 'unknown',
+        responseLength: 0,
         redirected: response.redirected,
-        durationMs: Date.now() - startedAt,
       });
-      throw new Error(GAS_REQUEST_FAILED_MESSAGE);
     }
 
     let gasResult: unknown;
     try {
       gasResult = JSON.parse(responseText);
     } catch {
-      console.error('[v0] GAS returned invalid JSON', {
-        bookingNumber: payload.bookingNumber,
+      throw new GASUnconfirmedResponseError({
+        reason: 'invalid-json',
+        status: response.status,
         contentType: response.headers.get('content-type') || 'unknown',
         responseLength: responseText.length,
         redirected: response.redirected,
-        durationMs: Date.now() - startedAt,
       });
-      throw new Error(GAS_REQUEST_FAILED_MESSAGE);
     }
 
     // GAS側がJSONで success: true を明示した場合だけ、保存成功と判断する。
@@ -150,24 +169,69 @@ export const sendToGAS = async (payload: BookingPayload): Promise<GASResponse> =
       timestamp: new Date().toISOString(),
       ...(gasResult.duplicate === true ? { duplicate: true } : {}),
     };
-  } catch (error) {
+  } finally {
     clearTimeout(timeoutId);
+  }
+};
 
-    if (error instanceof Error && error.name === 'AbortError') {
-      console.warn('[v0] GAS送信タイムアウト', {
-        bookingNumber: payload.bookingNumber,
-        timeoutMs: GAS_TIMEOUT_MS,
-      });
+// GASにデータを送信（サーバーサイドから呼び出し）
+export const sendToGAS = async (payload: BookingPayload): Promise<GASResponse> => {
+  const gasUrl = getGASUrl();
+  const startedAt = Date.now();
+
+  // GASが保存・メール送信後にApps ScriptのHTMLエラーページを返すことがある。
+  // その場合だけ同じ予約番号で1回再確認する。GAS側の重複判定により、
+  // シート・カレンダー・メールは再作成されず duplicate: true が返る。
+  for (let attempt = 1; attempt <= GAS_CONFIRMATION_ATTEMPTS; attempt += 1) {
+    const remainingBudgetMs = GAS_TOTAL_BUDGET_MS - (Date.now() - startedAt);
+    const timeoutMs = Math.max(
+      1,
+      Math.min(
+        attempt === 1 ? GAS_TIMEOUT_MS : GAS_CONFIRMATION_RETRY_TIMEOUT_MS,
+        remainingBudgetMs,
+      ),
+    );
+
+    try {
+      return await sendToGASOnce(gasUrl, payload, timeoutMs, startedAt);
+    } catch (error) {
+      if (error instanceof GASUnconfirmedResponseError) {
+        const remainingAfterAttemptMs = GAS_TOTAL_BUDGET_MS - (Date.now() - startedAt);
+        const logDetails = {
+          bookingNumber: payload.bookingNumber,
+          attempt,
+          ...error.details,
+          durationMs: Date.now() - startedAt,
+        };
+
+        if (attempt < GAS_CONFIRMATION_ATTEMPTS && remainingAfterAttemptMs > 0) {
+          console.warn('[v0] GAS response could not be confirmed; retrying once', logDetails);
+          continue;
+        }
+
+        console.error('[v0] GAS response could not be confirmed after retry', logDetails);
+        throw new Error(GAS_REQUEST_FAILED_MESSAGE);
+      }
+
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('[v0] GAS送信タイムアウト', {
+          bookingNumber: payload.bookingNumber,
+          timeoutMs,
+          attempt,
+        });
+        throw new Error(GAS_REQUEST_FAILED_MESSAGE);
+      }
+
+      if (error instanceof Error && error.message === GAS_REQUEST_FAILED_MESSAGE) {
+        throw error;
+      }
+
+      console.error('[v0] GAS送信エラー:', error);
       throw new Error(GAS_REQUEST_FAILED_MESSAGE);
     }
-
-    if (error instanceof Error && error.message === GAS_REQUEST_FAILED_MESSAGE) {
-      throw error;
-    }
-
-    console.error('[v0] GAS送信エラー:', error);
-    throw new Error(GAS_REQUEST_FAILED_MESSAGE);
   }
+
+  throw new Error(GAS_REQUEST_FAILED_MESSAGE);
 };
 
 // APIレスポンスを標準化

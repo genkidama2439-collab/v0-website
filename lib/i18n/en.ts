@@ -144,7 +144,7 @@ const EN_PLANS_ALL: EnPlanContent[] = [
     whatToBring: ["Comfortable walking shoes (sandals possible)", "Insect repellent", "Drinks", "Flashlight if you have one (rentals available)"],
     precautions: ["If you have any mobility or health concerns, please consult us in advance"],
     ageNote: "Ages 0 to 75",
-    timeNote: "Two departures nightly: 7:20 PM and 9:10 PM (meet at the start time)",
+    timeNote: "Three departures nightly: 7:20 PM, 9:10 PM, and 11:20 PM (meet at the start time; the 11:20 PM tour ends around 12:50 AM the next day)",
     locationNote: "Near Ingya Marine Garden (exact meeting point shared via LINE on the day of your tour)",
     priceNote: "Flat ¥8,000 per person (free for ages 3 and under)",
     priceNoteShort: "Flat ¥8,000",

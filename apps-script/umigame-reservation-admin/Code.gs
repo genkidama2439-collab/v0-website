@@ -41,6 +41,7 @@ var SEA_SKY_TURTLE_PLAN_NAME = '海空セット（ウミガメシュノーケル
 var SEA_SKY_SUP_PLAN_NAME = '海空セット（ドローンSUP）';
 var SEA_SKY_TURTLE_DURATION_MINUTES = 90;
 var SEA_SKY_SUP_DURATION_MINUTES = 90;
+var NIGHT_TOUR_DURATION_MINUTES = 90;
 
 // 昼夜セット用のシート表示名
 var COMBO_TURTLE_PLAN_NAME = '昼夜セット海亀';
@@ -2084,14 +2085,14 @@ function addToCalendar(data, headcount) {
   var emoji = '🐢';
   var prefix = 'WEB';
   var color = '2';
+  var isNightTour =
+    planName.indexOf('ナイトツアー') !== -1 ||
+    planName.indexOf('ヤシガニ探検') !== -1;
 
   // 絵文字・色は「何のツアーか」、prefixは「貸切かどうか」で決める。
   // 以前は else-if で繋がっていたため、貸切のSUPプラン（【貸切】ドローンSUP・
   // 【貸切】サンセットSUP）がSUPの枝で止まり WEB VIP が付かなかった。
-  if (
-    planName.indexOf('ナイトツアー') !== -1 ||
-    planName.indexOf('ヤシガニ探検') !== -1
-  ) {
+  if (isNightTour) {
     emoji = '🦀';
     color = '8';
 
@@ -2146,7 +2147,7 @@ function addToCalendar(data, headcount) {
     calendar,
     dateParts,
     time,
-    120,
+    isNightTour ? NIGHT_TOUR_DURATION_MINUTES : 120,
     title,
     description,
     color

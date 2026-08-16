@@ -2674,12 +2674,16 @@ function adminApplyTextReplacements_(text, replacements, prefix) {
   return result;
 }
 
+// 既存予定の長さを引き継げないとき（全日予定・長さが壊れている等）だけ使う既定値。
+// プラン詳細ページの所要時間表示と合わせる。
 function adminGetDefaultDurationMinutes_(planName) {
   var plan = String(planName || '');
 
   if (plan.indexOf('海空セット') !== -1) return 90;
   if (plan.indexOf('まるごと1日セット') !== -1) return 90;
   if (plan.indexOf('昼夜セットヤシガニ') !== -1) return 90;
+  // 単品のナイトツアーも表示は「約1.5時間」。予約受付GASの addToCalendar と揃える。
+  if (plan.indexOf('ナイトツアー') !== -1 || plan.indexOf('ヤシガニ探検') !== -1) return 90;
 
   return 120;
 }

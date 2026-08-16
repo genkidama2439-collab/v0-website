@@ -1980,6 +1980,9 @@ export function BookingForm() {
                         </Button>
                       ))}
                     </div>
+                    <p className="text-xs text-indigo-700 mt-2">
+                      ※23:20便は翌日0:50頃の解散予定です。予約日は23:20に開始する日をお選びください。
+                    </p>
                   </div>
                 )}
                 <p className="text-xs text-gray-500">

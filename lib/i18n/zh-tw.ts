@@ -113,7 +113,7 @@ const ZH_PLANS_ALL: IntlPlanContent[] = [
     whatToBring: ["好走的鞋子（涼鞋亦可）", "防蚊液", "飲料", "手電筒（有的話，也可租借）"],
     precautions: ["行動或健康上有疑慮者，請事先與我們洽詢"],
     ageNote: "0歲～75歲",
-    timeNote: "每晚兩個出發時段：19:20 / 21:10（於開始時間集合）",
+    timeNote: "每晚三個出發時段：19:20 / 21:10 / 23:20（於開始時間集合；23:20場次約於隔日00:50結束）",
     locationNote: "インギャーマリンガーデン（Ingya Marine Garden）附近（確切集合地點於行程當天透過LINE通知）",
     priceNote: "每人均一價¥8,000（3歲以下免費）",
     priceNoteShort: "每人¥8,000",

@@ -109,6 +109,10 @@ export interface TourContent {
   included: string[]
   whatToBring: string[]
   precautions: string[]
+  /** ページに表示している集合時刻の案内 */
+  meetingTime: string
+  /** ページに表示している支払方法 */
+  paymentMethod: string
   faqs: Array<{ question: string; answer: string }>
 }
 
@@ -268,6 +272,8 @@ function resolveTour(planId: string): TourMaster {
       included: detail.included,
       whatToBring: detail.whatToBring,
       precautions: detail.precautions,
+      meetingTime: detail.meetingTime,
+      paymentMethod: detail.paymentMethod,
       faqs: detail.faqs.map((faq) => ({ question: faq.q, answer: faq.a })),
     },
 

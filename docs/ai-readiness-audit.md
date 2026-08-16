@@ -18,6 +18,7 @@
 | **M8** JSON-LD の欠落 | ✅ 対応済み | `makesOffer` と `priceRange` を `lib/tour-master.ts` から生成。欠落していた S2/S4/S5/S8/slide-boat が載り、S1 の名前ずれも解消 |
 | **M7** ピラーページのFAQ | ⚠️ **初版の誤り。問題なし** | 表示とJSON-LDは元から一致していた（M7 の項を参照） |
 | M3・M4・M5・M6・M9 | ⏳ 未対応 | オーナー確認待ち（付録B） |
+| **段階4** FAQ単一ソース化 | ✅ 実装済み | 日本語FAQ33件を `lib/faq.ts` へ集約（文言は1字も変えていない）。プラン別FAQ62件をFAQPage構造化データとして出力。`/api/faq` を追加 |
 | **段階6** llms.txt / ツアーAPI | ✅ 実装済み | `/llms.txt`・`/llms-full.txt`・`/api/tours` を `lib/tour-master.ts` から生成。ナイトツアーの上限75歳もオーナー確認済み |
 
 ---
@@ -174,7 +175,7 @@ Next.js 14 (App Router, TypeScript)  ── Vercel（main へのマージで本�
 | `lib/data.ts` `FAQS` | 24 | `/faq` | ✅ `/faq` |
 | `components/home/faq-section.tsx` | 4 | `/` | ❌ |
 | `app/(ja)/miyakojima-sea-turtle/page.tsx` | 5 | `/miyakojima-sea-turtle` | ✅ 同じ5件（表示と一致） |
-| `lib/plan-details.ts` `faqs` | 62 | `/plans/[id]` | ❌ |
+| `lib/plan-details.ts` `faqs` | 62 | `/plans/[id]` | ✅ **実装済み**（2026-08-16。15ページで62件を出力） |
 | `lib/i18n/{en,ko,zh-tw}.ts` | 各21 | `/en/faq` 他 | ✅ |
 
 **判定:** **重複あり**。同一質問「持ち物は何が必要ですか？」がトップとピラーページに独立して存在。近い質問の分散は下表のとおり。
@@ -534,8 +535,8 @@ export interface TourMaster {
 | ファイル | 作業 |
 |---|---|
 | `components/json-ld.tsx` | `makesOffer` と `priceRange` を `tour-master` から生成（手書き10件を廃止・欠落5プランを解消） |
-| `components/home/faq-section.tsx` | ローカルFAQを共通FAQへ寄せる |
-| `lib/faq.ts`（新規） | FAQの単一ソース化（共通・プラン別・多言語をタグで分類） |
+| ~~`components/home/faq-section.tsx`~~ | ✅ 実装済み。ローカル定義を `getFaqs("home")` へ |
+| ~~`lib/faq.ts`（新規）~~ | ✅ 実装済み。日本語FAQ33件を `scopes` で面ごとに出し分け |
 
 ### 第3段階（中リスク・要相談）
 | ファイル | 作業 |
@@ -594,7 +595,7 @@ export interface TourMaster {
 | **1** | 監査（本書）＋ `lib/tour-master.ts`（導出ビュー）＋ドリフト検知テスト | なし | `npm test` `tsc` `lint` `build`。**既存ファイルを変更しない**ので画面・予約は不変 |
 | **2** | M1〜M6 をオーナーへ確認し、正しい値を確定 | オーナー回答 | — |
 | **3** | JSON-LD（`makesOffer` `priceRange`）を `tour-master` から生成 | 段階1 | 生成前後のJSON-LDをdiff。Rich Results Test |
-| **4** | FAQ を `lib/faq.ts` へ単一ソース化（重複質問の解消） | 段階1 | `/faq` の表示内容が変わらないことを目視 |
+| **4** | ~~FAQ を `lib/faq.ts` へ単一ソース化~~ **✅ 実装済み** | 段階1 | `lib/faq.test.mjs` が集約前コミットと文言を突き合わせて検証 |
 | **5** | `lib/data.ts` の未描画重複フィールドを削除 | 段階1・3・4 | `tsc` `build` ＋ 予約フォームとAPIの動作確認 |
 | **6** | ~~`app/llms.txt` と `app/api/tours` を `tour-master` から生成~~ **✅ 実装済み** | 段階1 | `lib/ai-feed.test.mjs` が内部情報の混入と事実のズレを検査 |
 | **7** | `sheetPlanName` と `displayName` の分離（GAS側とセット） | 段階1〜6・GAS再デプロイ枠 | テスト予約で単品・セットの行名を確認 |
@@ -613,7 +614,7 @@ export interface TourMaster {
 | `app/llms-full.txt/route.ts` | ✅ 実装済み | 各ツアーの持ち物・注意事項・プランFAQ 62件＋共通FAQ 24件 |
 | `app/api/tours/route.ts` | ✅ 実装済み | `TourFeedItem[]` をJSONで配信。`getPublicTours()` 経由なので内部情報は含まない |
 | `robots.ts` の更新 | ✅ 実装済み | `/api/` は引き続き拒否しつつ、`/api/tours` だけ許可 |
-| `app/api/faq/route.ts` | ⏳ 未着手 | FAQ の構造化配信（FAQ単一ソース化＝段階4のあと） |
+| `app/api/faq/route.ts` | ✅ 実装済み | サイト共通FAQ33件＋プラン別FAQ62件を配信。どのページに出しているかも返す |
 | JSON-LD の拡張 | ⏳ 未着手 | `TouristTrip` / `Service` の併記、`provider` を `#organization` へ紐付け |
 
 ### 13.2 動的データ（コードに持てないもの）

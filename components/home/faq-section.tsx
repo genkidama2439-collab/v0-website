@@ -4,26 +4,12 @@ import { useState } from "react"
 import Link from "next/link"
 import { ChevronDown } from "lucide-react"
 
-const faqs = [
-  {
-    question: "泳ぎが苦手でも参加できますか？",
-    answer: "はい、もちろん参加いただけます！ライフジャケットを着用するので沈む心配はありません。浮き具もご用意しているので、泳ぎに自信がない方でもウミガメと一緒に泳ぐ感動を体験できます。",
-  },
-  {
-    question: "何歳から参加できますか？",
-    answer: "シュノーケルツアーは5歳から参加可能です。お子様用の器材も完備しておりますので、ご家族みんなで安心してお楽しみいただけます。",
-  },
-  {
-    question: "雨の日でも開催しますか？",
-    answer: "小雨程度であれば開催いたします。海の中に入ってしまえば雨はほとんど気になりません。ただし、台風や強風など安全が確保できない場合は中止とします。お支払いは当日・現地現金決済のため、中止の場合はキャンセル料も料金もかかりません。",
-  },
-  {
-    question: "持ち物は何が必要ですか？",
-    answer: "水着、タオル、日焼け止めがあればOKです。シュノーケル器材とライフジャケットは無料でレンタルいたします。",
-  },
-]
+import { getFaqs } from "@/lib/faq"
 
-function FAQItem({ faq }: { faq: typeof faqs[0] }) {
+// FAQの文言は lib/faq.ts が単一ソース。ここでは表示だけを行う。
+const faqs = getFaqs("home")
+
+function FAQItem({ faq }: { faq: { question: string; answer: string } }) {
   const [isOpen, setIsOpen] = useState(false)
 
   return (

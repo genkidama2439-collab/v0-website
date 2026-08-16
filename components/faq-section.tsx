@@ -5,13 +5,13 @@ import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, ChevronDown, ChevronUp, MessageSquare, Phone } from "lucide-react"
-import type { FAQ } from "@/lib/data"
+import type { FaqEntry } from "@/lib/faq"
 import { trackEvent } from "@/lib/analytics"
 
 const faqLinkClassName =
   "mt-3 inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
 
-export function FAQSection({ faqs }: { faqs: FAQ[] }) {
+export function FAQSection({ faqs }: { faqs: FaqEntry[] }) {
   const [openItems, setOpenItems] = useState<Set<number>>(new Set([0])) // First item open by default
 
   const toggleItem = (index: number) => {

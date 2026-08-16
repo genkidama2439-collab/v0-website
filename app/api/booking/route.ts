@@ -27,6 +27,8 @@ import {
   planHasNight,
   getComboContentText,
   isParticipantAgeValid,
+  isOverParticipantAgeLimit,
+  getAdultAgeMax,
 } from '@/lib/plan-flags'
 
 export const maxDuration = 30
@@ -226,6 +228,14 @@ const validateParticipant = (
 
   if (typeof age !== 'number' || !Number.isFinite(age)) {
     return { valid: false, error: `${label}の年齢が必須です` }
+  }
+
+  // 上限を超えている場合は参加者区分を変えても解決しないため、案内を分ける
+  if (isOverParticipantAgeLimit(plan.id, age)) {
+    return {
+      valid: false,
+      error: `${label}の年齢はWeb予約の対象年齢（${getAdultAgeMax(plan.id)}歳まで）を超えています。LINEでご相談ください`,
+    }
   }
 
   if (!isParticipantAgeValid(plan.id, category, age)) {

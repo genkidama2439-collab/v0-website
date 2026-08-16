@@ -25,7 +25,7 @@ import { PLANS, getStaffFee } from "@/lib/data"
 import type { IntlDict } from "@/lib/i18n/types"
 import { type IntlLocale, LOCALE_BOOKING_TAGS, localePath } from "@/lib/i18n/locales"
 import { getEnPrice } from "@/lib/i18n/en-prices"
-import { SENIOR_RESTRICTED_PLAN_IDS, PRIVATE_COUNTERPART, TIME_OPTIONAL_PLAN_IDS, isParticipantAgeValid } from "@/lib/plan-flags"
+import { SENIOR_RESTRICTED_PLAN_IDS, PRIVATE_COUNTERPART, TIME_OPTIONAL_PLAN_IDS, isParticipantAgeValid, getAdultAgeMax } from "@/lib/plan-flags"
 import { getSunsetSupGuide } from "@/lib/beach-info"
 import { categorizeBookingFailure, trackEvent } from "@/lib/analytics"
 import {
@@ -245,6 +245,8 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
   const isParticipantLimitReached = maxParticipants !== undefined && participants.length >= maxParticipants
 
   const childMinAge = isNight ? 4 : 5
+  // 対象年齢の上限はプランページの表記と同じ plan-flags から取る
+  const adultAgeMax = getAdultAgeMax(planId)
 
   const counts = useMemo(
     () => ({
@@ -886,7 +888,7 @@ export function BookingFormIntl({ locale, dict }: { locale: IntlLocale; dict: In
                     type="number"
                     required
                     min={p.category === "under3" ? 0 : p.category === "child" ? childMinAge : 13}
-                    max={p.category === "under3" ? 3 : p.category === "child" ? 12 : 100}
+                    max={p.category === "under3" ? 3 : p.category === "child" ? 12 : adultAgeMax}
                     value={p.age}
                     onChange={(e) => updateParticipant(p.id, "age", e.target.value === "" ? "" : Number.parseInt(e.target.value))}
                     className="rounded-xl border-emerald-200"

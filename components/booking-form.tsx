@@ -81,6 +81,8 @@ import {
   planHasNight,
   getComboContentText,
   isParticipantAgeValid,
+  isOverParticipantAgeLimit,
+  getAdultAgeMax,
 } from "@/lib/plan-flags"
 
 // 予約確定の連絡はLINE公式アカウントからのプッシュ通知で届く。
@@ -1051,7 +1053,14 @@ export function BookingForm() {
     missingItems.push(`参加人数を${maxParticipants}名以下にする（11名以上はLINE相談）`)
   }
   bookingData.participants.forEach((p, index) => {
-    if (!isParticipantAgeValid(bookingData.selectedPlan, p.category, p.age)) missingItems.push(`参加者${index + 1}の年齢・年齢区分`)
+    // 上限超過は区分の付け替えでは直らないため、案内文を分ける
+    if (isOverParticipantAgeLimit(bookingData.selectedPlan, p.age)) {
+      missingItems.push(
+        `参加者${index + 1}の年齢はWeb予約の対象年齢（${getAdultAgeMax(bookingData.selectedPlan)}歳まで）を超えています。LINEでご相談ください`,
+      )
+    } else if (!isParticipantAgeValid(bookingData.selectedPlan, p.category, p.age)) {
+      missingItems.push(`参加者${index + 1}の年齢・年齢区分`)
+    }
     if (!isNightTourForDetails && !(typeof p.footSize === "number" && p.footSize > 0)) {
       missingItems.push(`参加者${index + 1}の足のサイズ`)
     }

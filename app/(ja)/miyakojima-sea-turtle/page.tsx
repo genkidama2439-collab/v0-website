@@ -5,6 +5,7 @@ import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { BreadcrumbJsonLd, FAQJsonLd } from "@/components/json-ld"
 import { createMetadata, SITE_URL } from "@/lib/seo"
+import { getFaqs } from "@/lib/faq"
 import { TrackedCta } from "@/components/tracked-cta"
 import { getBlogPost } from "@/lib/blog"
 import { getArticleCtaCard, getArticleCtaConfig, resolveRelatedContent } from "@/lib/blog/article-cta"
@@ -28,32 +29,8 @@ export const metadata: Metadata = {
   title: { absolute: PAGE_TITLE },
 }
 
-const FAQS = [
-  {
-    question: "宮古島では必ずウミガメに会えますか？",
-    answer:
-      "野生のウミガメのため遭遇を保証することはできませんが、宮古島は一年を通して遭遇率が高い海域です。海亀兄弟ではウミガメが多く見られるポイントを熟知したガイドが、その日の海況に合わせてご案内します。",
-  },
-  {
-    question: "泳ぎが苦手でもウミガメシュノーケルはできますか？",
-    answer:
-      "はい。ライフジャケットを着用し、少人数制でガイドがそばでサポートするため、泳ぎが苦手な方や初めての方でも参加いただけます。浮いた状態で水面からウミガメを観察できます。",
-  },
-  {
-    question: "子どもは何歳から参加できますか？",
-    answer: "5歳から参加いただけます。お子様の様子に合わせて、無理のない範囲でガイドがご案内します。",
-  },
-  {
-    question: "持ち物は何が必要ですか？",
-    answer:
-      "水着・タオル・日焼け止めをご用意ください。シュノーケル器材とライフジャケットはツアーに含まれているため、手ぶらに近い形でご参加いただけます。",
-  },
-  {
-    question: "予約は必要ですか？",
-    answer:
-      "少人数制のため、事前のご予約をおすすめします。空き状況の確認・ご予約は予約フォームまたはLINEから承っています。",
-  },
-]
+// FAQの文言は lib/faq.ts が単一ソース。表示とFAQPage構造化データの両方がこの配列を使う。
+const FAQS = getFaqs("sea-turtle-guide")
 
 function SectionHeading({ children, id }: { children: React.ReactNode; id?: string }) {
   return (

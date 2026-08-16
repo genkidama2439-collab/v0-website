@@ -16,19 +16,22 @@ import { BubbleBackground } from "@/components/bubble-background"
 import { FAQHero } from "@/components/faq-hero"
 import { FAQSection } from "@/components/faq-section"
 import { FAQJsonLd } from "@/components/json-ld"
-import { FAQS } from "@/lib/data"
+import { getFaqs } from "@/lib/faq"
 import { Footer } from "@/components/footer"
 
 export default function FAQPage() {
+  // 表示とFAQPage構造化データは必ず同じ配列を使う
+  const faqs = getFaqs("faq-page")
+
   return (
     <div className="min-h-screen">
-      <FAQJsonLd faqs={FAQS} />
+      <FAQJsonLd faqs={faqs} />
       <BubbleBackground />
       <Navbar />
 
       <main>
         <FAQHero />
-        <FAQSection faqs={FAQS} />
+        <FAQSection faqs={faqs} />
 
         {/* 予約前の2大不安（安全・集合場所）はまとめページへ誘導 */}
         <section className="max-w-3xl mx-auto px-4 sm:px-6 pb-14">

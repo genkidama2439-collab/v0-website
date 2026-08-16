@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import { PLAN_DETAILS } from "@/lib/plan-details"
 import { EN_PLAN_BY_ID } from "@/lib/i18n/en"
 import { PlanDetailPage } from "@/components/plan-detail-page"
-import { PlanJsonLd, BreadcrumbJsonLd } from "@/components/json-ld"
+import { PlanJsonLd, BreadcrumbJsonLd, FAQJsonLd } from "@/components/json-ld"
 import { Navbar } from "@/components/navbar"
 import { MobileCTA } from "@/components/mobile-cta"
 import { Footer } from "@/components/footer"
@@ -33,6 +33,11 @@ export default function Page({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen-ios main-container ios-scroll-fix">
       <PlanJsonLd plan={plan} />
+      {/* このページに表示しているプラン別FAQ（components/plan-detail-page.tsx が plan.faqs を描画）を
+          そのまま構造化データにする。表示と一致させるため、同じ配列から作る。 */}
+      {plan.faqs.length > 0 && (
+        <FAQJsonLd faqs={plan.faqs.map((faq) => ({ question: faq.q, answer: faq.a }))} />
+      )}
       <BreadcrumbJsonLd items={[
         { name: "ホーム", url: "https://www.umigamekyoudaimiyakojima.com" },
         { name: "プラン", url: "https://www.umigamekyoudaimiyakojima.com/plans" },

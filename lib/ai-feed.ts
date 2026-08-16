@@ -15,7 +15,7 @@
 // ============================================================
 
 import { SITE_URL } from "@/lib/seo"
-import { FAQS } from "@/lib/data"
+import { getFaqs } from "@/lib/faq"
 import { TOUR_MASTER_BY_ID, getPublicTours, type TourMaster } from "@/lib/tour-master"
 
 const SITE_NAME = "海亀兄弟"
@@ -225,7 +225,7 @@ export function buildLlmsFullTxt(): string {
   }
 
   lines.push("# よくある質問（全ツアー共通）", "")
-  for (const faq of FAQS) {
+  for (const faq of getFaqs("faq-page")) {
     lines.push(`**Q. ${faq.question}**`, "", `A. ${faq.answer}`, "")
   }
 

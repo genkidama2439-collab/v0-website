@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "framer-motion"
 import {
-  Star, Clock, Users, Camera, Shield, Check, ChevronDown,
+  Clock, Users, Camera, Shield, Check, ChevronDown,
   MapPin, CreditCard, Backpack, AlertTriangle, Gift, Crown,
   Bug, Compass, Heart, Sun, Baby, LifeBuoy, Sparkles, ArrowRight
 } from "lucide-react"
@@ -74,21 +74,11 @@ function PlanHero({ plan }: { plan: PlanDetail }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
         >
-          <div className="flex items-center gap-2 mb-3">
-            {isComingSoon ? (
+          {isComingSoon && (
+            <div className="flex items-center gap-2 mb-3">
               <ComingSoonBadge className="bg-white/90 text-cyan-800 ring-white/40" />
-            ) : plan.reviews > 0 ? (
-              <>
-                <div className="flex gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 fill-yellow-400" />
-                  ))}
-                </div>
-                <span className="text-white font-bold text-sm sm:text-base">{plan.rating}</span>
-                <span className="text-white/70 text-xs sm:text-sm">({plan.reviews.toLocaleString()}件)</span>
-              </>
-            ) : null}
-          </div>
+            </div>
+          )}
 
           <span className="mb-2 inline-block rounded-md bg-white/20 px-2 py-0.5 text-xs font-bold tracking-widest text-white ring-1 ring-white/30 backdrop-blur-sm">
             {getPlanCode(plan.id)}
@@ -705,58 +695,6 @@ function PlanFAQ({ plan }: { plan: PlanDetail }) {
   )
 }
 
-// --- Reviews ---
-function PlanReviews({ plan }: { plan: PlanDetail }) {
-  const isComingSoon = plan.status === "coming_soon"
-
-  // レビューがまだ無いプラン（新設の複合プランなど）はセクションごと非表示
-  if (!isComingSoon && plan.reviews_data.length === 0) return null
-
-  return (
-    <section className="py-10 sm:py-16 md:py-24 bg-gray-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-12"
-        >
-          <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-2">
-            {isComingSoon ? "受付開始前の" : "お客様の"}<span className="text-emerald-600">{isComingSoon ? "ご案内" : "声"}</span>
-          </h2>
-          <p className="text-gray-500">
-            {isComingSoon ? "新プラン公開までの準備状況をお知らせします" : `${plan.reviews.toLocaleString()}件の口コミから抜粋`}
-          </p>
-        </motion.div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {plan.reviews_data.map((review, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ type: "spring", stiffness: 100, damping: 18, delay: i * 0.1 }}
-              className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
-            >
-              <div className="flex gap-0.5 mb-3">
-                {Array.from({ length: review.rating }).map((_, j) => (
-                  <Star key={j} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                ))}
-              </div>
-              <p className="text-gray-700 text-sm leading-relaxed mb-4">{review.text}</p>
-              <div className="pt-3 border-t border-gray-50">
-                <p className="font-semibold text-gray-900 text-sm">{review.name}</p>
-                <p className="text-gray-400 text-xs">{review.date}</p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
 // --- CTA ---
 function PlanCTA({ plan }: { plan: PlanDetail }) {
   const priceDisplay = getPlanPriceDisplay(plan.id)
@@ -1013,7 +951,6 @@ export function PlanDetailPage({ plan }: { plan: PlanDetail }) {
         <PriceSection plan={plan} />
         <InfoSection plan={plan} />
         <MeetingPointMapSection plan={plan} />
-        <PlanReviews plan={plan} />
         <PlanFAQ plan={plan} />
         <PlanCTA plan={plan} />
         <OtherPlans currentId={plan.id} />

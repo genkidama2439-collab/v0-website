@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { useRef, useState, useEffect } from "react"
-import { Star, Clock, Users, Camera, Shield, Check, ChevronLeft, ChevronRight } from "lucide-react"
+import { Clock, Users, Camera, Shield, Check, ChevronLeft, ChevronRight } from "lucide-react"
 import { BLUR_DATA_URLS } from "@/lib/image-placeholders"
 import { PLAN_COVER_IMAGE, TOUR_IMAGE_PATHS } from "@/lib/tour-assets"
 import { ComingSoonBadge } from "@/components/coming-soon"
@@ -29,8 +29,6 @@ interface Tour {
   imageAlts?: readonly string[]
   duration: string
   age: string
-  rating: number
-  reviews: number
   badge: string
   badgeColor: string
   status?: "active" | "coming_soon"
@@ -54,8 +52,6 @@ const tours: Tour[] = [
     ],
     duration: "約2時間",
     age: "5〜65歳",
-    rating: 4.9,
-    reviews: 5089,
     badge: "一番人気",
     badgeColor: "bg-yellow-400 text-yellow-900",
     variants: [
@@ -93,8 +89,6 @@ const tours: Tour[] = [
     ],
     duration: "約1.5時間",
     age: "0〜75歳",
-    rating: 5.0,
-    reviews: 2643,
     badge: "家族人気No.1",
     badgeColor: "bg-emerald-700 text-white",
     variants: [
@@ -129,8 +123,6 @@ const tours: Tour[] = [
     ],
     duration: "約2時間",
     age: "5〜65歳",
-    rating: 5.0,
-    reviews: 2891,
     badge: "映え度No.1",
     badgeColor: "bg-orange-700 text-white",
     variants: [
@@ -165,8 +157,6 @@ const tours: Tour[] = [
     ],
     duration: "約2時間",
     age: "5〜65歳",
-    rating: 5.0,
-    reviews: 0,
     badge: "ドローン撮影付き",
     badgeColor: "bg-cyan-700 text-white",
     variants: [
@@ -203,8 +193,6 @@ const tours: Tour[] = [
     ],
     duration: "昼2h＋夜1.5h",
     age: "5〜65歳",
-    rating: 5.0,
-    reviews: 0,
     badge: "セットでお得",
     badgeColor: "bg-emerald-700 text-white",
     variants: [
@@ -241,8 +229,6 @@ const tours: Tour[] = [
     ],
     duration: "約3時間",
     age: "5〜65歳",
-    rating: 5.0,
-    reviews: 0,
     badge: "セットでお得",
     badgeColor: "bg-cyan-700 text-white",
     variants: [
@@ -279,8 +265,6 @@ const tours: Tour[] = [
     ],
     duration: "朝〜夜の1日",
     age: "5〜65歳",
-    rating: 5.0,
-    reviews: 0,
     badge: "3つでお得",
     badgeColor: "bg-emerald-700 text-white",
     variants: [
@@ -310,8 +294,6 @@ const tours: Tour[] = [
     images: TOUR_IMAGE_PATHS.slideBoat,
     duration: "約3時間",
     age: "5〜65歳予定",
-    rating: 0,
-    reviews: 0,
     badge: "Coming Soon",
     badgeColor: "bg-cyan-100 text-cyan-800",
     status: "coming_soon",
@@ -458,18 +440,8 @@ function TourImageCarousel({ tour, isComingSoon }: { tour: Tour; isComingSoon: b
         {tour.badge}
       </span>
 
-      {isComingSoon ? (
+      {isComingSoon && (
         <ComingSoonBadge className="absolute bottom-3 left-3 z-20 bg-white/90" />
-      ) : tour.reviews > 0 ? (
-        <div className="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2.5 py-1">
-          <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-          <span className="text-white font-bold text-xs">{tour.rating}</span>
-          <span className="text-white/70 text-[10px]">({tour.reviews.toLocaleString()}件)</span>
-        </div>
-      ) : (
-        <span className="absolute bottom-3 left-3 z-20 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white">
-          NEW
-        </span>
       )}
 
       {hasMultipleImages && (

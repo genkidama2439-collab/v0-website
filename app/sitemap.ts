@@ -8,8 +8,8 @@ const SITE_URL = "https://www.umigamekyoudaimiyakojima.com"
 
 // 静的ページ・プランの最終更新日。new Date() だと毎ビルドで全URLが「今日」になり
 // 鮮度シグナルとして信頼されにくいため、内容更新時に手動で更新する固定日を使う。
-// 2026-07-02: サンセットSUP実写真差し替え・C5/C6カバー刷新のため更新
-const CONTENT_LAST_UPDATED = new Date("2026-07-02")
+// 2026-08-16: 口コミ・評価表記を公開画面から削除したため更新
+const CONTENT_LAST_UPDATED = new Date("2026-08-16")
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const BLOG_POSTS = getBlogPosts()

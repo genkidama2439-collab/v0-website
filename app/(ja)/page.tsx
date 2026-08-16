@@ -9,7 +9,6 @@ import { ExperienceSection } from "@/components/home/experience-section"
 import { TurtleGuideSection } from "@/components/home/turtle-guide-section"
 import { PlansSection } from "@/components/home/plans-section"
 import { GallerySection } from "@/components/home/gallery-section"
-import { TestimonialsSection } from "@/components/home/testimonials-section"
 import { StaffSection } from "@/components/home/staff-section"
 import { FAQSection } from "@/components/home/faq-section"
 import { CTASection } from "@/components/home/cta-section"
@@ -27,7 +26,7 @@ export default function Page() {
         {/* ② プラン比較 */}
         <PlansSection />
 
-        {/* ③ 信頼の証 */}
+        {/* ③ 口コミ以外の実績 */}
         <StatsSection />
 
         {/* ④ 選ばれる理由 */}
@@ -41,9 +40,6 @@ export default function Page() {
 
         {/* ⑥ 撮影ギャラリー */}
         <GallerySection />
-
-        {/* ⑦ お客様の声 */}
-        <TestimonialsSection />
 
         {/* ⑧ スタッフ紹介 */}
         <StaffSection />

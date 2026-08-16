@@ -51,7 +51,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Calendar, Clock, Users, Calculator, Star, CheckCircle, UserCheck, Check } from "lucide-react"
+import { Calendar, Clock, Users, Calculator, CheckCircle, UserCheck, Check } from "lucide-react"
 import { todayStr, localDateFromYMD } from "@/lib/date-utils"
 import BookingTimeSlots from "@/components/booking-time-slots"
 import { ComingSoonBadge } from "@/components/coming-soon"
@@ -1470,7 +1470,7 @@ export function BookingForm() {
       <Card className="glass-card bg-white/70 backdrop-blur-xl rounded-3xl ring-1 ring-emerald-100 shadow-lg">
         <CardHeader>
           <CardTitle as="h2" className="flex items-center gap-2 text-emerald-800">
-            <Star className="w-5 h-5" />
+            <CheckCircle className="w-5 h-5" />
             プラン選択
           </CardTitle>
           <p className="text-sm text-gray-600 mt-2">ご希望のプランを選択してください</p>
@@ -1490,7 +1490,6 @@ export function BookingForm() {
                     <h3 className="font-bold text-gray-900 text-base mb-1">ウミガメシュノーケルツアー</h3>
                     <div className="flex items-center gap-3 text-sm text-gray-500 mb-3">
                       <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{s1.durationHours}時間</span>
-                      <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />{s1.rating}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <label className={`cursor-pointer p-2 sm:p-3 rounded-xl border-2 text-center transition-all ${isS1Selected ? "border-emerald-500 bg-emerald-50" : "border-gray-200 hover:border-emerald-300"}`}>
@@ -1522,7 +1521,6 @@ export function BookingForm() {
                     <h3 className="font-bold text-gray-900 text-base mb-1">本格ナイトツアー</h3>
                     <div className="flex items-center gap-3 text-sm text-gray-500 mb-3">
                       <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{s3.durationHours}時間</span>
-                      <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />{s3.rating}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <label className={`cursor-pointer p-2 sm:p-3 rounded-xl border-2 text-center transition-all ${isS3Selected ? "border-emerald-500 bg-emerald-50" : "border-gray-200 hover:border-emerald-300"}`}>
@@ -1561,7 +1559,6 @@ export function BookingForm() {
                     <p className="text-xs text-gray-600 mb-1">夕日を浴びながらの海上散歩</p>
                     <div className="flex items-center gap-3 text-sm text-gray-500 mb-3">
                       <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{s8.durationHours}時間</span>
-                      <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />{s8.rating}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <label className={`cursor-pointer p-2 sm:p-3 rounded-xl border-2 text-center transition-all ${isS8Selected ? "border-orange-500 bg-orange-50" : "border-gray-200 hover:border-orange-300"}`}>
@@ -1600,7 +1597,6 @@ export function BookingForm() {
                     <p className="text-xs text-gray-600 mb-1">日中の宮古ブルーを海上と空から撮影</p>
                     <div className="flex items-center gap-3 text-sm text-gray-500 mb-3">
                       <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{s6.durationHours}時間</span>
-                      <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />{s6.rating}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <label className={`cursor-pointer p-2 sm:p-3 rounded-xl border-2 text-center transition-all ${isS6Selected ? "border-cyan-500 bg-cyan-50" : "border-gray-200 hover:border-cyan-300"}`}>

@@ -16,7 +16,6 @@ export interface BookingPlanSummary {
   vipSurcharge?: number
   maxParticipants?: number
   durationHours: number
-  rating: number
   features: string[]
   ageRange: string
 }
@@ -39,7 +38,6 @@ export const BOOKING_PLANS = Object.values(PLAN_DETAILS).reduce<BookingPlanSumma
       ? { maxParticipants: getPlanMaxParticipants(plan.id) }
       : {}),
     durationHours,
-    rating: plan.rating,
     features: plan.highlights.map((highlight) => highlight.title),
     ageRange: plan.age,
   })

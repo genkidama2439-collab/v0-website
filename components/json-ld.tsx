@@ -138,7 +138,7 @@ export function LocalBusinessJsonLd() {
 
 // Product schema for plan detail pages
 export function PlanJsonLd({ plan }: {
-  plan: { name: string; heroDescription: string; price: string; image: string; rating: number; reviews: number; id: string; status?: "active" | "coming_soon" }
+  plan: { name: string; heroDescription: string; price: string; image: string; id: string; status?: "active" | "coming_soon" }
 }) {
   const priceNum = plan.price.replace(/[^0-9]/g, "")
   const isComingSoon = plan.status === "coming_soon"

@@ -18,6 +18,7 @@
 | **M8** JSON-LD の欠落 | ✅ 対応済み | `makesOffer` と `priceRange` を `lib/tour-master.ts` から生成。欠落していた S2/S4/S5/S8/slide-boat が載り、S1 の名前ずれも解消 |
 | **M7** ピラーページのFAQ | ⚠️ **初版の誤り。問題なし** | 表示とJSON-LDは元から一致していた（M7 の項を参照） |
 | M3・M4・M5・M6・M9 | ⏳ 未対応 | オーナー確認待ち（付録B） |
+| **段階6** llms.txt / ツアーAPI | ✅ 実装済み | `/llms.txt`・`/llms-full.txt`・`/api/tours` を `lib/tour-master.ts` から生成。ナイトツアーの上限75歳もオーナー確認済み |
 
 ---
 
@@ -595,7 +596,7 @@ export interface TourMaster {
 | **3** | JSON-LD（`makesOffer` `priceRange`）を `tour-master` から生成 | 段階1 | 生成前後のJSON-LDをdiff。Rich Results Test |
 | **4** | FAQ を `lib/faq.ts` へ単一ソース化（重複質問の解消） | 段階1 | `/faq` の表示内容が変わらないことを目視 |
 | **5** | `lib/data.ts` の未描画重複フィールドを削除 | 段階1・3・4 | `tsc` `build` ＋ 予約フォームとAPIの動作確認 |
-| **6** | `app/llms.txt` と `app/api/tours` を `tour-master` から生成 | 段階1〜5 | 出力内容に内部情報が含まれないことを確認 |
+| **6** | ~~`app/llms.txt` と `app/api/tours` を `tour-master` から生成~~ **✅ 実装済み** | 段階1 | `lib/ai-feed.test.mjs` が内部情報の混入と事実のズレを検査 |
 | **7** | `sheetPlanName` と `displayName` の分離（GAS側とセット） | 段階1〜6・GAS再デプロイ枠 | テスト予約で単品・セットの行名を確認 |
 
 ---
@@ -606,14 +607,14 @@ export interface TourMaster {
 
 ### 13.1 データ供給側（このリポジトリ）
 
-| 作業 | 内容 | 依存 |
+| 作業 | 状態 | 内容 |
 |---|---|---|
-| `app/llms.txt/route.ts` | サイト全体の案内（プラン一覧・料金・URL・問い合わせ導線）を `tour-master` から生成 | 段階1 |
-| `app/llms-full.txt/route.ts` | プラン詳細・FAQ・注意事項の全文 | 段階1・4 |
-| `app/api/tours/route.ts` | `TourMaster[]` をJSONで配信。`visibility.exposeToAi` が false のものは除外 | 段階1 |
-| `app/api/faq/route.ts` | FAQ の構造化配信 | 段階4 |
-| `robots.ts` の更新 | `llms.txt` の場所を示す。AIクローラの扱いを明示 | 上記 |
-| JSON-LD の拡張 | `TouristTrip` / `Service` の併記、`provider` を `#organization` へ紐付け | 段階3 |
+| `app/llms.txt/route.ts` | ✅ 実装済み | サイト案内・全ツアーの料金/所要/対象年齢/開始時刻/予約URL。`lib/ai-feed.ts` が `tour-master` から生成 |
+| `app/llms-full.txt/route.ts` | ✅ 実装済み | 各ツアーの持ち物・注意事項・プランFAQ 62件＋共通FAQ 24件 |
+| `app/api/tours/route.ts` | ✅ 実装済み | `TourFeedItem[]` をJSONで配信。`getPublicTours()` 経由なので内部情報は含まない |
+| `robots.ts` の更新 | ✅ 実装済み | `/api/` は引き続き拒否しつつ、`/api/tours` だけ許可 |
+| `app/api/faq/route.ts` | ⏳ 未着手 | FAQ の構造化配信（FAQ単一ソース化＝段階4のあと） |
+| JSON-LD の拡張 | ⏳ 未着手 | `TouristTrip` / `Service` の併記、`provider` を `#organization` へ紐付け |
 
 ### 13.2 動的データ（コードに持てないもの）
 
@@ -662,10 +663,10 @@ npm run build
 
 | # | 確認したいこと |
 |---|---|
-| Q1 | 各プランの実際の参加可能年齢（上限・下限）。表示「5〜65歳」は正しいか（M1） |
-| Q2 | 貸切セット C2・C4・C6 は60歳以上を受け付けるか（M2） |
+| ~~Q1~~ | ✅ 回答済み: **65歳が上限で正しい**（ナイトツアーのみ75歳。2026-08-16 確認） |
+| ~~Q2~~ | ✅ 回答済み: **貸切セットは60歳以上を受け付ける** |
 | Q3 | S3・S6・S8 の60歳制限をページ本文にも書くか（M6） |
 | Q4 | レンタルオプションの正式名称は「度付きメガネ」か「度付きマスク」か（M4） |
 | Q5 | グループプランのWeb予約に人数上限を設けるか（M9） |
-| Q6 | S4・S8 の集合時刻の案内はどちらが正しいか（「開始15分前」か「日没の約90分前」か）（§4.5） |
+| ~~Q6~~ | ✅ 回答済み: **日没の約90分前に集合** |
 | Q7 | 台風・季節運休の告知は現在どこで行っているか（13.2） |

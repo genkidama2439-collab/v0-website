@@ -83,7 +83,9 @@
         'pageTitle', 'summaryGrid', 'attentionBanner', 'attentionTitle',
         'attentionText', 'showAttentionButton', 'listTitle', 'resultCount',
         'searchInput', 'periodFilter', 'statusFilter', 'locationFilter',
-        'resetFilters', 'reservationTableBody', 'mobileList', 'emptyState',
+        'resetFilters', 'reservationPanel', 'reservationTableBody', 'mobileList', 'emptyState',
+        'referralPanel', 'referralResultCount', 'referralSetupNote',
+        'referralPartnerBody', 'referralOutcomeBody',
         'drawerBackdrop', 'detailDrawer', 'drawerCustomerName', 'drawerClose',
         'drawerBody', 'lineModal', 'lineModalTitle', 'lineModalClose',
         'lineCancelButton', 'lineConfirmButton', 'lineMessageMeta',
@@ -106,7 +108,10 @@
       [els.searchInput, els.periodFilter, els.statusFilter, els.locationFilter]
         .forEach(function(element) {
           element.addEventListener(element.tagName === 'INPUT' ? 'input' : 'change', function() {
-            if (state.view !== 'reservations') setView('reservations', false);
+            if (state.view !== 'reservations') {
+              setView('reservations');
+              return;
+            }
             renderReservations();
           });
         });
@@ -124,6 +129,7 @@
 
       els.reservationTableBody.addEventListener('click', handleReservationClick);
       els.mobileList.addEventListener('click', handleReservationClick);
+      els.referralOutcomeBody.addEventListener('click', handleReferralAction);
       els.drawerClose.addEventListener('click', closeDrawer);
       els.drawerBackdrop.addEventListener('click', closeDrawer);
       els.drawerBody.addEventListener('click', handleDrawerClick);
@@ -239,6 +245,35 @@
         if (!Array.isArray(value.options[key])) value.options[key] = [];
       });
 
+      value.referrals = normalizeReferralData(value.referrals);
+
+      return value;
+    }
+
+    function normalizeReferralData(value) {
+      var fallback = {
+        available: false,
+        error: '',
+        monthLabel: '',
+        summary: {
+          monthBookings: 0,
+          monthRevenue: 0,
+          monthPartnerReward: 0,
+          monthCompanyShare: 0,
+          unconfirmedReward: 0,
+          confirmedReward: 0,
+          paidReward: 0
+        },
+        partners: [],
+        outcomes: []
+      };
+
+      if (!value || typeof value !== 'object') return fallback;
+      value.summary = value.summary && typeof value.summary === 'object'
+        ? value.summary
+        : fallback.summary;
+      if (!Array.isArray(value.partners)) value.partners = [];
+      if (!Array.isArray(value.outcomes)) value.outcomes = [];
       return value;
     }
 
@@ -281,10 +316,16 @@
       renderSummary();
       renderAttention();
       renderReservations();
+      renderReferrals();
       updateNavigation();
     }
 
     function renderSummary() {
+      if (state.view === 'referrals') {
+        renderReferralSummary();
+        return;
+      }
+
       var dashboard = state.data.dashboard;
       var cards = [
         {
@@ -333,7 +374,167 @@
       }).join('');
     }
 
+    function renderReferralSummary() {
+      var referrals = state.data.referrals || normalizeReferralData(null);
+      var summary = referrals.summary;
+      var month = referrals.monthLabel || '今月';
+      var cards = [
+        {
+          label: '今月の紹介予約', value: Number(summary.monthBookings || 0) + '件',
+          note: month, icon: '↗', color: '#0f8b8d', soft: '#d9f0ed'
+        },
+        {
+          label: '今月の紹介売上', value: formatMoney(summary.monthRevenue),
+          note: '割引後の確定売上', icon: '¥', color: '#2f8f72', soft: '#e3f4ed'
+        },
+        {
+          label: '今月の紹介報酬', value: formatMoney(summary.monthPartnerReward),
+          note: '予約受付時のスナップショット', icon: 'P', color: '#7a5aa6', soft: '#eee7f7'
+        },
+        {
+          label: '今月の会社取り分', value: formatMoney(summary.monthCompanyShare),
+          note: '売上 − 紹介報酬', icon: 'C', color: '#136f82', soft: '#e0f0f3'
+        },
+        {
+          label: '未確定報酬', value: formatMoney(summary.unconfirmedReward),
+          note: '全期間・実施確認待ち', icon: '!', color: '#a46a08', soft: '#fff1c9'
+        },
+        {
+          label: '確定報酬', value: formatMoney(summary.confirmedReward),
+          note: 'うち支払済 ' + formatMoney(summary.paidReward), icon: '✓', color: '#2f8f72', soft: '#e3f4ed'
+        }
+      ];
+
+      els.summaryGrid.innerHTML = cards.map(function(card) {
+        var compactValueClass = String(card.value).length >= 9 ? ' is-compact' : '';
+        return '<article class="summary-card" style="--card-color:' + card.color + ';--card-soft:' + card.soft + '">' +
+          '<div class="summary-label">' + escapeHtml(card.label) + '</div>' +
+          '<div class="summary-value' + compactValueClass + '">' + escapeHtml(String(card.value)) + '</div>' +
+          '<div class="summary-note">' + escapeHtml(card.note) + '</div>' +
+          '<div class="summary-icon" aria-hidden="true">' + escapeHtml(card.icon) + '</div>' +
+          '</article>';
+      }).join('');
+    }
+
+    function referralStatusHtml(value) {
+      var className = value === '確定'
+        ? ' is-confirmed'
+        : (value === '取消' ? ' is-canceled' : '');
+      return '<span class="referral-status' + className + '">' +
+        escapeHtml(value || '未確定') + '</span>';
+    }
+
+    function referralPaymentHtml(value) {
+      return value === '支払済'
+        ? '<span class="referral-status is-paid">支払済</span>'
+        : '<span class="referral-status">未払い</span>';
+    }
+
+    function referralActionsHtml(outcome) {
+      if (outcome.paymentStatus === '支払済') return '<span class="referral-secondary">操作完了</span>';
+
+      var booking = attr(outcome.bookingNumber || '');
+      if (outcome.outcomeStatus === '未確定') {
+        return '<div class="referral-actions">' +
+          '<button class="referral-action is-primary" data-referral-booking="' + booking + '" data-referral-action="confirm">確定</button>' +
+          '<button class="referral-action is-danger" data-referral-booking="' + booking + '" data-referral-action="cancel">取消</button>' +
+          '</div>';
+      }
+      if (outcome.outcomeStatus === '確定') {
+        return '<div class="referral-actions">' +
+          '<button class="referral-action" data-referral-booking="' + booking + '" data-referral-action="unconfirm">未確定へ</button>' +
+          '<button class="referral-action is-primary" data-referral-booking="' + booking + '" data-referral-action="paid">支払済</button>' +
+          '<button class="referral-action is-danger" data-referral-booking="' + booking + '" data-referral-action="cancel">取消</button>' +
+          '</div>';
+      }
+      return '<button class="referral-action" data-referral-booking="' + booking + '" data-referral-action="unconfirm">未確定へ戻す</button>';
+    }
+
+    function renderReferrals() {
+      if (!state.data) return;
+      var referrals = state.data.referrals || normalizeReferralData(null);
+      var partners = referrals.partners || [];
+      var outcomes = referrals.outcomes || [];
+
+      els.referralResultCount.textContent = outcomes.length;
+      els.referralSetupNote.hidden = referrals.available !== false;
+      els.referralSetupNote.textContent = referrals.error || '';
+
+      els.referralPartnerBody.innerHTML = partners.length
+        ? partners.map(function(partner) {
+          return '<tr>' +
+            '<td><span class="referral-primary">' + escapeHtml(partner.name || '名称未登録') + '</span>' +
+              '<span class="referral-secondary">' + escapeHtml(partner.code || '') + '</span></td>' +
+            '<td class="is-number">' + escapeHtml(String(partner.bookingCount || 0)) + '件</td>' +
+            '<td class="is-number">' + escapeHtml(formatMoney(partner.revenue)) + '</td>' +
+            '<td class="is-number">' + escapeHtml(formatMoney(partner.partnerReward)) + '</td>' +
+            '<td class="is-number">' + escapeHtml(formatMoney(partner.companyShare)) + '</td>' +
+          '</tr>';
+        }).join('')
+        : '<tr><td class="referral-empty" colspan="5">今月の紹介成果はまだありません</td></tr>';
+
+      els.referralOutcomeBody.innerHTML = outcomes.length
+        ? outcomes.map(function(outcome) {
+          var rewardRule = outcome.rewardType === 'PERCENTAGE'
+            ? outcome.rewardValue + '%'
+            : (outcome.rewardType === 'FIXED_BOOKING'
+              ? '1件 ' + formatMoney(outcome.rewardValue)
+              : '1名 ' + formatMoney(outcome.rewardValue));
+          return '<tr>' +
+            '<td><span class="referral-primary">' + escapeHtml(outcome.receivedAt || '') + '</span>' +
+              '<span class="referral-secondary">参加 ' + escapeHtml(outcome.participationDate || '') + '</span></td>' +
+            '<td><span class="referral-primary">' + escapeHtml(outcome.bookingNumber || '') + '</span>' +
+              '<span class="referral-secondary">' + escapeHtml(outcome.planId || '') + '</span></td>' +
+            '<td><span class="referral-primary">' + escapeHtml(outcome.name || '') + ' (' + escapeHtml(outcome.code || '') + ')</span>' +
+              '<span class="referral-secondary">' + escapeHtml(outcome.campaign || 'キャンペーンなし') + '</span></td>' +
+            '<td class="is-number">' + escapeHtml(formatMoney(outcome.revenue)) + '</td>' +
+            '<td class="is-number"><span class="referral-primary">' + escapeHtml(formatMoney(outcome.partnerReward)) + '</span>' +
+              '<span class="referral-secondary">' + escapeHtml(rewardRule) + '</span></td>' +
+            '<td>' + referralStatusHtml(outcome.outcomeStatus) + '</td>' +
+            '<td>' + referralPaymentHtml(outcome.paymentStatus) + '</td>' +
+            '<td>' + referralActionsHtml(outcome) + '</td>' +
+          '</tr>';
+        }).join('')
+        : '<tr><td class="referral-empty" colspan="8">紹介成果はまだありません</td></tr>';
+    }
+
+    async function handleReferralAction(event) {
+      var button = event.target.closest('[data-referral-action]');
+      if (!button) return;
+
+      var bookingNumber = button.getAttribute('data-referral-booking');
+      var action = button.getAttribute('data-referral-action');
+      var labels = {
+        confirm: 'この紹介成果を確定しますか？',
+        unconfirm: 'この紹介成果を未確定へ戻しますか？',
+        cancel: 'この紹介成果を取消しますか？',
+        paid: '紹介者への支払い完了を確認しましたか？\nこの操作後は管理画面から取消できません。'
+      };
+
+      if (!window.confirm(labels[action] || '紹介成果を更新しますか？')) return;
+
+      setButtonBusy(button, true, '更新中');
+      try {
+        var result = await gas('adminUpdateReferralOutcome', {
+          bookingNumber: bookingNumber,
+          action: action
+        });
+        state.data.referrals = normalizeReferralData(result.referrals);
+        renderAll();
+        showToast('紹介成果を更新しました。', 'success');
+      } catch (error) {
+        showToast(error.message, 'error', 7000);
+      } finally {
+        setButtonBusy(button, false);
+      }
+    }
+
     function renderAttention() {
+      if (state.view === 'referrals') {
+        els.attentionBanner.hidden = true;
+        return;
+      }
+
       var dashboard = state.data.dashboard;
       var total = dashboard.futurePending + dashboard.locationMissing;
 
@@ -350,6 +551,14 @@
     function renderReservations() {
       if (!state.data) return;
 
+      var referralView = state.view === 'referrals';
+      els.reservationPanel.hidden = referralView;
+      els.referralPanel.hidden = !referralView;
+      if (referralView) {
+        els.pageTitle.textContent = '紹介';
+        return;
+      }
+
       var bookings = getFilteredBookings();
       els.resultCount.textContent = bookings.length;
       els.emptyState.hidden = bookings.length !== 0;
@@ -357,7 +566,8 @@
       var titles = {
         reservations: ['予約管理', '予約一覧'],
         today: ['今日・明日の予約', '今日・明日の予約'],
-        attention: ['要確認', '確認が必要な予約']
+        attention: ['要確認', '確認が必要な予約'],
+        referrals: ['紹介', '紹介成果']
       };
 
       els.pageTitle.textContent = titles[state.view][0];
@@ -451,7 +661,12 @@
     function setView(view, renderNow) {
       state.view = view;
       updateNavigation();
-      if (renderNow !== false) renderReservations();
+      if (renderNow !== false) {
+        renderSummary();
+        renderAttention();
+        renderReservations();
+        renderReferrals();
+      }
     }
 
     function updateNavigation() {
@@ -533,6 +748,19 @@
           '</article>';
       }).join('');
 
+      var referralHtml = booking.referralCode
+        ? '<section class="detail-section">' +
+            '<h3 class="section-title">紹介パートナー</h3>' +
+            '<div class="detail-grid">' +
+              infoCard('紹介者', booking.referralName || '名称未登録') +
+              infoCard('紹介コード', booking.referralCode) +
+              infoCard('紹介キャンペーン', booking.referralCampaign || 'なし') +
+              infoCard('紹介取得日時', booking.referralAcquiredAt || '未記録') +
+            '</div>' +
+            '<p class="line-state">担当ガイド・スタッフ指名とは別の紹介元です。</p>' +
+          '</section>'
+        : '';
+
       els.drawerBody.innerHTML =
         '<section class="detail-hero">' +
           '<div class="detail-hero-top"><div>' +
@@ -561,6 +789,8 @@
           infoCard('人数', booking.headcount || '未登録') +
           infoCard('合計金額', formatMoney(booking.totalPrice) + (booking.couponDiscount ? ' / 割引 ' + formatMoney(booking.couponDiscount) : '')) +
         '</div>' +
+
+        referralHtml +
 
         '<section class="detail-section">' +
           '<h3 class="section-title">開催場所の案内・担当（前日／当日）</h3>' + componentHtml +
@@ -1220,6 +1450,9 @@
         });
 
         replaceBooking(result.booking);
+        if (result.referrals) {
+          state.data.referrals = normalizeReferralData(result.referrals);
+        }
         renderAll();
         renderDrawer();
         showToast('予約ステータスを「' + displayStatus + '」に更新しました。', 'success');

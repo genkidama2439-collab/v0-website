@@ -6,8 +6,8 @@
  * 予約受信の doPost や既存の編集トリガーには依存しません。
  */
 
-var ADMIN_APP_VERSION = '2026.08.21-1';
-var ADMIN_SCHEMA_VERSION = '2026.08.14-4';
+var ADMIN_APP_VERSION = '2026.08.24-1';
+var ADMIN_SCHEMA_VERSION = '2026.08.24-1';
 var ADMIN_SCHEMA_VERSION_PROPERTY = 'ADMIN_BOOKING_SCHEMA_VERSION';
 var ADMIN_SCHEMA_VERIFIED_AT_PROPERTY = 'ADMIN_BOOKING_SCHEMA_VERIFIED_AT';
 var ADMIN_SCHEMA_VERIFY_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -19,6 +19,7 @@ var ADMIN_BOOKING_SHEET_NAME = '予約一覧';
 var ADMIN_LINE_LOG_SHEET_NAME = 'LINE送信履歴';
 var ADMIN_AUDIT_SHEET_NAME = '管理アプリ操作履歴';
 var ADMIN_DELETED_SHEET_NAME = '削除済み予約';
+var ADMIN_REFERRAL_OUTCOME_SHEET_NAME = '紹介成果';
 var ADMIN_NOTIFY_API_URL =
   'https://www.umigamekyoudaimiyakojima.com/api/line/notify';
 var ADMIN_PENDING_PREFIX = 'ADMIN_LINE_PENDING_';
@@ -70,7 +71,11 @@ var ADMIN_COLUMNS = {
   PARTICIPANT_WEIGHTS: 42,
   PARTICIPANT_FOOT_SIZES: 43,
   SPECIAL_REQUESTS: 44,
-  PLAN_ID: 45
+  PLAN_ID: 45,
+  REFERRAL_CODE: 46,
+  REFERRAL_NAME: 47,
+  REFERRAL_ACQUIRED_AT: 48,
+  REFERRAL_CAMPAIGN: 49
 };
 
 var ADMIN_CANONICAL_HEADERS = [
@@ -84,8 +89,37 @@ var ADMIN_CANONICAL_HEADERS = [
   '初回着地ページ', '参照元ホスト', 'UTM Source', 'UTM Medium',
   'UTM Campaign', '予約送信ページ', 'デバイス', 'ブラウザ', 'OS',
   '参加者年齢', '参加者身長', '参加者体重', '参加者足サイズ',
-  '特別なご要望・アレルギー等', '管理プランID'
+  '特別なご要望・アレルギー等', '管理プランID',
+  '紹介コード', '紹介者名', '紹介取得日時', '紹介キャンペーン'
 ];
+
+var ADMIN_REFERRAL_OUTCOME_HEADERS = [
+  '受付日時', '予約番号', '参加日', '紹介コード', '紹介者名',
+  '管理プランID', '予約売上', '報酬方式', '報酬設定値',
+  '紹介者報酬', '会社取り分', '紹介キャンペーン', '紹介取得日時',
+  '成果ステータス', '報酬確定日時', '支払ステータス', '支払日時', '備考'
+];
+
+var ADMIN_REFERRAL_OUTCOME_COLUMNS = {
+  RECEIVED_AT: 1,
+  BOOKING_NUM: 2,
+  PARTICIPATION_DATE: 3,
+  CODE: 4,
+  NAME: 5,
+  PLAN_ID: 6,
+  REVENUE: 7,
+  REWARD_TYPE: 8,
+  REWARD_VALUE: 9,
+  PARTNER_REWARD: 10,
+  COMPANY_SHARE: 11,
+  CAMPAIGN: 12,
+  ACQUIRED_AT: 13,
+  OUTCOME_STATUS: 14,
+  CONFIRMED_AT: 15,
+  PAYMENT_STATUS: 16,
+  PAID_AT: 17,
+  NOTE: 18
+};
 
 var ADMIN_PLAN_CATALOG = [
   {
@@ -300,6 +334,7 @@ function adminGetAppData() {
     actor: actor,
     generatedAt: new Date().toISOString(),
     dashboard: adminBuildDashboard_(bookings),
+    referrals: adminReadReferralData_(),
     reservations: publicBookings,
     options: {
       statuses: ADMIN_STATUS_OPTIONS,
@@ -357,6 +392,388 @@ function adminGetAppData() {
  */
 function adminGetAppDataJson() {
   return JSON.stringify(adminGetAppData());
+}
+
+// ============================================================
+// 紹介成果ダッシュボード・手動確定
+// ============================================================
+
+function adminEmptyReferralData_(errorMessage) {
+  return {
+    available: false,
+    error: String(errorMessage || ''),
+    monthLabel: adminToday_().slice(0, 7),
+    summary: {
+      monthBookings: 0,
+      monthRevenue: 0,
+      monthPartnerReward: 0,
+      monthCompanyShare: 0,
+      unconfirmedReward: 0,
+      confirmedReward: 0,
+      paidReward: 0
+    },
+    partners: [],
+    outcomes: []
+  };
+}
+
+function adminReferralHeadersMatch_(sheet) {
+  if (!sheet || sheet.getMaxColumns() < ADMIN_REFERRAL_OUTCOME_HEADERS.length) {
+    return false;
+  }
+
+  var headers = sheet
+    .getRange(1, 1, 1, ADMIN_REFERRAL_OUTCOME_HEADERS.length)
+    .getDisplayValues()[0];
+
+  return ADMIN_REFERRAL_OUTCOME_HEADERS.every(function(header, index) {
+    return String(headers[index] || '').trim() === header;
+  });
+}
+
+function adminGetReferralOutcomeSheet_(required) {
+  var sheet = adminGetSpreadsheet_().getSheetByName(
+    ADMIN_REFERRAL_OUTCOME_SHEET_NAME
+  );
+
+  if (!sheet) {
+    if (required) {
+      throw new Error(
+        '紹介成果シートがありません。予約受付GASのsetupReferralProgramを先に実行してください。'
+      );
+    }
+    return null;
+  }
+
+  if (!adminReferralHeadersMatch_(sheet)) {
+    if (required) {
+      throw new Error('紹介成果シートのヘッダーが想定と異なります。');
+    }
+    return null;
+  }
+
+  return sheet;
+}
+
+function adminReferralDateKey_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, 'Asia/Tokyo', 'yyyy-MM-dd');
+  }
+
+  var normalized = adminNormalizeDate_(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return normalized;
+
+  var parsed = new Date(String(value || ''));
+  return isNaN(parsed.getTime())
+    ? ''
+    : Utilities.formatDate(parsed, 'Asia/Tokyo', 'yyyy-MM-dd');
+}
+
+function adminReferralDateTimeText_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return adminFormatDateTime_(value);
+  }
+
+  return String(value || '').trim();
+}
+
+function adminMapReferralOutcome_(row, rowNumber) {
+  var receivedAt = row[ADMIN_REFERRAL_OUTCOME_COLUMNS.RECEIVED_AT - 1];
+  var outcomeStatus = String(
+    row[ADMIN_REFERRAL_OUTCOME_COLUMNS.OUTCOME_STATUS - 1] || '未確定'
+  ).trim();
+  var paymentStatus = String(
+    row[ADMIN_REFERRAL_OUTCOME_COLUMNS.PAYMENT_STATUS - 1] || '未払い'
+  ).trim();
+
+  return {
+    rowNumber: rowNumber,
+    receivedAt: adminReferralDateTimeText_(receivedAt),
+    receivedDate: adminReferralDateKey_(receivedAt),
+    bookingNumber: String(row[ADMIN_REFERRAL_OUTCOME_COLUMNS.BOOKING_NUM - 1] || '').trim(),
+    participationDate: adminReferralDateKey_(
+      row[ADMIN_REFERRAL_OUTCOME_COLUMNS.PARTICIPATION_DATE - 1]
+    ),
+    code: String(row[ADMIN_REFERRAL_OUTCOME_COLUMNS.CODE - 1] || '').trim(),
+    name: String(row[ADMIN_REFERRAL_OUTCOME_COLUMNS.NAME - 1] || '').trim(),
+    planId: String(row[ADMIN_REFERRAL_OUTCOME_COLUMNS.PLAN_ID - 1] || '').trim(),
+    revenue: adminToNumber_(row[ADMIN_REFERRAL_OUTCOME_COLUMNS.REVENUE - 1]),
+    rewardType: String(row[ADMIN_REFERRAL_OUTCOME_COLUMNS.REWARD_TYPE - 1] || '').trim(),
+    rewardValue: adminToNumber_(row[ADMIN_REFERRAL_OUTCOME_COLUMNS.REWARD_VALUE - 1]),
+    partnerReward: adminToNumber_(row[ADMIN_REFERRAL_OUTCOME_COLUMNS.PARTNER_REWARD - 1]),
+    companyShare: adminToNumber_(row[ADMIN_REFERRAL_OUTCOME_COLUMNS.COMPANY_SHARE - 1]),
+    campaign: String(row[ADMIN_REFERRAL_OUTCOME_COLUMNS.CAMPAIGN - 1] || '').trim(),
+    acquiredAt: adminReferralDateTimeText_(
+      row[ADMIN_REFERRAL_OUTCOME_COLUMNS.ACQUIRED_AT - 1]
+    ),
+    outcomeStatus: outcomeStatus,
+    confirmedAt: adminReferralDateTimeText_(
+      row[ADMIN_REFERRAL_OUTCOME_COLUMNS.CONFIRMED_AT - 1]
+    ),
+    paymentStatus: paymentStatus,
+    paidAt: adminReferralDateTimeText_(
+      row[ADMIN_REFERRAL_OUTCOME_COLUMNS.PAID_AT - 1]
+    ),
+    note: String(row[ADMIN_REFERRAL_OUTCOME_COLUMNS.NOTE - 1] || '').trim()
+  };
+}
+
+function adminReadReferralData_() {
+  try {
+    var sheet = adminGetReferralOutcomeSheet_(false);
+    if (!sheet) {
+      return adminEmptyReferralData_(
+        '未セットアップです。予約受付GASのsetupReferralProgramを実行してください。'
+      );
+    }
+
+    var rows = sheet.getLastRow() >= 2
+      ? sheet
+        .getRange(
+          2,
+          1,
+          sheet.getLastRow() - 1,
+          ADMIN_REFERRAL_OUTCOME_HEADERS.length
+        )
+        .getValues()
+      : [];
+    var outcomes = rows
+      .map(function(row, index) {
+        return adminMapReferralOutcome_(row, index + 2);
+      })
+      .filter(function(outcome) {
+        return !!outcome.bookingNumber;
+      });
+    var currentMonth = adminToday_().slice(0, 7);
+    var monthOutcomes = outcomes.filter(function(outcome) {
+      return outcome.receivedDate.slice(0, 7) === currentMonth &&
+        outcome.outcomeStatus !== '取消';
+    });
+    var summary = {
+      monthBookings: monthOutcomes.length,
+      monthRevenue: 0,
+      monthPartnerReward: 0,
+      monthCompanyShare: 0,
+      unconfirmedReward: 0,
+      confirmedReward: 0,
+      paidReward: 0
+    };
+    var partnerMap = {};
+
+    monthOutcomes.forEach(function(outcome) {
+      summary.monthRevenue += outcome.revenue;
+      summary.monthPartnerReward += outcome.partnerReward;
+      summary.monthCompanyShare += outcome.companyShare;
+
+      var key = outcome.code || '(コードなし)';
+      if (!partnerMap[key]) {
+        partnerMap[key] = {
+          code: outcome.code,
+          name: outcome.name,
+          bookingCount: 0,
+          revenue: 0,
+          partnerReward: 0,
+          companyShare: 0
+        };
+      }
+
+      partnerMap[key].bookingCount += 1;
+      partnerMap[key].revenue += outcome.revenue;
+      partnerMap[key].partnerReward += outcome.partnerReward;
+      partnerMap[key].companyShare += outcome.companyShare;
+    });
+
+    outcomes.forEach(function(outcome) {
+      if (outcome.outcomeStatus === '未確定') {
+        summary.unconfirmedReward += outcome.partnerReward;
+      }
+      if (outcome.outcomeStatus === '確定') {
+        summary.confirmedReward += outcome.partnerReward;
+      }
+      if (outcome.paymentStatus === '支払済') {
+        summary.paidReward += outcome.partnerReward;
+      }
+    });
+
+    outcomes.sort(function(a, b) {
+      if (a.receivedDate !== b.receivedDate) {
+        return a.receivedDate < b.receivedDate ? 1 : -1;
+      }
+      return b.rowNumber - a.rowNumber;
+    });
+
+    return {
+      available: true,
+      error: '',
+      monthLabel: currentMonth,
+      summary: summary,
+      partners: Object.keys(partnerMap)
+        .map(function(key) { return partnerMap[key]; })
+        .sort(function(a, b) { return b.partnerReward - a.partnerReward; }),
+      // 起動データの肥大化を避けつつ、直近の成果は管理画面で操作できるようにする。
+      outcomes: outcomes.slice(0, 200)
+    };
+
+  } catch (error) {
+    Logger.log('紹介成果の読込エラー: ' + error.message);
+    return adminEmptyReferralData_(error.message);
+  }
+}
+
+function adminFindReferralOutcomeRow_(sheet, bookingNumber) {
+  var normalized = String(bookingNumber || '').trim();
+  if (!normalized || sheet.getLastRow() < 2) return 0;
+
+  var values = sheet
+    .getRange(
+      2,
+      ADMIN_REFERRAL_OUTCOME_COLUMNS.BOOKING_NUM,
+      sheet.getLastRow() - 1,
+      1
+    )
+    .getDisplayValues();
+
+  for (var index = 0; index < values.length; index += 1) {
+    if (String(values[index][0] || '').trim() === normalized) return index + 2;
+  }
+
+  return 0;
+}
+
+function adminAppendReferralNote_(sheet, rowNumber, actor, action) {
+  var range = sheet.getRange(
+    rowNumber,
+    ADMIN_REFERRAL_OUTCOME_COLUMNS.NOTE
+  );
+  var current = String(range.getValue() || '').trim();
+  var entry = adminFormatDateTime_(new Date()) + ' ' + action + ' (' + actor + ')';
+
+  range.setValue(current ? current + '\n' + entry : entry);
+}
+
+function adminUpdateReferralOutcome(request) {
+  var actor = adminAssertAuthorized_();
+  request = request || {};
+  var bookingNumber = String(request.bookingNumber || '').trim();
+  var action = String(request.action || '').trim();
+  var allowedActions = ['confirm', 'unconfirm', 'cancel', 'paid'];
+
+  if (!bookingNumber || allowedActions.indexOf(action) === -1) {
+    throw new Error('紹介成果の更新内容が不正です。');
+  }
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+
+  try {
+    var sheet = adminGetReferralOutcomeSheet_(true);
+    var rowNumber = adminFindReferralOutcomeRow_(sheet, bookingNumber);
+
+    if (!rowNumber) throw new Error('対象の紹介成果が見つかりません。');
+
+    var values = sheet
+      .getRange(
+        rowNumber,
+        ADMIN_REFERRAL_OUTCOME_COLUMNS.OUTCOME_STATUS,
+        1,
+        4
+      )
+      .getValues()[0];
+    var status = String(values[0] || '未確定').trim();
+    var confirmedAt = values[1] || '';
+    var paymentStatus = String(values[2] || '未払い').trim();
+    var paidAt = values[3] || '';
+    var now = new Date();
+
+    if (paymentStatus === '支払済' && action !== 'paid') {
+      throw new Error('支払済みの成果は取消・未確定へ戻せません。');
+    }
+
+    if (action === 'confirm') {
+      status = '確定';
+      confirmedAt = confirmedAt || now;
+      paymentStatus = '未払い';
+      paidAt = '';
+    } else if (action === 'unconfirm') {
+      status = '未確定';
+      confirmedAt = '';
+      paymentStatus = '未払い';
+      paidAt = '';
+    } else if (action === 'cancel') {
+      status = '取消';
+      confirmedAt = '';
+      paymentStatus = '未払い';
+      paidAt = '';
+    } else if (action === 'paid') {
+      if (status !== '確定') {
+        throw new Error('成果を確定してから支払済みにしてください。');
+      }
+      paymentStatus = '支払済';
+      paidAt = paidAt || now;
+    }
+
+    sheet
+      .getRange(
+        rowNumber,
+        ADMIN_REFERRAL_OUTCOME_COLUMNS.OUTCOME_STATUS,
+        1,
+        4
+      )
+      .setValues([[status, confirmedAt, paymentStatus, paidAt]]);
+    adminAppendReferralNote_(sheet, rowNumber, actor, '紹介成果を' + action);
+    SpreadsheetApp.flush();
+
+    return {
+      success: true,
+      referrals: adminReadReferralData_()
+    };
+
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function adminCancelReferralOutcome_(bookingNumber, actor, actionNote) {
+  var sheet = adminGetReferralOutcomeSheet_(false);
+  if (!sheet) return '';
+
+  var rowNumber = adminFindReferralOutcomeRow_(sheet, bookingNumber);
+  if (!rowNumber) return '';
+
+  var paymentStatus = String(
+    sheet
+      .getRange(rowNumber, ADMIN_REFERRAL_OUTCOME_COLUMNS.PAYMENT_STATUS)
+      .getValue() || '未払い'
+  ).trim();
+
+  if (paymentStatus === '支払済') {
+    return '紹介成果は支払済みのため自動取消ししていません。紹介成果シートを確認してください。';
+  }
+
+  sheet
+    .getRange(
+      rowNumber,
+      ADMIN_REFERRAL_OUTCOME_COLUMNS.OUTCOME_STATUS,
+      1,
+      4
+    )
+    .setValues([['取消', '', '未払い', '']]);
+  adminAppendReferralNote_(
+    sheet,
+    rowNumber,
+    actor,
+    actionNote || '予約状態に連動して紹介成果を取消'
+  );
+
+  return '';
+}
+
+function adminCancelReferralOutcomeForDeletedBooking_(bookingNumber, actor) {
+  return adminCancelReferralOutcome_(
+    bookingNumber,
+    actor,
+    '予約削除に連動して紹介成果を取消'
+  );
 }
 
 /**
@@ -443,13 +860,39 @@ function adminUpdateBooking(request) {
     var updatedBooking = adminFindBooking_(sheet, request.bookingKey);
     var pending = null;
     var warning = '';
+    var referralData = null;
+
+    // 既存の「満席」は予約不成立を表すため、未払いの紹介成果を残さない。
+    // 紹介側の失敗で予約ステータス更新を巻き戻さないようbest-effortで行う。
+    if (updateKeys.indexOf('status') !== -1 && updatedBooking.bookingStatus === '満席') {
+      try {
+        warning = adminJoinWarnings_(
+          warning,
+          adminCancelReferralOutcome_(
+            updatedBooking.bookingNumber,
+            actor,
+            '予約ステータス「満席」に連動して紹介成果を取消'
+          )
+        );
+        referralData = adminReadReferralData_();
+      } catch (referralCancelError) {
+        warning = adminJoinWarnings_(
+          warning,
+          '予約は満席へ更新しましたが、紹介成果を自動取消しできませんでした: ' +
+            referralCancelError.message
+        );
+      }
+    }
 
     if (lineAction) {
       var lineRow = adminSelectLineRow_(updatedBooking, targetRows[0]);
       var messageRow = adminFindComponentByRow_(updatedBooking, targetRows[0]) || lineRow;
 
       if (!lineRow || !lineRow.lineUserId) {
-        warning = 'LINE User IDが未登録のため、シートだけ更新しました。';
+        warning = adminJoinWarnings_(
+          warning,
+          'LINE User IDが未登録のため、シートだけ更新しました。'
+        );
       } else {
         pending = adminCreatePendingLine_(
           sheet,
@@ -474,7 +917,8 @@ function adminUpdateBooking(request) {
       success: true,
       booking: adminToPublicBooking_(updatedBooking),
       pendingLine: pending,
-      warning: warning
+      warning: warning,
+      referrals: referralData
     };
 
   } finally {
@@ -721,7 +1165,7 @@ function adminChangeReservation(request) {
       var nextRow = nextAppendRow + addedRowNumbers.length;
       targetRowNumbers.push(nextRow);
       addedRowNumbers.push(nextRow);
-      sheet.getRange(nextRow, 1, 1, ADMIN_COLUMNS.PLAN_ID).clearContent();
+      sheet.getRange(nextRow, 1, 1, ADMIN_COLUMNS.REFERRAL_CAMPAIGN).clearContent();
     }
 
     var calendar = adminGetCalendar_();
@@ -746,7 +1190,7 @@ function adminChangeReservation(request) {
 
       targetRowNumbers.forEach(function(rowNumber, index) {
         sheet
-          .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.PLAN_ID)
+          .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.REFERRAL_CAMPAIGN)
           .setValues([newRows[index]]);
       });
 
@@ -754,7 +1198,7 @@ function adminChangeReservation(request) {
         .slice(plan.components.length)
         .forEach(function(rowNumber) {
           sheet
-            .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.PLAN_ID)
+            .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.REFERRAL_CAMPAIGN)
             .clearContent();
         });
 
@@ -807,7 +1251,7 @@ function adminChangeReservation(request) {
       addedRowNumbers.forEach(function(rowNumber) {
         try {
           sheet
-            .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.PLAN_ID)
+            .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.REFERRAL_CAMPAIGN)
             .clearContent();
         } catch (error) {
           rollbackErrors.push('追加行' + rowNumber + 'の取消: ' + error.message);
@@ -1050,7 +1494,7 @@ function adminFindOldComponentForRole_(booking, role) {
 
 function adminBuildChangedRows_(sheet, beforeBooking, plan, normalized, rowNumbers) {
   var sourceValues = sheet
-    .getRange(beforeBooking.rowNumbers[0], 1, 1, ADMIN_COLUMNS.PLAN_ID)
+    .getRange(beforeBooking.rowNumbers[0], 1, 1, ADMIN_COLUMNS.REFERRAL_CAMPAIGN)
     .getValues()[0];
   var prices = adminSplitAmountByComponents_(
     normalized.totalPrice,
@@ -1069,7 +1513,7 @@ function adminBuildChangedRows_(sheet, beforeBooking, plan, normalized, rowNumbe
       definition.role
     );
 
-    while (values.length < ADMIN_COLUMNS.PLAN_ID) values.push('');
+    while (values.length < ADMIN_COLUMNS.REFERRAL_CAMPAIGN) values.push('');
 
     values[ADMIN_COLUMNS.BOOKING_NUM - 1] = beforeBooking.bookingNumber;
     values[ADMIN_COLUMNS.DATE - 1] = schedule.date;
@@ -1326,7 +1770,7 @@ function adminDeleteBooking(request) {
     try {
       booking.rowNumbers.forEach(function(rowNumber) {
         sheet
-          .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.PLAN_ID)
+          .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.REFERRAL_CAMPAIGN)
           .clearContent();
       });
 
@@ -1378,6 +1822,22 @@ function adminDeleteBooking(request) {
         warning,
         '予約は削除されましたが、操作履歴を記録できませんでした: ' +
           auditError.message
+      );
+    }
+
+    try {
+      warning = adminJoinWarnings_(
+        warning,
+        adminCancelReferralOutcomeForDeletedBooking_(
+          booking.bookingNumber,
+          actor
+        )
+      );
+    } catch (referralCancelError) {
+      warning = adminJoinWarnings_(
+        warning,
+        '予約は削除されましたが、紹介成果を自動取消しできませんでした: ' +
+          referralCancelError.message
       );
     }
 
@@ -1732,7 +2192,7 @@ function adminEnsureBookingSchema_(sheet) {
     existing = [];
   }
 
-  // 通常の45列構成は上で一度だけ読む。移行・列追加時だけ読み直す。
+  // 通常の現行列構成は上で一度だけ読む。移行・列追加時だけ読み直す。
   if (existing.length !== ADMIN_CANONICAL_HEADERS.length) {
     existing = sheet
       .getRange(1, 1, 1, ADMIN_CANONICAL_HEADERS.length)
@@ -1915,7 +2375,7 @@ function adminReadBookings_(sheet) {
   if (lastRow < 2) return [];
 
   var values = sheet
-    .getRange(2, 1, lastRow - 1, ADMIN_COLUMNS.PLAN_ID)
+    .getRange(2, 1, lastRow - 1, ADMIN_COLUMNS.REFERRAL_CAMPAIGN)
     .getDisplayValues();
   var groups = {};
 
@@ -1987,7 +2447,11 @@ function adminMapRow_(values, rowNumber) {
     participantWeights: String(values[ADMIN_COLUMNS.PARTICIPANT_WEIGHTS - 1] || ''),
     participantFootSizes: String(values[ADMIN_COLUMNS.PARTICIPANT_FOOT_SIZES - 1] || ''),
     specialRequests: String(values[ADMIN_COLUMNS.SPECIAL_REQUESTS - 1] || ''),
-    planId: String(values[ADMIN_COLUMNS.PLAN_ID - 1] || '').trim().toUpperCase()
+    planId: String(values[ADMIN_COLUMNS.PLAN_ID - 1] || '').trim().toUpperCase(),
+    referralCode: String(values[ADMIN_COLUMNS.REFERRAL_CODE - 1] || '').trim(),
+    referralName: String(values[ADMIN_COLUMNS.REFERRAL_NAME - 1] || '').trim(),
+    referralAcquiredAt: String(values[ADMIN_COLUMNS.REFERRAL_ACQUIRED_AT - 1] || '').trim(),
+    referralCampaign: String(values[ADMIN_COLUMNS.REFERRAL_CAMPAIGN - 1] || '').trim()
   };
 }
 
@@ -2036,6 +2500,10 @@ function adminBuildBooking_(key, rows) {
     specialRequests: first.specialRequests,
     lineName: first.lineName,
     couponCode: first.couponCode,
+    referralCode: first.referralCode,
+    referralName: first.referralName,
+    referralAcquiredAt: first.referralAcquiredAt,
+    referralCampaign: first.referralCampaign,
     bookingStatus: statuses.length === 0
       ? '未対応'
       : (statuses.length === 1 ? statuses[0] : '混在'),
@@ -2078,6 +2546,10 @@ function adminBuildBooking_(key, rows) {
       row.phone,
       row.email,
       row.specialRequests,
+      row.referralCode,
+      row.referralName,
+      row.referralAcquiredAt,
+      row.referralCampaign,
       row.bookingStatus,
       row.location,
       row.staff,
@@ -2165,6 +2637,10 @@ function adminToPublicBooking_(booking) {
     specialRequests: booking.specialRequests,
     lineName: booking.lineName,
     couponCode: booking.couponCode,
+    referralCode: booking.referralCode,
+    referralName: booking.referralName,
+    referralAcquiredAt: booking.referralAcquiredAt,
+    referralCampaign: booking.referralCampaign,
     bookingStatus: booking.bookingStatus,
     location: booking.location,
     staff: booking.staff,
@@ -2801,7 +3277,7 @@ function adminReadFullBookingRows_(sheet, rowNumbers) {
     return {
       rowNumber: rowNumber,
       values: sheet
-        .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.PLAN_ID)
+        .getRange(rowNumber, 1, 1, ADMIN_COLUMNS.REFERRAL_CAMPAIGN)
         .getValues()[0]
     };
   });
@@ -2819,7 +3295,7 @@ function adminArchiveDeletedBooking_(sourceSheet, booking, originalRows, actor) 
     'アプリ版'
   ];
   var sourceHeaders = sourceSheet
-    .getRange(1, 1, 1, ADMIN_COLUMNS.PLAN_ID)
+    .getRange(1, 1, 1, ADMIN_COLUMNS.REFERRAL_CAMPAIGN)
     .getValues()[0];
   var headers = metadataHeaders.concat(sourceHeaders);
 
@@ -3032,7 +3508,7 @@ function adminRestoreFullBookingRows_(sheet, originalRows) {
   originalRows.forEach(function(item) {
     try {
       sheet
-        .getRange(item.rowNumber, 1, 1, ADMIN_COLUMNS.PLAN_ID)
+        .getRange(item.rowNumber, 1, 1, ADMIN_COLUMNS.REFERRAL_CAMPAIGN)
         .setValues([item.values]);
     } catch (error) {
       Logger.log('削除した予約一覧行の復旧失敗: ' + error.message);

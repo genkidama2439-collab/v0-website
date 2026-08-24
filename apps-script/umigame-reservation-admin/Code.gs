@@ -27,7 +27,7 @@ var NOTIFY_SECRET = ''; // Script Properties の NOTIFY_SECRET を優先して�
 var SHEET_NAME = '予約一覧';
 var CALENDAR_ID = 'genkidama2439@gmail.com';
 var ADMIN_EMAIL = 'genkidama2439@gmail.com';
-var BOOKING_SCHEMA_VERSION = '2026.08.20-1';
+var BOOKING_SCHEMA_VERSION = '2026.08.24-1';
 var BOOKING_SCHEMA_VERSION_PROPERTY = 'BOOKING_SCHEMA_VERSION';
 
 var COMBO_PLAN_NAME = 'ウミガメシュノーケル＆ヤシガニ探検 昼夜セット';
@@ -106,7 +106,11 @@ var COLUMNS = {
   PARTICIPANT_WEIGHTS: 42,
   PARTICIPANT_FOOT_SIZES: 43,
   SPECIAL_REQUESTS: 44,
-  PLAN_ID: 45
+  PLAN_ID: 45,
+  REFERRAL_CODE: 46,
+  REFERRAL_NAME: 47,
+  REFERRAL_ACQUIRED_AT: 48,
+  REFERRAL_CAMPAIGN: 49
 };
 
 var HEADERS = [
@@ -154,7 +158,11 @@ var HEADERS = [
   '参加者体重',
   '参加者足サイズ',
   '特別なご要望・アレルギー等',
-  '管理プランID'
+  '管理プランID',
+  '紹介コード',
+  '紹介者名',
+  '紹介取得日時',
+  '紹介キャンペーン'
 ];
 
 var LOCATION_OPTIONS = [
@@ -972,7 +980,7 @@ function ensureBookingSchema_(sheet) {
 // 2026-08-20に、旧LINE送信確認列のチェックボックス規則がV列
 // （現在のメールアドレス列）へ残っているシートが見つかった。
 // メール文字列が「チェックボックス以外は拒否」の規則に弾かれると、予約行を
-// 45列すべて保存できない。V列以降には入力規則を使わないため、スキーマ更新時に
+// 全列保存できない。V列以降には入力規則を使わないため、スキーマ更新時に
 // 顧客・行動連携列の古い規則をまとめて除去する。
 function clearCustomerTrackingValidations_(sheet) {
   if (
@@ -1406,7 +1414,11 @@ function buildBookingRow_(timestamp, data, headcount, participantsDetail, option
     participantValues('weight'),
     participantValues('footSize'),
     data.specialRequests || '',
-    data.planId || ''
+    data.planId || '',
+    '',
+    '',
+    '',
+    ''
   ];
 }
 
@@ -1529,7 +1541,7 @@ function writeBookingRows_(sheet, rows) {
     }
 
     // 挿入行は直前行の入力規則を引き継ぐことがある。顧客・行動連携列には
-    // 入力規則を設けないため、書き込み対象行だけ毎回解除してから45列を保存する。
+    // 入力規則を設けないため、書き込み対象行だけ毎回解除してから全列を保存する。
     sheet
       .getRange(
         startRow,
@@ -4555,5 +4567,731 @@ onOpen = function() {
   SpreadsheetApp.getUi()
     .createMenu('🐢 海亀兄弟')
     .addItem('安全送信列と履歴を再設定', 'lineSafeSetup')
+    .addSeparator()
+    .addItem('紹介制度を安全に初期設定', 'setupReferralProgram')
     .addToUi();
+};
+
+// ============================================================
+// 紹介パートナー / アフィリエイト制度
+// ------------------------------------------------------------
+// - URLやUTMではなく、Next.jsが署名検証した data.referral のみを入口にする。
+// - 紹介コードの最終的な有効判定と報酬ルール選択は、このGASが同一
+//   スプレッドシート内のマスタを参照して行う。
+// - 予約一覧が2行・3行へ分割されても、紹介成果は予約番号で必ず1行にする。
+// - 紹介処理は末尾のdoPostラッパーでbest-effort実行し、失敗しても予約結果を変えない。
+// ============================================================
+
+var REFERRAL_PARTNER_SHEET_NAME = '紹介者マスタ';
+var REFERRAL_RULE_SHEET_NAME = '紹介報酬ルール';
+var REFERRAL_OUTCOME_SHEET_NAME = '紹介成果';
+
+var REFERRAL_REWARD_TYPES = {
+  PERCENTAGE: 'PERCENTAGE',
+  FIXED_BOOKING: 'FIXED_BOOKING',
+  PER_PARTICIPANT: 'PER_PARTICIPANT'
+};
+
+var REFERRAL_SYSTEM_DEFAULT_RULE = {
+  method: REFERRAL_REWARD_TYPES.PERCENTAGE,
+  value: 0,
+  source: 'SYSTEM_DEFAULT'
+};
+
+var REFERRAL_OUTCOME_STATUS = {
+  UNCONFIRMED: '未確定',
+  CONFIRMED: '確定',
+  CANCELED: '取消'
+};
+
+var REFERRAL_PAYMENT_STATUS = {
+  UNPAID: '未払い',
+  PAID: '支払済'
+};
+
+var REFERRAL_PARTNER_HEADERS = [
+  '紹介コード',
+  '紹介者名',
+  '有効',
+  '基本報酬方式',
+  '基本報酬値',
+  '有効開始日',
+  '有効終了日',
+  '備考'
+];
+
+var REFERRAL_RULE_HEADERS = [
+  '紹介コード',
+  '対象プランID',
+  '報酬方式',
+  '報酬値',
+  '適用開始日',
+  '適用終了日',
+  '有効',
+  '備考'
+];
+
+var REFERRAL_OUTCOME_HEADERS = [
+  '受付日時',
+  '予約番号',
+  '参加日',
+  '紹介コード',
+  '紹介者名',
+  '管理プランID',
+  '予約売上',
+  '報酬方式',
+  '報酬設定値',
+  '紹介者報酬',
+  '会社取り分',
+  '紹介キャンペーン',
+  '紹介取得日時',
+  '成果ステータス',
+  '報酬確定日時',
+  '支払ステータス',
+  '支払日時',
+  '備考'
+];
+
+var REFERRAL_OUTCOME_COLUMNS = {
+  RECEIVED_AT: 1,
+  BOOKING_NUM: 2,
+  PARTICIPATION_DATE: 3,
+  CODE: 4,
+  NAME: 5,
+  PLAN_ID: 6,
+  REVENUE: 7,
+  REWARD_TYPE: 8,
+  REWARD_VALUE: 9,
+  PARTNER_REWARD: 10,
+  COMPANY_SHARE: 11,
+  CAMPAIGN: 12,
+  ACQUIRED_AT: 13,
+  OUTCOME_STATUS: 14,
+  CONFIRMED_AT: 15,
+  PAYMENT_STATUS: 16,
+  PAID_AT: 17,
+  NOTE: 18
+};
+
+function referralNormalizeCode_(value) {
+  var normalized = String(value || '').trim().toLowerCase();
+
+  return /^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/.test(normalized)
+    ? normalized
+    : '';
+}
+
+function referralNormalizeCampaign_(value) {
+  var normalized = String(value || '').trim();
+
+  return !normalized || /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}$/.test(normalized)
+    ? normalized
+    : '';
+}
+
+function referralNormalizeRewardType_(value) {
+  var normalized = String(value || '').trim().toUpperCase();
+
+  return Object.prototype.hasOwnProperty.call(
+    REFERRAL_REWARD_TYPES,
+    normalized
+  ) ? normalized : '';
+}
+
+function referralBoolean_(value) {
+  if (value === true || value === 1) return true;
+
+  var normalized = String(value == null ? '' : value)
+    .trim()
+    .toUpperCase();
+
+  return normalized === 'TRUE' || normalized === '1' || normalized === 'YES';
+}
+
+function referralToDate_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return new Date(value.getTime());
+  }
+
+  var text = String(value || '').trim();
+  if (!text) return null;
+
+  var dateOnly = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  var parsed = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(text);
+
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function referralIsActiveAt_(startValue, endValue, acceptedAt) {
+  var target = referralToDate_(acceptedAt) || new Date();
+  var start = referralToDate_(startValue);
+  var end = referralToDate_(endValue);
+
+  if (start) {
+    start.setHours(0, 0, 0, 0);
+    if (target.getTime() < start.getTime()) return false;
+  }
+
+  if (end) {
+    end.setHours(23, 59, 59, 999);
+    if (target.getTime() > end.getTime()) return false;
+  }
+
+  return true;
+}
+
+function referralEnsureSheet_(spreadsheet, sheetName, headers) {
+  var sheet = spreadsheet.getSheetByName(sheetName);
+
+  if (!sheet) sheet = spreadsheet.insertSheet(sheetName);
+
+  if (sheet.getMaxColumns() < headers.length) {
+    sheet.insertColumnsAfter(
+      sheet.getMaxColumns(),
+      headers.length - sheet.getMaxColumns()
+    );
+  }
+
+  var existing = sheet
+    .getRange(1, 1, 1, headers.length)
+    .getDisplayValues()[0];
+  var isBlank = existing.every(function(value) {
+    return !String(value || '').trim();
+  });
+
+  if (isBlank) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, headers.length)
+      .setFontWeight('bold')
+      .setBackground('#d9ead3');
+  } else {
+    var matches = headers.every(function(header, index) {
+      return String(existing[index] || '').trim() === header;
+    });
+
+    if (!matches) {
+      throw new Error(
+        sheetName + 'のヘッダーが想定と異なります。既存データを保護するため自動上書きしません。'
+      );
+    }
+  }
+
+  return sheet;
+}
+
+function referralEnsureSheets_() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+
+  return {
+    partners: referralEnsureSheet_(
+      spreadsheet,
+      REFERRAL_PARTNER_SHEET_NAME,
+      REFERRAL_PARTNER_HEADERS
+    ),
+    rules: referralEnsureSheet_(
+      spreadsheet,
+      REFERRAL_RULE_SHEET_NAME,
+      REFERRAL_RULE_HEADERS
+    ),
+    outcomes: referralEnsureSheet_(
+      spreadsheet,
+      REFERRAL_OUTCOME_SHEET_NAME,
+      REFERRAL_OUTCOME_HEADERS
+    )
+  };
+}
+
+// 既存予約・既存マスタ行を上書きしない、何度実行しても安全な初期設定。
+function setupReferralProgram() {
+  var bookingSheet = getOrCreateSheet();
+  var sheets = referralEnsureSheets_();
+  var partnerSheet = sheets.partners;
+  var existingRows = partnerSheet.getLastRow() >= 2
+    ? partnerSheet
+      .getRange(2, 1, partnerSheet.getLastRow() - 1, REFERRAL_PARTNER_HEADERS.length)
+      .getValues()
+    : [];
+  var hasKaita = existingRows.some(function(row) {
+    return referralNormalizeCode_(row[0]) === 'kaita';
+  });
+
+  if (!hasKaita) {
+    partnerSheet
+      .getRange(partnerSheet.getLastRow() + 1, 1, 1, REFERRAL_PARTNER_HEADERS.length)
+      .setValues([[
+        'kaita',
+        'かいた君',
+        true,
+        REFERRAL_REWARD_TYPES.PERCENTAGE,
+        50,
+        new Date(),
+        '',
+        '初期紹介パートナー（運用開始日に自動追加）'
+      ]]);
+  }
+
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    '紹介用4列と3シートを確認し、かいた君を未登録の場合だけ追加しました。',
+    '紹介制度セットアップ完了',
+    6
+  );
+
+  return {
+    bookingColumns: HEADERS.length,
+    partnerCreated: !hasKaita,
+    bookingSheet: bookingSheet.getName(),
+    sheets: [
+      REFERRAL_PARTNER_SHEET_NAME,
+      REFERRAL_RULE_SHEET_NAME,
+      REFERRAL_OUTCOME_SHEET_NAME
+    ]
+  };
+}
+
+function referralReadRows_(sheet, width) {
+  if (!sheet || sheet.getLastRow() < 2) return [];
+
+  return sheet
+    .getRange(2, 1, sheet.getLastRow() - 1, width)
+    .getValues();
+}
+
+function referralFindPartner_(partnerSheet, code, acceptedAt) {
+  var normalizedCode = referralNormalizeCode_(code);
+  if (!normalizedCode) return null;
+
+  var rows = referralReadRows_(partnerSheet, REFERRAL_PARTNER_HEADERS.length);
+
+  for (var index = 0; index < rows.length; index += 1) {
+    var row = rows[index];
+
+    if (referralNormalizeCode_(row[0]) !== normalizedCode) continue;
+    if (!referralBoolean_(row[2])) return null;
+    if (!referralIsActiveAt_(row[5], row[6], acceptedAt)) return null;
+
+    return {
+      code: normalizedCode,
+      name: String(row[1] || '').trim(),
+      baseMethod: referralNormalizeRewardType_(row[3]),
+      baseValue: Math.max(0, toNumber_(row[4])),
+      rowNumber: index + 2
+    };
+  }
+
+  return null;
+}
+
+function referralFindRewardRule_(ruleSheet, code, planId, acceptedAt) {
+  var normalizedCode = referralNormalizeCode_(code);
+  var normalizedPlanId = String(planId || '').trim().toUpperCase();
+
+  if (!normalizedCode || !normalizedPlanId) return null;
+
+  var rows = referralReadRows_(ruleSheet, REFERRAL_RULE_HEADERS.length);
+  var candidates = [];
+
+  rows.forEach(function(row, index) {
+    var method = referralNormalizeRewardType_(row[2]);
+
+    if (referralNormalizeCode_(row[0]) !== normalizedCode) return;
+    if (String(row[1] || '').trim().toUpperCase() !== normalizedPlanId) return;
+    if (!method || !referralBoolean_(row[6])) return;
+    if (!referralIsActiveAt_(row[4], row[5], acceptedAt)) return;
+
+    var start = referralToDate_(row[4]);
+    candidates.push({
+      method: method,
+      value: Math.max(0, toNumber_(row[3])),
+      source: 'PLAN_RULE',
+      startTime: start ? start.getTime() : -Infinity,
+      rowNumber: index + 2
+    });
+  });
+
+  candidates.sort(function(a, b) {
+    if (a.startTime !== b.startTime) return b.startTime - a.startTime;
+    return b.rowNumber - a.rowNumber;
+  });
+
+  return candidates.length ? candidates[0] : null;
+}
+
+function referralResolveRewardRule_(ruleSheet, partner, planId, acceptedAt) {
+  var planRule = referralFindRewardRule_(
+    ruleSheet,
+    partner.code,
+    planId,
+    acceptedAt
+  );
+
+  if (planRule) return planRule;
+
+  if (partner.baseMethod) {
+    return {
+      method: partner.baseMethod,
+      value: partner.baseValue,
+      source: 'PARTNER_DEFAULT'
+    };
+  }
+
+  return {
+    method: REFERRAL_SYSTEM_DEFAULT_RULE.method,
+    value: REFERRAL_SYSTEM_DEFAULT_RULE.value,
+    source: REFERRAL_SYSTEM_DEFAULT_RULE.source
+  };
+}
+
+function referralParticipantCount_(data) {
+  if (data && Array.isArray(data.participants)) {
+    return data.participants.length;
+  }
+
+  return Math.max(
+    0,
+    Math.round(
+      toNumber_(data && data.adultCount) +
+      toNumber_(data && data.childCount) +
+      toNumber_(data && data.under3Count)
+    )
+  );
+}
+
+function referralCalculateReward_(revenueValue, participantCount, methodValue, rewardValue) {
+  var revenue = Math.max(0, Math.round(toNumber_(revenueValue)));
+  var people = Math.max(0, Math.floor(toNumber_(participantCount)));
+  var method = referralNormalizeRewardType_(methodValue);
+  var value = Math.max(0, toNumber_(rewardValue));
+  var rawReward = 0;
+
+  if (method === REFERRAL_REWARD_TYPES.PERCENTAGE) {
+    rawReward = revenue * value / 100;
+  } else if (method === REFERRAL_REWARD_TYPES.FIXED_BOOKING) {
+    rawReward = value;
+  } else if (method === REFERRAL_REWARD_TYPES.PER_PARTICIPANT) {
+    rawReward = people * value;
+  }
+
+  // 円未満は紹介者側を切り捨て、残りを会社側へ配分する。
+  // 固定報酬も売上を上限にし、会社取り分が負数にならないようにする。
+  var partnerReward = Math.min(revenue, Math.max(0, Math.floor(rawReward)));
+
+  return {
+    revenue: revenue,
+    method: method || REFERRAL_SYSTEM_DEFAULT_RULE.method,
+    value: value,
+    partnerReward: partnerReward,
+    companyShare: revenue - partnerReward,
+    participantCount: people
+  };
+}
+
+function referralResolveBooking_(sheets, data, acceptedAt) {
+  data = data || {};
+  var input = data.referral;
+
+  if (!input || typeof input !== 'object') return null;
+
+  var code = referralNormalizeCode_(input.referralCode || input.code);
+  if (!code) return null;
+
+  var partner = referralFindPartner_(sheets.partners, code, acceptedAt);
+  if (!partner) return null;
+
+  var planId = bookingPlanId_(data);
+  var rule = referralResolveRewardRule_(
+    sheets.rules,
+    partner,
+    planId,
+    acceptedAt
+  );
+  var calculation = referralCalculateReward_(
+    data.totalPrice,
+    referralParticipantCount_(data),
+    rule.method,
+    rule.value
+  );
+
+  return {
+    code: partner.code,
+    name: partner.name,
+    campaign: referralNormalizeCampaign_(input.campaign),
+    acquiredAt: referralToDate_(input.acquiredAt),
+    planId: planId,
+    ruleSource: rule.source,
+    method: calculation.method,
+    value: calculation.value,
+    revenue: calculation.revenue,
+    partnerReward: calculation.partnerReward,
+    companyShare: calculation.companyShare,
+    participantCount: calculation.participantCount
+  };
+}
+
+function referralBookingAcceptedAt_(bookingSheet, bookingRows) {
+  if (!bookingRows || !bookingRows.length) return new Date();
+
+  var value = bookingSheet
+    .getRange(bookingRows[0], COLUMNS.TIMESTAMP)
+    .getValue();
+
+  return referralToDate_(value) || new Date();
+}
+
+function referralApplyBookingColumns_(bookingSheet, bookingRows, resolution) {
+  if (!resolution) return;
+
+  bookingRows.forEach(function(rowNumber) {
+    bookingSheet
+      .getRange(rowNumber, COLUMNS.REFERRAL_CODE, 1, 4)
+      .setValues([[
+        resolution.code,
+        resolution.name,
+        resolution.acquiredAt || '',
+        resolution.campaign
+      ]]);
+  });
+}
+
+function referralFindOutcomeRow_(outcomeSheet, bookingNumber) {
+  var normalized = String(bookingNumber || '').trim();
+  if (!normalized || outcomeSheet.getLastRow() < 2) return 0;
+
+  var values = outcomeSheet
+    .getRange(
+      2,
+      REFERRAL_OUTCOME_COLUMNS.BOOKING_NUM,
+      outcomeSheet.getLastRow() - 1,
+      1
+    )
+    .getDisplayValues();
+
+  for (var index = 0; index < values.length; index += 1) {
+    if (String(values[index][0] || '').trim() === normalized) {
+      return index + 2;
+    }
+  }
+
+  return 0;
+}
+
+function referralReadOutcomeSnapshot_(outcomeSheet, rowNumber) {
+  if (!rowNumber) return null;
+
+  var row = outcomeSheet
+    .getRange(rowNumber, 1, 1, REFERRAL_OUTCOME_HEADERS.length)
+    .getValues()[0];
+
+  return {
+    code: referralNormalizeCode_(
+      row[REFERRAL_OUTCOME_COLUMNS.CODE - 1]
+    ),
+    name: String(row[REFERRAL_OUTCOME_COLUMNS.NAME - 1] || '').trim(),
+    campaign: referralNormalizeCampaign_(
+      row[REFERRAL_OUTCOME_COLUMNS.CAMPAIGN - 1]
+    ),
+    acquiredAt: referralToDate_(
+      row[REFERRAL_OUTCOME_COLUMNS.ACQUIRED_AT - 1]
+    ),
+    planId: String(row[REFERRAL_OUTCOME_COLUMNS.PLAN_ID - 1] || '')
+      .trim()
+      .toUpperCase(),
+    method: referralNormalizeRewardType_(
+      row[REFERRAL_OUTCOME_COLUMNS.REWARD_TYPE - 1]
+    ),
+    value: toNumber_(row[REFERRAL_OUTCOME_COLUMNS.REWARD_VALUE - 1]),
+    revenue: toNumber_(row[REFERRAL_OUTCOME_COLUMNS.REVENUE - 1]),
+    partnerReward: toNumber_(
+      row[REFERRAL_OUTCOME_COLUMNS.PARTNER_REWARD - 1]
+    ),
+    companyShare: toNumber_(
+      row[REFERRAL_OUTCOME_COLUMNS.COMPANY_SHARE - 1]
+    )
+  };
+}
+
+function referralUpsertOutcome_(outcomeSheet, data, acceptedAt, resolution) {
+  var bookingNumber = String(data && data.bookingNumber || '').trim();
+  if (!bookingNumber || !resolution) return false;
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+
+  try {
+    // スナップショットは不変。既存予約番号があれば、マスタ変更後も上書きしない。
+    if (referralFindOutcomeRow_(outcomeSheet, bookingNumber)) return false;
+
+    var row = [
+      acceptedAt,
+      bookingNumber,
+      data.selectedDate || '',
+      resolution.code,
+      resolution.name,
+      resolution.planId,
+      resolution.revenue,
+      resolution.method,
+      resolution.value,
+      resolution.partnerReward,
+      resolution.companyShare,
+      resolution.campaign,
+      resolution.acquiredAt || '',
+      REFERRAL_OUTCOME_STATUS.UNCONFIRMED,
+      '',
+      REFERRAL_PAYMENT_STATUS.UNPAID,
+      '',
+      'ルール: ' + resolution.ruleSource
+    ];
+
+    outcomeSheet
+      .getRange(outcomeSheet.getLastRow() + 1, 1, 1, REFERRAL_OUTCOME_HEADERS.length)
+      .setValues([row]);
+
+    return true;
+
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function referralProcessBooking_(data) {
+  data = data || {};
+  var bookingNumber = String(data.bookingNumber || '').trim();
+  var code = referralNormalizeCode_(
+    data.referral && (data.referral.referralCode || data.referral.code)
+  );
+
+  if (!bookingNumber || !code) {
+    return { valid: false, reward: 0, reason: 'NO_REFERRAL' };
+  }
+
+  var bookingSheet = getOrCreateSheet();
+  var bookingRows = findExistingBookingRows_(bookingSheet, bookingNumber);
+
+  // 元の予約保存が失敗した場合は、紹介成果だけを先に作らない。
+  if (!bookingRows.length) {
+    return { valid: false, reward: 0, reason: 'BOOKING_NOT_SAVED' };
+  }
+
+  var sheets = referralEnsureSheets_();
+  var acceptedAt = referralBookingAcceptedAt_(bookingSheet, bookingRows);
+  var existingOutcomeRow = referralFindOutcomeRow_(
+    sheets.outcomes,
+    bookingNumber
+  );
+
+  // 同じ予約番号の成果が既にあれば、そのスナップショットが唯一の正となる。
+  // 再送時のCookie・マスタ・報酬率が変わっていても、紹介者や金額を変更しない。
+  if (existingOutcomeRow) {
+    var existingSnapshot = referralReadOutcomeSnapshot_(
+      sheets.outcomes,
+      existingOutcomeRow
+    );
+
+    if (existingSnapshot && existingSnapshot.code) {
+      referralApplyBookingColumns_(
+        bookingSheet,
+        bookingRows,
+        existingSnapshot
+      );
+
+      return {
+        valid: true,
+        reward: existingSnapshot.partnerReward,
+        companyShare: existingSnapshot.companyShare,
+        outcomeCreated: false
+      };
+    }
+  }
+
+  var resolution = referralResolveBooking_(sheets, data, acceptedAt);
+
+  if (!resolution) {
+    Logger.log(
+      '[REFERRAL_REJECTED] booking=' + bookingNumber + ' / code=' + code
+    );
+    return { valid: false, reward: 0, reason: 'INVALID_OR_INACTIVE_CODE' };
+  }
+
+  var created = referralUpsertOutcome_(
+    sheets.outcomes,
+    data,
+    acceptedAt,
+    resolution
+  );
+
+  // upsert中に同じ予約番号の別処理が先に成果を保存した場合は、先に保存された
+  // スナップショットを採用する。これにより紹介成果と予約一覧4列が食い違わない。
+  if (!created) {
+    var winningOutcomeRow = referralFindOutcomeRow_(
+      sheets.outcomes,
+      bookingNumber
+    );
+    var winningSnapshot = referralReadOutcomeSnapshot_(
+      sheets.outcomes,
+      winningOutcomeRow
+    );
+
+    if (!winningSnapshot || !winningSnapshot.code) {
+      throw new Error('既存の紹介成果スナップショットを確認できません。');
+    }
+
+    resolution = winningSnapshot;
+  }
+
+  // 成果スナップショットの確定後に、その確定値を関連する全予約行へ反映する。
+  referralApplyBookingColumns_(bookingSheet, bookingRows, resolution);
+
+  Logger.log(
+    '[REFERRAL_RECORDED] booking=' + bookingNumber +
+    ' / code=' + resolution.code +
+    ' / reward=' + resolution.partnerReward +
+    ' / outcomeCreated=' + created
+  );
+
+  return {
+    valid: true,
+    reward: resolution.partnerReward,
+    companyShare: resolution.companyShare,
+    outcomeCreated: created
+  };
+}
+
+function referralProcessBookingSafely_(data) {
+  try {
+    return referralProcessBooking_(data);
+  } catch (error) {
+    Logger.log(
+      '[REFERRAL_ERROR] booking=' +
+      String(data && data.bookingNumber || '') +
+      ' / ' +
+      (error && error.message ? error.message : String(error))
+    );
+
+    return {
+      valid: false,
+      reward: 0,
+      reason: 'PROCESSING_ERROR'
+    };
+  }
+}
+
+// C5/C6を含む最終doPostを包む。元処理のレスポンスは一切変更しない。
+var REFERRAL_ORIGINAL_DO_POST = doPost;
+
+doPost = function(e) {
+  var data = null;
+
+  try {
+    data = JSON.parse(e && e.postData && e.postData.contents || '{}');
+  } catch (parseError) {
+    // JSONエラーの応答は元doPostに任せる。
+  }
+
+  var response = REFERRAL_ORIGINAL_DO_POST(e);
+
+  if (data) referralProcessBookingSafely_(data);
+
+  return response;
 };

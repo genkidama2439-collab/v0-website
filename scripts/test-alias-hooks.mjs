@@ -28,6 +28,12 @@ function resolveSourceFile(absolutePath) {
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    // Next.js exposes this subpath to bundlers without an extension, while the
+    // Node test runner's strict ESM resolver needs the concrete file.
+    if (specifier === "next/server") {
+      return nextResolve("next/server.js", context)
+    }
+
     // "@/lib/..." → リポジトリルート起点の実ファイル
     if (specifier.startsWith("@/")) {
       const target = resolveSourceFile(path.join(ROOT, specifier.slice(2)))
@@ -38,6 +44,9 @@ registerHooks({
     // 型だけのimportはTSの型剥がしで消えるが、値のimportは実ファイル解決が要る。
     if ((specifier.startsWith("./") || specifier.startsWith("../")) && !path.extname(specifier)) {
       const parentPath = context.parentURL ? fileURLToPath(context.parentURL) : ROOT
+      if (parentPath.includes(`${path.sep}node_modules${path.sep}`)) {
+        return nextResolve(specifier, context)
+      }
       const target = resolveSourceFile(path.resolve(path.dirname(parentPath), specifier))
       return nextResolve(pathToFileURL(target).href, context)
     }

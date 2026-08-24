@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 
+import type { ReferralCookiePayload } from '@/lib/referral';
+
 // GAS APIレスポンスの型定義
 export interface GASResponse {
   success: boolean;
@@ -77,6 +79,7 @@ export interface BookingPayload {
     referrer?: string;
     landingPage?: string;
   } | null;
+  referral?: ReferralCookiePayload | null;
 }
 
 // GAS URLを取得

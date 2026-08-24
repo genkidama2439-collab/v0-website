@@ -30,6 +30,10 @@
             <span aria-hidden="true">!</span>
             <span>要確認</span>
           </button>
+          <button class="nav-item" data-view="referrals">
+            <span aria-hidden="true">↗</span>
+            <span>紹介</span>
+          </button>
         </nav>
 
         <div class="sidebar-note">
@@ -70,7 +74,7 @@
             <button class="text-button" id="showAttentionButton">確認する</button>
           </section>
 
-          <section class="panel reservation-panel">
+          <section class="panel reservation-panel" id="reservationPanel">
             <div class="panel-header">
               <div>
                 <p class="panel-kicker">RESERVATIONS</p>
@@ -144,6 +148,68 @@
               </div>
             </div>
           </section>
+
+          <section class="panel referral-panel" id="referralPanel" hidden>
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">REFERRAL PARTNERS</p>
+                <h2>紹介成果</h2>
+              </div>
+              <div class="result-count"><span id="referralResultCount">0</span>件</div>
+            </div>
+
+            <div class="referral-setup-note" id="referralSetupNote" hidden></div>
+
+            <section class="referral-section">
+              <div class="referral-section-head">
+                <div>
+                  <p class="panel-kicker">PARTNERS</p>
+                  <h3>今月の紹介者別集計</h3>
+                </div>
+              </div>
+              <div class="referral-table-wrap">
+                <table class="referral-table">
+                  <thead>
+                    <tr>
+                      <th>紹介者</th>
+                      <th>予約件数</th>
+                      <th>売上</th>
+                      <th>紹介報酬</th>
+                      <th>会社取り分</th>
+                    </tr>
+                  </thead>
+                  <tbody id="referralPartnerBody"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="referral-section">
+              <div class="referral-section-head">
+                <div>
+                  <p class="panel-kicker">OUTCOMES</p>
+                  <h3>紹介予約（直近200件）</h3>
+                </div>
+                <p>開催済みの自動判定はせず、実施確認後に手動確定します。</p>
+              </div>
+              <div class="referral-table-wrap">
+                <table class="referral-table referral-outcome-table">
+                  <thead>
+                    <tr>
+                      <th>受付／参加日</th>
+                      <th>予約番号</th>
+                      <th>紹介者／キャンペーン</th>
+                      <th>売上</th>
+                      <th>報酬</th>
+                      <th>成果状態</th>
+                      <th>支払</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="referralOutcomeBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
         </section>
       </main>
 
@@ -157,6 +223,9 @@
         <button class="mobile-nav-item" data-view="attention">
           <span>!</span><small>要確認</small>
         </button>
+        <button class="mobile-nav-item" data-view="referrals">
+          <span>↗</span><small>紹介</small>
+        </button>
       </nav>
     </div>
 
@@ -164,7 +233,7 @@
       <div class="loading-card">
         <div class="loading-turtle">🐢</div>
         <strong>予約情報を読み込んでいます</strong>
-        <span id="loadingDetail">初期データを準備中 / v2026.08.21-1</span>
+        <span id="loadingDetail">初期データを準備中 / v2026.08.24-1</span>
         <div class="loading-line"><i></i></div>
       </div>
     </div>

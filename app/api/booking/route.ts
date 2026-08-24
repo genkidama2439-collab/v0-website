@@ -8,6 +8,11 @@ import { isIntlLocale, isPlanAllowedForLocale } from '@/lib/i18n/locales'
 import { validateBookingRules } from '@/lib/booking-rules'
 import { calculateRentalTotal, planOffersRentals } from '@/lib/rental-options'
 import {
+  getReferralCookieSecret,
+  getVerifiedReferralFromCookieHeader,
+  type ReferralCookiePayload,
+} from '@/lib/referral'
+import {
   LineVerificationError,
   verifyLineIdToken,
   type VerifiedLineProfile,
@@ -445,7 +450,8 @@ const buildGASPayload = (
   bookingNumber: string,
   validatedCoupon: { discount: number; code: string },
   serverTotalPrice: number,
-  lineProfile: VerifiedLineProfile
+  lineProfile: VerifiedLineProfile,
+  referral: ReferralCookiePayload | null,
 ) => {
   const { adultCount, childCount, under3Count } = countParticipantsByCategory(bookingData.participants)
 
@@ -476,6 +482,7 @@ const buildGASPayload = (
     couponDiscount: validatedCoupon.discount,
     customerAnalytics: normalizeCustomerAnalytics(bookingData.customerAnalytics),
     attribution: bookingData.attribution || null,
+    referral,
   }
 }
 
@@ -560,13 +567,29 @@ export async function POST(request: Request) {
       isIntlLocale(bookingData.locale)
     )
 
+    // 紹介報酬はクライアントPOST値を使わず、サーバーだけが読める署名済みCookieから取得する。
+    // 設定不足・期限切れ・改ざんは紹介なし扱いにし、予約処理そのものは続行する。
+    let referral: ReferralCookiePayload | null = null
+    try {
+      referral = getVerifiedReferralFromCookieHeader(
+        request.headers.get('cookie'),
+        getReferralCookieSecret(),
+      )
+    } catch (referralError) {
+      console.warn(
+        '[referral] Cookie verification failed; continuing without referral:',
+        referralError instanceof Error ? referralError.message : 'Unknown referral error'
+      )
+    }
+
     const gasPayload = buildGASPayload(
       bookingData,
       plan,
       bookingNumber,
       validatedCoupon,
       serverTotalPrice,
-      lineProfile
+      lineProfile,
+      referral,
     )
 
     try {

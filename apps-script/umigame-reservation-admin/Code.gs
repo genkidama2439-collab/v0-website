@@ -27,7 +27,7 @@ var NOTIFY_SECRET = ''; // Script Properties の NOTIFY_SECRET を優先して�
 var SHEET_NAME = '予約一覧';
 var CALENDAR_ID = 'genkidama2439@gmail.com';
 var ADMIN_EMAIL = 'genkidama2439@gmail.com';
-var BOOKING_SCHEMA_VERSION = '2026.08.14-5';
+var BOOKING_SCHEMA_VERSION = '2026.08.20-1';
 var BOOKING_SCHEMA_VERSION_PROPERTY = 'BOOKING_SCHEMA_VERSION';
 
 var COMBO_PLAN_NAME = 'ウミガメシュノーケル＆ヤシガニ探検 昼夜セット';
@@ -942,6 +942,7 @@ function ensureBookingSchema_(sheet) {
   // ヘッダー書き込み前にT/Uの古い規則を外す。
   // 修復済みの通常予約受信ではシートへ一切書き込まない。
   clearLineColumnValidations_(sheet);
+  clearCustomerTrackingValidations_(sheet);
 
   if (!headersMatch) {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
@@ -966,6 +967,29 @@ function ensureBookingSchema_(sheet) {
     BOOKING_SCHEMA_VERSION_PROPERTY,
     BOOKING_SCHEMA_VERSION
   );
+}
+
+// 2026-08-20に、旧LINE送信確認列のチェックボックス規則がV列
+// （現在のメールアドレス列）へ残っているシートが見つかった。
+// メール文字列が「チェックボックス以外は拒否」の規則に弾かれると、予約行を
+// 45列すべて保存できない。V列以降には入力規則を使わないため、スキーマ更新時に
+// 顧客・行動連携列の古い規則をまとめて除去する。
+function clearCustomerTrackingValidations_(sheet) {
+  if (
+    sheet.getMaxRows() < 2 ||
+    sheet.getMaxColumns() < COLUMNS.EMAIL
+  ) {
+    return;
+  }
+
+  sheet
+    .getRange(
+      2,
+      COLUMNS.EMAIL,
+      sheet.getMaxRows() - 1,
+      HEADERS.length - COLUMNS.EMAIL + 1
+    )
+    .clearDataValidations();
 }
 
 // 2026-08-13版では、既存のT/U列（LINE確認・結果）と新しいメール／
@@ -1386,18 +1410,52 @@ function buildBookingRow_(timestamp, data, headcount, participantsDetail, option
   ];
 }
 
-function findExistingBookingRow_(sheet, bookingNumber) {
+function findExistingBookingRows_(sheet, bookingNumber) {
   var normalized = String(bookingNumber || '').trim();
 
-  if (!normalized || sheet.getMaxRows() < 2) return 0;
+  if (!normalized || sheet.getMaxRows() < 2) return [];
 
-  var match = sheet
+  var values = sheet
     .getRange(2, COLUMNS.BOOKING_NUM, sheet.getMaxRows() - 1, 1)
-    .createTextFinder(normalized)
-    .matchEntireCell(true)
-    .findNext();
+    .getDisplayValues();
+  var rows = [];
 
-  return match ? match.getRow() : 0;
+  for (var index = 0; index < values.length; index += 1) {
+    if (String(values[index][0] || '').trim() === normalized) {
+      rows.push(index + 2);
+    }
+  }
+
+  return rows;
+}
+
+function bookingRowsMatch_(sheet, existingRows, expectedRows) {
+  if (existingRows.length !== expectedRows.length) return false;
+
+  var actualSignatures = existingRows.map(function(rowNumber) {
+    var values = sheet
+      .getRange(rowNumber, 1, 1, HEADERS.length)
+      .getValues()[0];
+
+    return [
+      String(values[COLUMNS.BOOKING_NUM - 1] || ''),
+      formatTime(values[COLUMNS.TIME - 1]),
+      String(values[COLUMNS.PLAN - 1] || ''),
+      toNumber_(values[COLUMNS.TOTAL_PRICE - 1])
+    ].join('\u0001');
+  }).sort();
+
+  var expectedSignatures = expectedRows.map(function(values) {
+    return [
+      String(values[COLUMNS.BOOKING_NUM - 1] || ''),
+      formatTime(values[COLUMNS.TIME - 1]),
+      String(values[COLUMNS.PLAN - 1] || ''),
+      toNumber_(values[COLUMNS.TOTAL_PRICE - 1])
+    ].join('\u0001');
+  }).sort();
+
+  return actualSignatures.join('\u0002') ===
+    expectedSignatures.join('\u0002');
 }
 
 // T列などの空行チェックボックス値に影響されず、予約番号(B列)の最後へ追記する。
@@ -1432,14 +1490,30 @@ function writeBookingRows_(sheet, rows) {
   lock.waitLock(10000);
 
   try {
-    var existingRow = findExistingBookingRow_(sheet, bookingNumber);
+    var existingRows = findExistingBookingRows_(sheet, bookingNumber);
 
-    if (existingRow) {
+    if (existingRows.length) {
+      if (!bookingRowsMatch_(sheet, existingRows, rows)) {
+        Logger.log(
+          '[INCOMPLETE_BOOKING_DETECTED] booking=' +
+          bookingNumber +
+          ' / existingRows=' +
+          existingRows.join(',') +
+          ' / expectedCount=' +
+          rows.length
+        );
+        throw new Error(
+          '同じ予約番号の保存データが不完全です。' +
+          '既存' + existingRows.length + '行 / 必要' + rows.length + '行。' +
+          '重複成功扱いにはせず、管理者の確認が必要です。'
+        );
+      }
+
       Logger.log(
         '[DUPLICATE_BOOKING_SKIPPED] booking=' +
         bookingNumber +
-        ' / row=' +
-        existingRow
+        ' / rows=' +
+        existingRows.join(',')
       );
       return false;
     }
@@ -1454,9 +1528,38 @@ function writeBookingRows_(sheet, rows) {
       );
     }
 
+    // 挿入行は直前行の入力規則を引き継ぐことがある。顧客・行動連携列には
+    // 入力規則を設けないため、書き込み対象行だけ毎回解除してから45列を保存する。
+    sheet
+      .getRange(
+        startRow,
+        COLUMNS.EMAIL,
+        rows.length,
+        HEADERS.length - COLUMNS.EMAIL + 1
+      )
+      .clearDataValidations();
+
     sheet
       .getRange(startRow, 1, rows.length, HEADERS.length)
       .setValues(rows);
+
+    SpreadsheetApp.flush();
+
+    var writtenRows = sheet
+      .getRange(startRow, 1, rows.length, HEADERS.length)
+      .getValues();
+
+    if (!bookingRowsMatch_(sheet, writtenRows.map(function(_, index) {
+      return startRow + index;
+    }), rows)) {
+      sheet
+        .getRange(startRow, 1, rows.length, HEADERS.length)
+        .clearContent();
+      SpreadsheetApp.flush();
+      throw new Error(
+        '予約行の保存後検証に失敗したため、不完全な行を取り消しました。'
+      );
+    }
 
     return true;
 

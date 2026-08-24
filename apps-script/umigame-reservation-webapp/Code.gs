@@ -6,9 +6,12 @@
  * 予約受信の doPost や既存の編集トリガーには依存しません。
  */
 
-var ADMIN_APP_VERSION = '2026.08.14-5';
+var ADMIN_APP_VERSION = '2026.08.21-1';
 var ADMIN_SCHEMA_VERSION = '2026.08.14-4';
 var ADMIN_SCHEMA_VERSION_PROPERTY = 'ADMIN_BOOKING_SCHEMA_VERSION';
+var ADMIN_SCHEMA_VERIFIED_AT_PROPERTY = 'ADMIN_BOOKING_SCHEMA_VERIFIED_AT';
+var ADMIN_SCHEMA_VERIFY_INTERVAL_MS = 6 * 60 * 60 * 1000;
+var ADMIN_LOCATION_OPTIONS_CACHE_PROPERTY = 'ADMIN_LOCATION_OPTIONS_CACHE';
 var ADMIN_DEFAULT_SPREADSHEET_ID =
   '1bPYur4Dfg3LxTCIiYzZvyZRT8bgLoYizG1B6LIkETKk';
 var ADMIN_DEFAULT_CALENDAR_ID = 'genkidama2439@gmail.com';
@@ -183,7 +186,6 @@ var ADMIN_PLAN_CATALOG = [
 
 var ADMIN_LOCATION_OPTIONS = [
   '新城海岸',
-  '東平安名ビーチ',
   'ボラビーチ',
   'ワイワイビーチ',
   'シギラビーチ',
@@ -281,13 +283,19 @@ function adminAuthorizeCalendarAccess() {
  * 画面起動時に必要な情報をまとめて返します。
  */
 function adminGetAppData() {
+  var startedAt = Date.now();
   var actor = adminAssertAuthorized_();
+  var authorizedAt = Date.now();
   adminCleanupExpiredPending_();
+  var cleanedAt = Date.now();
   var sheet = adminGetBookingSheet_();
+  var sheetReadyAt = Date.now();
   var bookings = adminReadBookings_(sheet);
+  var bookingsReadAt = Date.now();
   var publicBookings = bookings.map(adminToPublicBooking_);
+  var dataBuiltAt = Date.now();
 
-  return {
+  var result = {
     appVersion: ADMIN_APP_VERSION,
     actor: actor,
     generatedAt: new Date().toISOString(),
@@ -295,7 +303,9 @@ function adminGetAppData() {
     reservations: publicBookings,
     options: {
       statuses: ADMIN_STATUS_OPTIONS,
-      locations: adminGetLocationOptions_(sheet),
+      // 開催場所の入力規則は6時間ごとにキャッシュを更新する。
+      // 保存時はadminValidateLocation_がシートの実物を再確認する。
+      locations: adminGetCachedLocationOptions_(),
       staff: adminUniqueSorted_(publicBookings.map(function(booking) {
         return booking.staff;
       }).concat(
@@ -327,6 +337,18 @@ function adminGetAppData() {
       })
     }
   };
+
+  Logger.log(
+    '[ADMIN_LOAD] total=' + (Date.now() - startedAt) + 'ms' +
+    ' auth=' + (authorizedAt - startedAt) + 'ms' +
+    ' cleanup=' + (cleanedAt - authorizedAt) + 'ms' +
+    ' sheet=' + (sheetReadyAt - cleanedAt) + 'ms' +
+    ' read=' + (bookingsReadAt - sheetReadyAt) + 'ms' +
+    ' build=' + (dataBuiltAt - bookingsReadAt) + 'ms' +
+    ' bookings=' + bookings.length
+  );
+
+  return result;
 }
 
 /**
@@ -1665,41 +1687,75 @@ function adminGetBookingSheet_() {
 // 2026-08-13の衝突版（T=メール、U=Visitor ID）だけを検出して、
 // T/UをLINE管理列へ戻し、顧客・行動データをV列以降へ移す。
 function adminEnsureBookingSchema_(sheet) {
-  var schemaChanged = false;
+  var properties = PropertiesService.getScriptProperties();
+  var verifiedAt = Number(
+    properties.getProperty(ADMIN_SCHEMA_VERIFIED_AT_PROPERTY) || 0
+  );
+  var verificationIsFresh =
+    properties.getProperty(ADMIN_SCHEMA_VERSION_PROPERTY) ===
+      ADMIN_SCHEMA_VERSION &&
+    verifiedAt > 0 &&
+    Date.now() - verifiedAt < ADMIN_SCHEMA_VERIFY_INTERVAL_MS;
 
-  if (sheet.getMaxColumns() >= 21) {
-    var currentHeaders = sheet.getRange(1, 1, 1, 21).getDisplayValues()[0];
+  // ヘッダーは通常変わらないため、起動のたびにシートへ問い合わせない。
+  // 6時間ごとには実物を再確認し、手動変更も自動修復する。
+  if (verificationIsFresh) return;
+
+  var schemaChanged = false;
+  var maxColumns = sheet.getMaxColumns();
+  var headerWidth = Math.min(
+    maxColumns,
+    ADMIN_CANONICAL_HEADERS.length
+  );
+  var existing = headerWidth > 0
+    ? sheet.getRange(1, 1, 1, headerWidth).getDisplayValues()[0]
+    : [];
+
+  if (maxColumns >= 21) {
     var hasCollision =
-      String(currentHeaders[19] || '').trim() === 'メールアドレス' &&
-      String(currentHeaders[20] || '').trim() === 'Visitor ID';
+      String(existing[19] || '').trim() === 'メールアドレス' &&
+      String(existing[20] || '').trim() === 'Visitor ID';
 
     if (hasCollision) {
       adminMigrateCollidingCustomerColumns_(sheet);
       schemaChanged = true;
+      maxColumns = sheet.getMaxColumns();
+      existing = [];
     }
   }
 
-  var missingColumns = ADMIN_CANONICAL_HEADERS.length - sheet.getMaxColumns();
+  var missingColumns = ADMIN_CANONICAL_HEADERS.length - maxColumns;
   if (missingColumns > 0) {
-    sheet.insertColumnsAfter(sheet.getMaxColumns(), missingColumns);
+    sheet.insertColumnsAfter(maxColumns, missingColumns);
     schemaChanged = true;
+    maxColumns += missingColumns;
+    existing = [];
   }
 
-  var existing = sheet
-    .getRange(1, 1, 1, ADMIN_CANONICAL_HEADERS.length)
-    .getDisplayValues()[0];
+  // 通常の45列構成は上で一度だけ読む。移行・列追加時だけ読み直す。
+  if (existing.length !== ADMIN_CANONICAL_HEADERS.length) {
+    existing = sheet
+      .getRange(1, 1, 1, ADMIN_CANONICAL_HEADERS.length)
+      .getDisplayValues()[0];
+  }
   var headersMatch = ADMIN_CANONICAL_HEADERS.every(function(header, index) {
     return String(existing[index] || '') === header;
   });
 
-  var properties = PropertiesService.getScriptProperties();
   var needsRepair =
     schemaChanged ||
     !headersMatch ||
     properties.getProperty(ADMIN_SCHEMA_VERSION_PROPERTY) !==
       ADMIN_SCHEMA_VERSION;
 
-  if (!needsRepair) return;
+  if (!needsRepair) {
+    adminRefreshLocationOptionsCache_(sheet, properties);
+    properties.setProperty(
+      ADMIN_SCHEMA_VERIFIED_AT_PROPERTY,
+      String(Date.now())
+    );
+    return;
+  }
 
   // ヘッダー書き込み前にT/Uの古い規則を外す。
   // 修復済みの通常読込ではシートへ一切書き込まない。
@@ -1722,9 +1778,14 @@ function adminEnsureBookingSchema_(sheet) {
     .getRange(2, ADMIN_COLUMNS.LINE_CONFIRM, Math.max(sheet.getMaxRows() - 1, 1), 1)
     .setDataValidation(checkboxRule);
 
+  adminRefreshLocationOptionsCache_(sheet, properties);
   properties.setProperty(
     ADMIN_SCHEMA_VERSION_PROPERTY,
     ADMIN_SCHEMA_VERSION
+  );
+  properties.setProperty(
+    ADMIN_SCHEMA_VERIFIED_AT_PROPERTY,
+    String(Date.now())
   );
 }
 
@@ -2083,41 +2144,50 @@ function adminGetLocationGuidanceState_(booking) {
  * ブラウザへ不要なLINE User IDやS列の本文を返さない公開用データです。
  */
 function adminToPublicBooking_(booking) {
-  var result = {};
-
-  Object.keys(booking).forEach(function(key) {
-    if (key !== 'components') result[key] = booking[key];
-  });
+  // 一覧・詳細・編集画面が使う値だけを返す。
+  // 顧客情報は予約単位の値なので、各componentへ重複させない。
+  var result = {
+    key: booking.key,
+    bookingNumber: booking.bookingNumber,
+    name: booking.name,
+    planId: booking.planId,
+    displayPlan: booking.displayPlan,
+    totalPrice: booking.totalPrice,
+    couponDiscount: booking.couponDiscount,
+    phone: booking.phone,
+    email: booking.email,
+    headcount: booking.headcount,
+    participants: booking.participants,
+    participantAges: booking.participantAges,
+    participantHeights: booking.participantHeights,
+    participantWeights: booking.participantWeights,
+    participantFootSizes: booking.participantFootSizes,
+    specialRequests: booking.specialRequests,
+    lineName: booking.lineName,
+    couponCode: booking.couponCode,
+    bookingStatus: booking.bookingStatus,
+    location: booking.location,
+    staff: booking.staff,
+    hasLine: booking.hasLine,
+    lastLineResult: booking.lastLineResult,
+    componentCount: booking.componentCount,
+    locationGuidanceDue: booking.locationGuidanceDue,
+    dayLocationDue: booking.dayLocationDue,
+    nightLocationDue: booking.nightLocationDue,
+    version: booking.version
+  };
 
   result.components = booking.components.map(function(component) {
     return {
       rowNumber: component.rowNumber,
-      timestamp: component.timestamp,
-      bookingNumber: component.bookingNumber,
       date: component.date,
       time: component.time,
-      name: component.name,
       plan: component.plan,
       totalPrice: component.totalPrice,
-      phone: component.phone,
-      sourceStatus: component.sourceStatus,
-      headcount: component.headcount,
-      participants: component.participants,
-      hasLine: !!component.lineUserId,
       bookingStatus: component.bookingStatus,
       location: component.location,
-      lineName: component.lineName,
       staff: component.staff,
-      couponCode: component.couponCode,
-      couponDiscount: component.couponDiscount,
-      lineResult: component.lineResult,
-      email: component.email,
-      participantAges: component.participantAges,
-      participantHeights: component.participantHeights,
-      participantWeights: component.participantWeights,
-      participantFootSizes: component.participantFootSizes,
-      specialRequests: component.specialRequests,
-      planId: component.planId
+      lineResult: component.lineResult
     };
   });
 
@@ -3102,6 +3172,33 @@ function adminGetLocationOptions_(sheet) {
   return options.length
     ? adminUnique_(options)
     : ADMIN_LOCATION_OPTIONS.slice();
+}
+
+function adminRefreshLocationOptionsCache_(sheet, properties) {
+  properties = properties || PropertiesService.getScriptProperties();
+  properties.setProperty(
+    ADMIN_LOCATION_OPTIONS_CACHE_PROPERTY,
+    JSON.stringify(adminGetLocationOptions_(sheet))
+  );
+}
+
+function adminGetCachedLocationOptions_() {
+  var json = PropertiesService
+    .getScriptProperties()
+    .getProperty(ADMIN_LOCATION_OPTIONS_CACHE_PROPERTY);
+
+  if (json) {
+    try {
+      var cached = JSON.parse(json);
+      if (Array.isArray(cached) && cached.length) {
+        return adminUnique_(cached.map(String).filter(String));
+      }
+    } catch (error) {
+      Logger.log('[ADMIN_LOCATION_CACHE] 開催場所キャッシュを再作成します。');
+    }
+  }
+
+  return ADMIN_LOCATION_OPTIONS.slice();
 }
 
 function adminSelectLineRow_(booking, preferredRowNumber) {
